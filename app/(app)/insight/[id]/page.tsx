@@ -5,10 +5,3 @@ export default function InsightPage() {
     </main>
   )
 }
-```
-
-Sla op met `Ctrl + S`. Dan in de terminal:
-```
-git add .
-git commit -m "fix: lege insight pagina toegevoegd"
-git push
