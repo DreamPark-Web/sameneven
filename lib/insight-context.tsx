@@ -33,7 +33,7 @@ const DEFAULTS: InsightData = {
   schulden: [],
   spaarpotjes: [],
   abonnementen: [],
-  dashOrder: ['block-stats', 'block-transfer', 'block-donut', 'block-spaar', 'block-schuld'],
+  dashOrder: [],
 }
 
 type InsightContextType = {
@@ -56,13 +56,7 @@ export function useInsight() {
   return ctx
 }
 
-export function InsightProvider({
-  children,
-  householdId,
-}: {
-  children: React.ReactNode
-  householdId: string
-}) {
+export function InsightProvider({ children, householdId }: { children: React.ReactNode; householdId: string }) {
   const [data, setData] = useState<InsightData>(DEFAULTS)
   const [members, setMembers] = useState<Member[]>([])
   const [household, setHousehold] = useState<any>(null)
@@ -71,14 +65,15 @@ export function InsightProvider({
   const [myRole, setMyRole] = useState<string | null>(null)
   const [syncState, setSyncState] = useState<'ok' | 'saving' | 'error' | 'live'>('ok')
   const [saveTimeout, setSaveTimeoutRef] = useState<any>(null)
+  const [ready, setReady] = useState(false)
   const supabase = createClient()
 
   const TAB_ID = typeof window !== 'undefined'
-    ? sessionStorage.getItem('se_tab_id') ?? (() => {
+    ? (sessionStorage.getItem('se_tab_id') ?? (() => {
         const id = crypto.randomUUID()
         sessionStorage.setItem('se_tab_id', id)
         return id
-      })()
+      })())
     : ''
 
   const loadMembers = useCallback(async () => {
@@ -87,15 +82,12 @@ export function InsightProvider({
       .select('*')
       .eq('household_id', householdId)
       .order('joined_at', { ascending: true })
-
     if (!mData) return
-
     const ids = mData.map((m: any) => m.user_id)
     const { data: profiles } = await supabase
       .from('profiles')
       .select('id, display_name, avatar_url')
       .in('id', ids)
-
     const merged = mData.map((m: any) => {
       const profile = profiles?.find((p: any) => p.id === m.user_id)
       return { ...m, display_name: profile?.display_name, avatar_url: profile?.avatar_url }
@@ -105,15 +97,12 @@ export function InsightProvider({
 
   useEffect(() => {
     async function init() {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.user) return
+      const user = session.user
       setCurrentUser(user)
 
-      const { data: hh } = await supabase
-        .from('households')
-        .select('*')
-        .eq('id', householdId)
-        .single()
+      const { data: hh } = await supabase.from('households').select('*').eq('id', householdId).single()
       setHousehold(hh)
 
       const { data: membership } = await supabase
@@ -121,7 +110,7 @@ export function InsightProvider({
         .select('*')
         .eq('household_id', householdId)
         .eq('user_id', user.id)
-        .single()
+        .maybeSingle()
 
       setMySlot(membership?.slot ?? null)
       setMyRole(membership?.role ?? null)
@@ -138,7 +127,8 @@ export function InsightProvider({
         setData({ ...DEFAULTS, ...hhData.data })
       }
 
-      // Realtime
+      setReady(true)
+
       const channel = supabase.channel('hh-' + householdId)
         .on('broadcast', { event: 'data-saved' }, async (msg) => {
           if (!msg.payload || msg.payload.tabId === TAB_ID) return
@@ -194,11 +184,14 @@ export function InsightProvider({
     return mySlot === slot
   }, [myRole, mySlot])
 
+  if (!ready) return (
+    <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ color: 'var(--muted)', fontSize: 14 }}>Laden...</div>
+    </div>
+  )
+
   return (
-    <InsightContext.Provider value={{
-      data, members, household, currentUser,
-      mySlot, myRole, syncState, saveData, canEdit
-    }}>
+    <InsightContext.Provider value={{ data, members, household, currentUser, mySlot, myRole, syncState, saveData, canEdit }}>
       {children}
     </InsightContext.Provider>
   )

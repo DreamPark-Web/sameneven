@@ -1,6 +1,6 @@
 'use client'
 
-import { useParams, useRouter } from 'next/navigation'
+import { useParams } from 'next/navigation'
 import { useState } from 'react'
 import { InsightProvider } from '@/lib/insight-context'
 import Topbar from './components/Topbar'
@@ -34,11 +34,11 @@ export default function InsightPage() {
 
   return (
     <InsightProvider householdId={id}>
-      <div className="min-h-screen bg-[#141414] flex flex-col">
+      <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
         <Topbar activePage={activePage} setActivePage={setActivePage} />
-        <div className="flex flex-1 pt-[60px]">
+        <div style={{ display: 'flex', paddingTop: 60 }}>
           <Sidebar activePage={activePage} setActivePage={setActivePage} />
-          <main className="flex-1 ml-[240px] p-6 overflow-y-auto">
+          <main style={{ marginLeft: 240, padding: 28, flex: 1, minWidth: 0, overflowX: 'hidden' }}>
             <ActiveComponent />
           </main>
         </div>
