@@ -106,6 +106,9 @@ export default function Sidebar({
   setActivePage: (p: string) => void
 }) {
   const [hiddenNavItems, setHiddenNavItems] = useState<string[]>([])
+  const [navOrder, setNavOrder] = useState<string[]>(NAV_ITEMS.map((item) => item.id))
+  const [draggedNavId, setDraggedNavId] = useState<string | null>(null)
+  const [dragOverNavId, setDragOverNavId] = useState<string | null>(null)
 
   useEffect(() => {
   if (typeof window === 'undefined') return
@@ -114,14 +117,23 @@ export default function Sidebar({
     const raw = window.localStorage.getItem(getNavPrefsKey())
     if (!raw) {
       setHiddenNavItems([])
+      setNavOrder(NAV_ITEMS.map((item) => item.id))
       return
     }
 
     try {
       const parsed = JSON.parse(raw)
       setHiddenNavItems(Array.isArray(parsed?.hidden) ? parsed.hidden : [])
+
+      const defaultOrder = NAV_ITEMS.map((item) => item.id)
+      const savedOrder = Array.isArray(parsed?.order) ? parsed.order : []
+      const cleanedSavedOrder = savedOrder.filter((id: string) => defaultOrder.includes(id))
+      const missingIds = defaultOrder.filter((id) => !cleanedSavedOrder.includes(id))
+
+      setNavOrder([...cleanedSavedOrder, ...missingIds])
     } catch {
       setHiddenNavItems([])
+      setNavOrder(NAV_ITEMS.map((item) => item.id))
     }
   }
 
@@ -146,6 +158,30 @@ export default function Sidebar({
   }
 }, [])
 
+  function moveNavItemBefore(draggedId: string, targetId: string) {
+    if (draggedId === targetId) return
+
+    setNavOrder((prev) => {
+      const withoutDragged = prev.filter((id) => id !== draggedId)
+      const targetIndex = withoutDragged.indexOf(targetId)
+      if (targetIndex === -1) return prev
+
+      const next = [...withoutDragged]
+      next.splice(targetIndex, 0, draggedId)
+
+      window.localStorage.setItem(
+        getNavPrefsKey(),
+        JSON.stringify({
+          hidden: hiddenNavItems,
+          order: next,
+        })
+      )
+      window.dispatchEvent(new CustomEvent('se-nav-prefs-changed'))
+
+      return next
+    })
+  }
+
   return (
     <aside
       style={{
@@ -169,13 +205,37 @@ export default function Sidebar({
           overflowY: 'auto',
         }}
       >
-        {NAV_ITEMS.filter((item) => !hiddenNavItems.includes(item.id)).map((item) => {
-          const active = activePage === item.id
+        {navOrder
+          .map((id) => NAV_ITEMS.find((item) => item.id === id))
+          .filter(Boolean)
+          .filter((item) => !hiddenNavItems.includes(item!.id))
+          .map((item) => {
+          const active = activePage === item!.id
 
           return (
             <button
-              key={item.id}
-              onClick={() => setActivePage(item.id)}
+              key={item!.id}
+              draggable
+              onDragStart={() => {
+                setDraggedNavId(item!.id)
+              }}
+              onDragOver={(e) => {
+                e.preventDefault()
+                setDragOverNavId(item!.id)
+              }}
+              onDrop={(e) => {
+                e.preventDefault()
+                if (draggedNavId) {
+                  moveNavItemBefore(draggedNavId, item!.id)
+                }
+                setDraggedNavId(null)
+                setDragOverNavId(null)
+              }}
+              onDragEnd={() => {
+                setDraggedNavId(null)
+                setDragOverNavId(null)
+              }}
+              onClick={() => setActivePage(item!.id)}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -194,8 +254,25 @@ export default function Sidebar({
                 color: active ? 'var(--accent)' : 'var(--muted)',
                 marginBottom: 2,
                 transition: 'background .15s, color .15s, border-color .15s',
+                opacity: draggedNavId === item!.id ? 0.45 : 1,
+                position: 'relative',
               }}
             >
+              {dragOverNavId === item!.id && draggedNavId !== item!.id && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: -1,
+                    left: 2,
+                    right: 2,
+                    height: 1,
+                    borderRadius: 999,
+                    background: 'var(--accent)',
+                    pointerEvents: 'none',
+                  }}
+                />
+              )}
+
               <span
                 style={{
                   width: 20,
@@ -206,9 +283,9 @@ export default function Sidebar({
                   flexShrink: 0,
                 }}
               >
-                {item.icon}
+                {item!.icon}
               </span>
-              <span>{item.label}</span>
+              <span>{item!.label}</span>
             </button>
           )
         })}

@@ -169,15 +169,19 @@ export default function Topbar({
   const hueRef = useRef<HTMLDivElement | null>(null)
   const [copied, setCopied] = useState(false)
   const [hiddenNavItems, setHiddenNavItems] = useState<string[]>([])
+  const [navOrder, setNavOrder] = useState<string[]>(NAV_ITEMS.map((item) => item.id))
   const [navPrefsLoaded, setNavPrefsLoaded] = useState(false)
+  const [isDeletingInsight, setIsDeletingInsight] = useState(false)
+  const [deleteInsightError, setDeleteInsightError] = useState('')
+  const [confirmDeleteInsight, setConfirmDeleteInsight] = useState(false)
   const [rgbInput, setRgbInput] = useState(() => {
-  const rgb = hexToRgb(data?.theme || '#00c2ff')
-  return {
-    r: String(rgb.r),
-    g: String(rgb.g),
-    b: String(rgb.b),
-  }
-})
+    const rgb = hexToRgb(data?.theme || '#00c2ff')
+    return {
+      r: String(rgb.r),
+      g: String(rgb.g),
+      b: String(rgb.b),
+    }
+  })
 
   const myMember = members.find((m: any) => m.user_id === currentUser?.id)
   const displayName =
@@ -227,6 +231,8 @@ export default function Topbar({
     setThemeColor(currentTheme)
     setPickerHSV(hexToHsv(currentTheme))
     setSettingsStartTheme(currentTheme)
+    setConfirmDeleteInsight(false)
+    setDeleteInsightError('')
     setRgbInput({
       r: String(currentRgb.r),
       g: String(currentRgb.g),
@@ -286,11 +292,25 @@ export default function Topbar({
     setInviteCode(randomInviteCode())
   }
 
-  function handleDeleteInsight() {
-    const ok = window.confirm('Weet je zeker dat je deze Insight wilt verwijderen?')
-    if (!ok) return
+  async function handleDeleteInsight() {
+    if (!household?.id || isDeletingInsight) return
 
-    console.log('confirmed delete insight')
+    setDeleteInsightError('')
+    setIsDeletingInsight(true)
+
+    const { error } = await supabase
+      .from('households')
+      .delete()
+      .eq('id', household.id)
+
+    if (error) {
+      setDeleteInsightError('Verwijderen is niet gelukt. Probeer het opnieuw.')
+      setIsDeletingInsight(false)
+      return
+    }
+
+    router.push('/picker')
+    router.refresh()
   }
 
   function applyPreviewTheme(color: string) {
@@ -525,9 +545,11 @@ export default function Topbar({
   if (typeof window === 'undefined') return
   const key = getNavPrefsKey(household?.id)
   const raw = window.localStorage.getItem(key)
+  const defaultOrder = NAV_ITEMS.map((item) => item.id)
 
   if (!raw) {
     setHiddenNavItems([])
+    setNavOrder(defaultOrder)
     setNavPrefsLoaded(true)
     return
   }
@@ -535,8 +557,15 @@ export default function Topbar({
   try {
     const parsed = JSON.parse(raw)
     setHiddenNavItems(Array.isArray(parsed?.hidden) ? parsed.hidden : [])
+
+    const savedOrder = Array.isArray(parsed?.order) ? parsed.order : []
+    const cleanedSavedOrder = savedOrder.filter((id: string) => defaultOrder.includes(id))
+    const missingIds = defaultOrder.filter((id) => !cleanedSavedOrder.includes(id))
+
+    setNavOrder([...cleanedSavedOrder, ...missingIds])
   } catch {
     setHiddenNavItems([])
+    setNavOrder(defaultOrder)
   }
 
   setNavPrefsLoaded(true)
@@ -552,11 +581,12 @@ useEffect(() => {
     key,
     JSON.stringify({
       hidden: hiddenNavItems,
+      order: navOrder,
     })
   )
 
   window.dispatchEvent(new CustomEvent('se-nav-prefs-changed'))
-}, [hiddenNavItems, household?.id])
+}, [hiddenNavItems, navOrder, household?.id])
 
 const iconButton: React.CSSProperties = {
   width: 40,
@@ -1166,16 +1196,19 @@ const iconButton: React.CSSProperties = {
               </div>
 
               <div style={{ fontSize: 11, color: 'var(--muted2)', marginBottom: 12, lineHeight: 1.6 }}>
-                Sleep om te herordenen. Uitvinken om te verbergen.
+                Vink uit om een onderdeel in de navigatie te verbergen.
               </div>
 
               <div id="nav-config-list" style={{ display: 'grid', gap: 8 }}>
-  {NAV_ITEMS.map((item) => {
-    const checked = !hiddenNavItems.includes(item.id)
+  {navOrder
+  .map((id) => NAV_ITEMS.find((item) => item.id === id))
+  .filter(Boolean)
+  .map((item) => {
+    const checked = !hiddenNavItems.includes(item!.id)
 
     return (
       <label
-        key={item.id}
+        key={item!.id}
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -1187,21 +1220,19 @@ const iconButton: React.CSSProperties = {
           cursor: 'pointer',
         }}
       >
-        <span style={{ color: 'var(--muted)', fontSize: 14, lineHeight: 1 }}>☰</span>
-
         <input
           type="checkbox"
           checked={checked}
           onChange={() => {
             setHiddenNavItems((prev) => {
-              const next = prev.includes(item.id)
-                ? prev.filter((id) => id !== item.id)
-                : [...prev, item.id]
+              const next = prev.includes(item!.id)
+                ? prev.filter((id) => id !== item!.id)
+                : [...prev, item!.id]
 
               return next
             })
           }}
-          
+
           style={{
             width: 15,
             height: 15,
@@ -1212,12 +1243,13 @@ const iconButton: React.CSSProperties = {
 
         <span
           style={{
+            flex: 1,
             fontSize: 13,
             fontWeight: 500,
             color: checked ? 'var(--text)' : 'var(--muted)',
           }}
         >
-          {item.label}
+          {item!.label}
         </span>
       </label>
     )
@@ -1248,25 +1280,104 @@ const iconButton: React.CSSProperties = {
                   Alleen de eigenaar kan deze Insight verwijderen.
                 </div>
 
-                <button
-                  id="btn-delete-insight"
-                  onClick={handleDeleteInsight}
-                  style={{
-                    background: 'rgba(200,60,60,.1)',
-                    color: 'var(--danger)',
-                    border: '1px solid rgba(200,60,60,.2)',
-                    borderRadius: 5,
-                    padding: '7px 12px',
-                    fontSize: 11,
-                    fontFamily: 'var(--font-body)',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    transition: '.15s',
-                    width: '100%',
-                  }}
-                >
-                  Insight verwijderen
-                </button>
+                {deleteInsightError && (
+                  <div
+                    style={{
+                      fontSize: 11,
+                      color: 'var(--danger)',
+                      marginBottom: 12,
+                      lineHeight: 1.5,
+                    }}
+                  >
+                    {deleteInsightError}
+                  </div>
+                )}
+
+                {confirmDeleteInsight ? (
+                  <div
+                    style={{
+                      background: 'rgba(200,60,60,.08)',
+                      border: '1px solid rgba(200,60,60,.22)',
+                      borderRadius: 8,
+                      padding: 12,
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: 11,
+                        color: 'var(--danger)',
+                        lineHeight: 1.6,
+                        marginBottom: 10,
+                      }}
+                    >
+                      Weet je zeker dat je deze Insight wilt verwijderen? Dit kan niet ongedaan worden gemaakt.
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmDeleteInsight(false)}
+                        disabled={isDeletingInsight}
+                        style={{
+                          background: 'transparent',
+                          color: 'var(--muted2)',
+                          border: '1px solid var(--border)',
+                          borderRadius: 6,
+                          padding: '8px 12px',
+                          fontSize: 11,
+                          fontFamily: 'var(--font-body)',
+                          fontWeight: 600,
+                          cursor: isDeletingInsight ? 'default' : 'pointer',
+                          width: '100%',
+                        }}
+                      >
+                        Annuleren
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleDeleteInsight}
+                        disabled={isDeletingInsight}
+                        style={{
+                          background: 'rgba(200,60,60,.12)',
+                          color: 'var(--danger)',
+                          border: '1px solid rgba(200,60,60,.24)',
+                          borderRadius: 6,
+                          padding: '8px 12px',
+                          fontSize: 11,
+                          fontFamily: 'var(--font-body)',
+                          fontWeight: 700,
+                          cursor: isDeletingInsight ? 'default' : 'pointer',
+                          width: '100%',
+                          opacity: isDeletingInsight ? 0.7 : 1,
+                        }}
+                      >
+                        {isDeletingInsight ? 'Bezig...' : 'Ja, verwijderen'}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    id="btn-delete-insight"
+                    type="button"
+                    onClick={() => setConfirmDeleteInsight(true)}
+                    style={{
+                      background: 'rgba(200,60,60,.1)',
+                      color: 'var(--danger)',
+                      border: '1px solid rgba(200,60,60,.2)',
+                      borderRadius: 5,
+                      padding: '7px 12px',
+                      fontSize: 11,
+                      fontFamily: 'var(--font-body)',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      transition: '.15s',
+                      width: '100%',
+                    }}
+                  >
+                    Insight verwijderen
+                  </button>
+                )}
               </div>
             )}
 
