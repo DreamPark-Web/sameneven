@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useInsight } from '@/lib/insight-context'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
@@ -57,6 +57,78 @@ function hexToRgb(hex: string) {
     b: parseInt(clean.slice(4, 6), 16) || 0,
   }
 }
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value))
+}
+
+function hexToHsv(hex: string) {
+  const { r, g, b } = hexToRgb(hex)
+  const rn = r / 255
+  const gn = g / 255
+  const bn = b / 255
+
+  const max = Math.max(rn, gn, bn)
+  const min = Math.min(rn, gn, bn)
+  const d = max - min
+
+  let h = 0
+  const s = max === 0 ? 0 : d / max
+  const v = max
+
+  if (d !== 0) {
+    switch (max) {
+      case rn:
+        h = ((gn - bn) / d) % 6
+        break
+      case gn:
+        h = (bn - rn) / d + 2
+        break
+      default:
+        h = (rn - gn) / d + 4
+        break
+    }
+    h = Math.round(h * 60)
+    if (h < 0) h += 360
+  }
+
+  return { h, s, v }
+}
+
+function hsvToHex(h: number, s: number, v: number) {
+  const c = v * s
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1))
+  const m = v - c
+
+  let r = 0
+  let g = 0
+  let b = 0
+
+  if (h < 60) {
+    r = c
+    g = x
+  } else if (h < 120) {
+    r = x
+    g = c
+  } else if (h < 180) {
+    g = c
+    b = x
+  } else if (h < 240) {
+    g = x
+    b = c
+  } else if (h < 300) {
+    r = x
+    b = c
+  } else {
+    r = c
+    b = x
+  }
+
+  const rr = Math.round((r + m) * 255)
+  const gg = Math.round((g + m) * 255)
+  const bb = Math.round((b + m) * 255)
+
+  return `#${rr.toString(16).padStart(2, '0')}${gg.toString(16).padStart(2, '0')}${bb.toString(16).padStart(2, '0')}`
+}
 
 export default function Topbar({
   activePage,
@@ -65,7 +137,7 @@ export default function Topbar({
   activePage: string
   setActivePage: (p: string) => void
 }) {
-  const { household, syncState, currentUser, members, data, saveData } = useInsight()
+  const { household, syncState, currentUser, members, data, saveData, myRole } = useInsight()
   const router = useRouter()
   const supabase = createClient()
 
@@ -75,7 +147,10 @@ export default function Topbar({
   const [insightName, setInsightName] = useState('')
   const [inviteCode, setInviteCode] = useState(household?.invite_code || '')
   const [themeColor, setThemeColor] = useState(data?.theme || '#00c2ff')
+  const [pickerHSV, setPickerHSV] = useState(() => hexToHsv(data?.theme || '#00c2ff'))
   const [settingsStartTheme, setSettingsStartTheme] = useState(data?.theme || '#00c2ff')
+  const svRef = useRef<HTMLDivElement | null>(null)
+  const hueRef = useRef<HTMLDivElement | null>(null)
   const [copied, setCopied] = useState(false)
 
   const myMember = members.find((m: any) => m.user_id === currentUser?.id)
@@ -122,6 +197,7 @@ export default function Topbar({
     setInsightName(household?.name || '')
     setInviteCode(household?.invite_code || '')
     setThemeColor(currentTheme)
+    setPickerHSV(hexToHsv(currentTheme))
     setSettingsStartTheme(currentTheme)
     setShowSettings(true)
   }
@@ -176,13 +252,99 @@ export default function Topbar({
   function regenInvite() {
     setInviteCode(randomInviteCode())
   }
-    function applyPreviewTheme(color: string) {
+
+  function handleDeleteInsight() {
+    const ok = window.confirm('Weet je zeker dat je deze Insight wilt verwijderen?')
+    if (!ok) return
+
+    console.log('confirmed delete insight')
+  }
+
+  function applyPreviewTheme(color: string) {
     const light = lightenColor(color, 0.15)
     const rgb = hexToRgb(color)
     document.documentElement.style.setProperty('--accent', color)
     document.documentElement.style.setProperty('--accent2', light)
     document.documentElement.style.setProperty('--accent-rgb', `${rgb.r}, ${rgb.g}, ${rgb.b}`)
     window.dispatchEvent(new CustomEvent('se-theme-preview', { detail: { color } }))
+  }
+    function setThemeFromHex(nextColor: string) {
+    const normalized = nextColor.toLowerCase()
+    setThemeColor(normalized)
+    setPickerHSV(hexToHsv(normalized))
+  }
+
+  function updateHue(clientX: number) {
+    if (!hueRef.current) return
+
+    const rect = hueRef.current.getBoundingClientRect()
+    const x = clamp(clientX - rect.left, 0, rect.width)
+    const h = Math.round((x / rect.width) * 360) % 360
+
+    setPickerHSV((prev) => {
+      const next = { ...prev, h }
+      setThemeColor(hsvToHex(next.h, next.s, next.v))
+      return next
+    })
+  }
+
+  function updateSV(clientX: number, clientY: number) {
+    if (!svRef.current) return
+
+    const rect = svRef.current.getBoundingClientRect()
+    const x = clamp(clientX - rect.left, 0, rect.width)
+    const y = clamp(clientY - rect.top, 0, rect.height)
+
+    const s = x / rect.width
+    const v = 1 - y / rect.height
+
+    setPickerHSV((prev) => {
+      const next = { ...prev, s, v }
+      setThemeColor(hsvToHex(next.h, next.s, next.v))
+      return next
+    })
+  }
+
+  function startHueDrag(clientX: number) {
+    updateHue(clientX)
+
+    const onMouseMove = (e: MouseEvent) => updateHue(e.clientX)
+    const onTouchMove = (e: TouchEvent) => {
+      e.preventDefault()
+      updateHue(e.touches[0].clientX)
+    }
+    const stop = () => {
+      window.removeEventListener('mousemove', onMouseMove)
+      window.removeEventListener('mouseup', stop)
+      window.removeEventListener('touchmove', onTouchMove)
+      window.removeEventListener('touchend', stop)
+    }
+
+    window.addEventListener('mousemove', onMouseMove)
+    window.addEventListener('mouseup', stop)
+    window.addEventListener('touchmove', onTouchMove, { passive: false })
+    window.addEventListener('touchend', stop)
+  }
+
+  function startSVDrag(clientX: number, clientY: number) {
+    updateSV(clientX, clientY)
+
+    const onMouseMove = (e: MouseEvent) => updateSV(e.clientX, e.clientY)
+    const onTouchMove = (e: TouchEvent) => {
+      e.preventDefault()
+      updateSV(e.touches[0].clientX, e.touches[0].clientY)
+    }
+    const stop = () => {
+      window.removeEventListener('mousemove', onMouseMove)
+      window.removeEventListener('mouseup', stop)
+      window.removeEventListener('touchmove', onTouchMove)
+      window.removeEventListener('touchend', stop)
+    }
+
+    window.addEventListener('mousemove', onMouseMove)
+    window.addEventListener('mouseup', stop)
+    window.addEventListener('touchmove', onTouchMove, { passive: false })
+    window.addEventListener('touchend', stop)
   }
 
   function shareWhatsApp() {
@@ -236,13 +398,14 @@ export default function Topbar({
   const modal: React.CSSProperties = {
     background: 'var(--s1)',
     border: '1px solid var(--border)',
-    borderRadius: 12,
+    borderRadius: 14,
     padding: 28,
     width: '100%',
-    maxWidth: 460,
+    maxWidth: 520,
     position: 'relative',
     maxHeight: '90vh',
     overflowY: 'auto',
+    boxShadow: '0 24px 60px rgba(0,0,0,.42)',
   }
 
   const modalLabel: React.CSSProperties = {
@@ -269,8 +432,9 @@ export default function Topbar({
 
   const modalSection: React.CSSProperties = {
     background: 'var(--s2)',
-    borderRadius: 8,
-    padding: '14px 16px',
+    border: '1px solid var(--border)',
+    borderRadius: 10,
+    padding: '16px 16px',
     marginBottom: 14,
   }
 
@@ -298,6 +462,7 @@ export default function Topbar({
     fontFamily: 'var(--font-body)',
     fontWeight: 600,
     cursor: 'pointer',
+    width: '100%',
   }
 
   const iconButton: React.CSSProperties = {
@@ -512,13 +677,19 @@ export default function Topbar({
                 position: 'absolute',
                 top: 14,
                 right: 14,
-                background: 'none',
-                border: 'none',
+                width: 32,
+                height: 32,
+                background: 'transparent',
+                border: '1px solid var(--border)',
+                borderRadius: 8,
                 color: 'var(--muted)',
                 fontSize: 18,
                 cursor: 'pointer',
                 lineHeight: 1,
-                padding: 4,
+                padding: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
               }}
             >
               ×
@@ -665,27 +836,6 @@ export default function Topbar({
                   marginBottom: 10,
                 }}
               >
-                Namen
-              </div>
-
-              <label style={modalLabel}>Naam gebruiker 1</label>
-              <input style={modalInp} type="text" defaultValue={data.names?.user1} onBlur={(e) => saveN1(e.target.value)} />
-
-              <label style={modalLabel}>Naam gebruiker 2</label>
-              <input style={{ ...modalInp, marginBottom: 0 }} type="text" defaultValue={data.names?.user2} onBlur={(e) => saveN2(e.target.value)} />
-            </div>
-
-            <div style={modalSection}>
-              <div
-                style={{
-                  fontSize: 10,
-                  fontWeight: 700,
-                  letterSpacing: '.1em',
-                  textTransform: 'uppercase',
-                  color: 'var(--muted)',
-                  marginBottom: 10,
-                }}
-              >
                 Uitnodigingslink
               </div>
 
@@ -698,8 +848,9 @@ export default function Topbar({
                   textOverflow: 'ellipsis',
                   marginBottom: 12,
                   background: 'var(--s3)',
-                  borderRadius: 5,
-                  padding: '8px 10px',
+                  border: '1px solid rgba(var(--accent-rgb), .14)',
+                  borderRadius: 8,
+                  padding: '10px 12px',
                   fontSize: 11,
                   color: 'var(--accent)',
                   letterSpacing: '.04em',
@@ -752,7 +903,7 @@ export default function Topbar({
                 {Object.values(THEMES).map((color) => (
                   <button
                     key={color}
-                    onClick={() => setThemeColor(color)}
+                    onClick={() => setThemeFromHex(color)}
                     style={{
                       width: 28,
                       height: 28,
@@ -779,17 +930,88 @@ export default function Topbar({
               />
 
               <label style={modalLabel}>Kleurkiezer</label>
-              <input
-                type="color"
-                value={themeColor}
-                onChange={(e) => setThemeColor(e.target.value.toLowerCase())}
-                style={{
-                  ...modalInp,
-                  height: 44,
-                  padding: 4,
-                  cursor: 'pointer',
+
+              <div
+                ref={svRef}
+                onMouseDown={(e) => startSVDrag(e.clientX, e.clientY)}
+                onTouchStart={(e) => {
+                  e.preventDefault()
+                  startSVDrag(e.touches[0].clientX, e.touches[0].clientY)
                 }}
-              />
+                style={{
+                  position: 'relative',
+                  height: 180,
+                  borderRadius: 12,
+                  overflow: 'hidden',
+                  cursor: 'crosshair',
+                  border: '1px solid rgba(var(--accent-rgb), .20)',
+                  background: `hsl(${pickerHSV.h} 100% 50%)`,
+                  marginBottom: 12,
+                }}
+              >
+                <div
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    background: 'linear-gradient(to right, #ffffff, rgba(255,255,255,0))',
+                  }}
+                />
+                <div
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    background: 'linear-gradient(to top, #000000, rgba(0,0,0,0))',
+                  }}
+                />
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: `${pickerHSV.s * 100}%`,
+                    top: `${(1 - pickerHSV.v) * 100}%`,
+                    width: 16,
+                    height: 16,
+                    borderRadius: '50%',
+                    border: '2px solid #fff',
+                    boxShadow: '0 0 0 1px rgba(0,0,0,.35), 0 2px 8px rgba(0,0,0,.35)',
+                    transform: 'translate(-50%, -50%)',
+                    pointerEvents: 'none',
+                  }}
+                />
+              </div>
+
+              <div
+                ref={hueRef}
+                onMouseDown={(e) => startHueDrag(e.clientX)}
+                onTouchStart={(e) => {
+                  e.preventDefault()
+                  startHueDrag(e.touches[0].clientX)
+                }}
+                style={{
+                  position: 'relative',
+                  height: 16,
+                  borderRadius: 999,
+                  cursor: 'pointer',
+                  background:
+                    'linear-gradient(90deg, #ff0000 0%, #ffff00 17%, #00ff00 33%, #00ffff 50%, #0000ff 67%, #ff00ff 83%, #ff0000 100%)',
+                  border: '1px solid var(--border)',
+                  marginBottom: 14,
+                }}
+              >
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: `${(pickerHSV.h / 360) * 100}%`,
+                    top: '50%',
+                    width: 16,
+                    height: 16,
+                    borderRadius: '50%',
+                    border: '2px solid #fff',
+                    boxShadow: '0 0 0 1px rgba(0,0,0,.35), 0 2px 8px rgba(0,0,0,.35)',
+                    transform: 'translate(-50%, -50%)',
+                    pointerEvents: 'none',
+                  }}
+                />
+              </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
                 <div>
@@ -807,9 +1029,84 @@ export default function Topbar({
               </div>
             </div>
 
-            <button onClick={saveInsightSettings} style={{ ...btnPrimary, width: '100%' }}>
-              Opslaan
-            </button>
+            <div style={modalSection}>
+              <div
+                style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  letterSpacing: '.1em',
+                  textTransform: 'uppercase',
+                  color: 'var(--muted)',
+                  marginBottom: 10,
+                }}
+              >
+                Navigatie
+              </div>
+
+              <div style={{ fontSize: 11, color: 'var(--muted2)', marginBottom: 12, lineHeight: 1.6 }}>
+                Sleep om te herordenen. Uitvinken om te verbergen.
+              </div>
+
+              <div id="nav-config-list" />
+
+              <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 10, lineHeight: 1.6 }}>
+                Dit zijn persoonlijke instellingen, niet gedeeld met anderen.
+              </div>
+            </div>
+
+            {(myRole === 'owner' || myRole === 'admin') && (
+              <div style={modalSection}>
+                <div
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 700,
+                    letterSpacing: '.1em',
+                    textTransform: 'uppercase',
+                    color: 'var(--muted)',
+                    marginBottom: 10,
+                  }}
+                >
+                  Beheer
+                </div>
+
+                <div style={{ fontSize: 11, color: 'var(--muted2)', marginBottom: 12, lineHeight: 1.6 }}>
+                  Alleen de eigenaar kan deze Insight verwijderen.
+                </div>
+
+                <button
+                  id="btn-delete-insight"
+                  onClick={handleDeleteInsight}
+                  style={{
+                    background: 'rgba(200,60,60,.1)',
+                    color: 'var(--danger)',
+                    border: '1px solid rgba(200,60,60,.2)',
+                    borderRadius: 5,
+                    padding: '7px 12px',
+                    fontSize: 11,
+                    fontFamily: 'var(--font-body)',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: '.15s',
+                    width: '100%',
+                  }}
+                >
+                  Insight verwijderen
+                </button>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginTop: 6 }}>
+              <button
+                onClick={saveInsightSettings}
+                style={{
+                  ...btnPrimary,
+                  width: 'auto',
+                  padding: '9px 20px',
+                }}
+              >
+                Opslaan
+              </button>
+            </div>
           </div>
         </div>
       )}
