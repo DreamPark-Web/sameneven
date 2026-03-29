@@ -101,9 +101,13 @@ const NAV_ITEMS = [
 export default function Sidebar({
   activePage,
   setActivePage,
+  collapsed,
+  setCollapsed,
 }: {
   activePage: string
   setActivePage: (p: string) => void
+  collapsed: boolean
+  setCollapsed: (value: boolean) => void
 }) {
   const [hiddenNavItems, setHiddenNavItems] = useState<string[]>([])
   const [navOrder, setNavOrder] = useState<string[]>(NAV_ITEMS.map((item) => item.id))
@@ -115,6 +119,9 @@ export default function Sidebar({
 
   const readPrefs = () => {
     const raw = window.localStorage.getItem(getNavPrefsKey())
+    const collapsedRaw = window.localStorage.getItem(`${getNavPrefsKey()}_collapsed`)
+    setCollapsed(collapsedRaw === '1')
+
     if (!raw) {
       setHiddenNavItems([])
       setNavOrder(NAV_ITEMS.map((item) => item.id))
@@ -138,7 +145,7 @@ export default function Sidebar({
   }
 
   const handleStorage = (event: StorageEvent) => {
-    if (event.key && event.key !== getNavPrefsKey()) return
+    if (event.key && event.key !== getNavPrefsKey() && event.key !== `${getNavPrefsKey()}_collapsed`) return
     readPrefs()
   }
 
@@ -157,6 +164,13 @@ export default function Sidebar({
     window.removeEventListener('se-nav-prefs-changed', handleNavPrefsChanged)
   }
 }, [])
+
+  function toggleCollapsed() {
+    const next = !collapsed
+    setCollapsed(next)
+    window.localStorage.setItem(`${getNavPrefsKey()}_collapsed`, next ? '1' : '0')
+    window.dispatchEvent(new CustomEvent('se-nav-prefs-changed'))
+  }
 
   function moveNavItemBefore(draggedId: string, targetId: string) {
     if (draggedId === targetId) return
@@ -189,13 +203,15 @@ export default function Sidebar({
         top: 60,
         left: 0,
         bottom: 0,
-        width: 240,
+        width: collapsed ? 64 : 240,
         background: 'var(--s1)',
         borderRight: '1px solid var(--border)',
         display: 'flex',
         flexDirection: 'column',
         zIndex: 100,
         overflow: 'hidden',
+        transition: 'width .28s cubic-bezier(0.22, 1, 0.36, 1)',
+        willChange: 'width',
       }}
     >
       <nav
@@ -239,12 +255,12 @@ export default function Sidebar({
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: 12,
-                padding: '9px 12px',
+                gap: collapsed ? 0 : 12,
+                padding: collapsed ? '9px 0' : '9px 12px',
                 borderRadius: 7,
                 cursor: 'pointer',
                 width: '100%',
-                textAlign: 'left',
+                textAlign: collapsed ? 'center' : 'left',
                 fontSize: 13,
                 fontWeight: 600,
                 fontFamily: 'var(--font-body)',
@@ -253,6 +269,7 @@ export default function Sidebar({
                 background: active ? 'rgba(var(--accent-rgb),.10)' : 'transparent',
                 color: active ? 'var(--accent)' : 'var(--muted)',
                 marginBottom: 2,
+                justifyContent: collapsed ? 'center' : 'flex-start',
                 transition: 'background .15s, color .15s, border-color .15s',
                 opacity: draggedNavId === item!.id ? 0.45 : 1,
                 position: 'relative',
@@ -285,11 +302,81 @@ export default function Sidebar({
               >
                 {item!.icon}
               </span>
-              <span>{item!.label}</span>
+              {!collapsed && <span>{item!.label}</span>}
             </button>
           )
         })}
       </nav>
+
+      <div
+        style={{
+          padding: '12px 8px',
+          borderTop: '1px solid var(--border)',
+        }}
+      >
+        <button
+          onClick={toggleCollapsed}
+          title={collapsed ? 'Uitklappen' : 'Inklappen'}
+          aria-label={collapsed ? 'Uitklappen' : 'Inklappen'}
+          style={{
+            width: '100%',
+            minHeight: 36,
+            borderRadius: 6,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: collapsed ? 'center' : 'flex-start',
+            gap: collapsed ? 0 : 8,
+            padding: collapsed ? '8px 0' : '8px 10px',
+            color: 'var(--muted)',
+            cursor: 'pointer',
+            transition: 'background .15s, color .15s',
+          }}
+          onMouseEnter={(e) => {
+            ;(e.currentTarget as HTMLButtonElement).style.background = 'var(--s2)'
+            ;(e.currentTarget as HTMLButtonElement).style.color = 'var(--text)'
+          }}
+          onMouseLeave={(e) => {
+            ;(e.currentTarget as HTMLButtonElement).style.background = 'transparent'
+            ;(e.currentTarget as HTMLButtonElement).style.color = 'var(--muted)'
+          }}
+        >
+          <span
+            style={{
+              width: 24,
+              minWidth: 24,
+              height: 24,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}
+          >
+            {collapsed ? (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M13 7l5 5-5 5" />
+                <path d="M6 7l5 5-5 5" />
+              </svg>
+            ) : (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M11 17l-5-5 5-5" />
+                <path d="M18 17l-5-5 5-5" />
+              </svg>
+            )}
+          </span>
+
+          {!collapsed && (
+            <span
+              style={{
+                fontSize: 12,
+                fontWeight: 600,
+                lineHeight: 1,
+              }}
+            >
+              Inklappen
+            </span>
+          )}
+        </button>
+      </div>
     </aside>
   )
 }

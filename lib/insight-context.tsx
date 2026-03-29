@@ -46,6 +46,8 @@ type InsightContextType = {
   syncState: 'ok' | 'saving' | 'error' | 'live'
   saveData: (newData: InsightData) => void
   canEdit: (slot: string) => boolean
+  updateHouseholdName: (name: string) => void
+  updateMyProfile: (displayName: string) => void
 }
 
 const InsightContext = createContext<InsightContextType | null>(null)
@@ -258,6 +260,20 @@ export function InsightProvider({ children, householdId }: { children: React.Rea
     return mySlot === slot
   }, [myRole, mySlot])
 
+  const updateHouseholdName = useCallback((name: string) => {
+    setHousehold((prev: any) => prev ? { ...prev, name } : prev)
+  }, [])
+
+  const updateMyProfile = useCallback((displayName: string) => {
+    setMembers((prev) =>
+      prev.map((member) =>
+        member.user_id === currentUser?.id
+          ? { ...member, display_name: displayName }
+          : member
+      )
+    )
+  }, [currentUser?.id])
+
   if (!ready) return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div style={{ color: 'var(--muted)', fontSize: 14 }}>Laden...</div>
@@ -265,7 +281,21 @@ export function InsightProvider({ children, householdId }: { children: React.Rea
   )
 
   return (
-    <InsightContext.Provider value={{ data, members, household, currentUser, mySlot, myRole, syncState, saveData, canEdit }}>
+    <InsightContext.Provider
+      value={{
+        data,
+        members,
+        household,
+        currentUser,
+        mySlot,
+        myRole,
+        syncState,
+        saveData,
+        canEdit,
+        updateHouseholdName,
+        updateMyProfile,
+      }}
+    >
       {children}
     </InsightContext.Provider>
   )

@@ -1,22 +1,11 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useInsight } from '@/lib/insight-context'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 
-const THEMES = {
-  blue: '#00c2ff',
-  aqua: '#00e5c8',
-  lime: '#b8ff00',
-  yellow: '#ffd600',
-  champagne: '#e8c97a',
-  mint: '#4dffc0',
-  coral: '#ff6b8a',
-  violet: '#a78bfa',
-}
-
-const NAV_ITEMS = [
+const NAV_ITEMS: { id: string; label: string }[] = [
   { id: 'dashboard', label: 'Dashboard' },
   { id: 'inkomsten', label: 'Inkomsten' },
   { id: 'gezamenlijk', label: 'Gezamenlijke Kosten' },
@@ -34,7 +23,16 @@ function getNavPrefsKey(householdId?: string) {
 
 function GearIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <circle cx="12" cy="12" r="3" />
       <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
     </svg>
@@ -43,7 +41,16 @@ function GearIcon() {
 
 function ArrowLeftIcon() {
   return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      width="22"
+      height="22"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <path d="M15 18l-6-6 6-6" />
     </svg>
   )
@@ -73,6 +80,7 @@ function hexToRgb(hex: string) {
     b: parseInt(clean.slice(4, 6), 16) || 0,
   }
 }
+
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value))
 }
@@ -146,6 +154,169 @@ function hsvToHex(h: number, s: number, v: number) {
   return `#${rr.toString(16).padStart(2, '0')}${gg.toString(16).padStart(2, '0')}${bb.toString(16).padStart(2, '0')}`
 }
 
+type AccountModalProps = {
+  modalBg: CSSProperties
+  modal: CSSProperties
+  modalLabel: CSSProperties
+  modalInp: CSSProperties
+  modalSection: CSSProperties
+  btnPrimary: CSSProperties
+  avatarUrl?: string
+  initials: string
+  displayName: string
+  accountName: string
+  currentUserEmail?: string
+  setAccountName: (value: string) => void
+  saveAccount: () => void
+  logout: () => void
+  onClose: () => void
+}
+
+function AccountModal({
+  modalBg,
+  modal,
+  modalLabel,
+  modalInp,
+  modalSection,
+  btnPrimary,
+  avatarUrl,
+  initials,
+  displayName,
+  accountName,
+  currentUserEmail,
+  setAccountName,
+  saveAccount,
+  logout,
+  onClose,
+}: AccountModalProps) {
+  return (
+    <div style={modalBg} onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div style={modal}>
+        <button
+          onClick={onClose}
+          style={{
+            position: 'absolute',
+            top: 14,
+            right: 14,
+            width: 32,
+            height: 32,
+            background: 'transparent',
+            border: '1px solid var(--border)',
+            borderRadius: 8,
+            color: 'var(--muted)',
+            fontSize: 18,
+            cursor: 'pointer',
+            lineHeight: 1,
+            padding: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          ×
+        </button>
+
+        <div
+          style={{
+            fontSize: 16,
+            fontWeight: 700,
+            marginBottom: 20,
+            fontFamily: 'var(--font-heading)',
+          }}
+        >
+          Mijn account
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
+          <div
+            style={{
+              width: 60,
+              height: 60,
+              borderRadius: '50%',
+              background: 'var(--accent)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 20,
+              fontWeight: 700,
+              color: '#0a0a0a',
+              overflow: 'hidden',
+            }}
+          >
+            {avatarUrl ? (
+              <img
+                src={avatarUrl}
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                alt={displayName}
+              />
+            ) : (
+              initials
+            )}
+          </div>
+        </div>
+
+        <label style={modalLabel}>Jouw naam</label>
+        <input
+          style={modalInp}
+          type="text"
+          value={accountName}
+          onChange={(e) => setAccountName(e.target.value)}
+        />
+
+        <label style={modalLabel}>E-mailadres</label>
+        <input
+          style={{ ...modalInp, opacity: 0.6 }}
+          type="email"
+          value={currentUserEmail || ''}
+          disabled
+        />
+
+        <div style={modalSection}>
+          <div
+            style={{
+              fontSize: 10,
+              fontWeight: 700,
+              letterSpacing: '.1em',
+              textTransform: 'uppercase',
+              color: 'var(--muted)',
+              marginBottom: 10,
+            }}
+          >
+            Persoonlijk
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--muted2)', lineHeight: 1.6 }}>
+            Je Google-naam wordt als eerste gebruikt. Hier kun je die naam altijd aanpassen voor
+            Samen Even.
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <button
+            onClick={logout}
+            style={{
+              background: 'rgba(200,60,60,.1)',
+              color: 'var(--danger)',
+              border: '1px solid rgba(200,60,60,.2)',
+              borderRadius: 5,
+              padding: '11px 16px',
+              fontSize: 11,
+              fontFamily: 'var(--font-body)',
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
+            Uitloggen
+          </button>
+
+          <button onClick={saveAccount} style={{ ...btnPrimary, width: '100%' }}>
+            Opslaan
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function Topbar({
   activePage,
   setActivePage,
@@ -153,27 +324,43 @@ export default function Topbar({
   activePage: string
   setActivePage: (p: string) => void
 }) {
-  const { household, syncState, currentUser, members, data, saveData, myRole } = useInsight()
+  const {
+    household,
+    syncState,
+    currentUser,
+    members,
+    data,
+    saveData,
+    myRole,
+    updateHouseholdName,
+    updateMyProfile,
+  } = useInsight()
   const router = useRouter()
   const supabase = createClient()
 
   const [showAccount, setShowAccount] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const [isBackHovered, setIsBackHovered] = useState(false)
+  const [isSettingsHovered, setIsSettingsHovered] = useState(false)
+
   const [accountName, setAccountName] = useState('')
   const [insightName, setInsightName] = useState('')
   const [inviteCode, setInviteCode] = useState(household?.invite_code || '')
+
   const [themeColor, setThemeColor] = useState(data?.theme || '#00c2ff')
   const [pickerHSV, setPickerHSV] = useState(() => hexToHsv(data?.theme || '#00c2ff'))
   const [settingsStartTheme, setSettingsStartTheme] = useState(data?.theme || '#00c2ff')
-  const svRef = useRef<HTMLDivElement | null>(null)
-  const hueRef = useRef<HTMLDivElement | null>(null)
+
   const [copied, setCopied] = useState(false)
+
   const [hiddenNavItems, setHiddenNavItems] = useState<string[]>([])
   const [navOrder, setNavOrder] = useState<string[]>(NAV_ITEMS.map((item) => item.id))
   const [navPrefsLoaded, setNavPrefsLoaded] = useState(false)
+
   const [isDeletingInsight, setIsDeletingInsight] = useState(false)
   const [deleteInsightError, setDeleteInsightError] = useState('')
   const [confirmDeleteInsight, setConfirmDeleteInsight] = useState(false)
+
   const [rgbInput, setRgbInput] = useState(() => {
     const rgb = hexToRgb(data?.theme || '#00c2ff')
     return {
@@ -182,6 +369,9 @@ export default function Topbar({
       b: String(rgb.b),
     }
   })
+
+  const svRef = useRef<HTMLDivElement | null>(null)
+  const hueRef = useRef<HTMLDivElement | null>(null)
 
   const myMember = members.find((m: any) => m.user_id === currentUser?.id)
   const displayName =
@@ -217,6 +407,157 @@ export default function Topbar({
     return `${window.location.origin}?invite=${inviteCode || ''}`
   }, [inviteCode])
 
+  const iconButton: CSSProperties = {
+    width: 40,
+    height: 40,
+    background: isSettingsHovered ? 'rgba(var(--accent-rgb), .08)' : 'transparent',
+    border: isSettingsHovered ? '1px solid rgba(var(--accent-rgb), .24)' : '1px solid var(--border)',
+    borderRadius: 10,
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: isSettingsHovered ? 'var(--accent)' : 'var(--muted)',
+    flexShrink: 0,
+    transition: 'background .15s, border-color .15s, color .15s, box-shadow .15s, transform .15s',
+    boxShadow: isSettingsHovered ? '0 0 0 1px rgba(var(--accent-rgb), .10)' : 'none',
+    transform: isSettingsHovered ? 'translateY(-1px)' : 'none',
+  }
+
+  const modalBg: CSSProperties = {
+    position: 'fixed',
+    inset: 0,
+    background: 'rgba(0,0,0,.75)',
+    zIndex: 500,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  }
+
+  const modal: CSSProperties = {
+    background: 'var(--s1)',
+    border: '1px solid var(--border)',
+    borderRadius: 14,
+    padding: 28,
+    width: '100%',
+    maxWidth: 520,
+    position: 'relative',
+    maxHeight: '90vh',
+    overflowY: 'auto',
+    boxShadow: '0 24px 60px rgba(0,0,0,.42)',
+  }
+
+  const modalLabel: CSSProperties = {
+    fontSize: 11,
+    fontWeight: 600,
+    letterSpacing: '.08em',
+    textTransform: 'uppercase',
+    color: 'var(--muted)',
+    marginBottom: 6,
+    display: 'block',
+  }
+
+  const modalInp: CSSProperties = {
+    width: '100%',
+    background: 'var(--s2)',
+    border: '1px solid var(--border)',
+    borderRadius: 6,
+    color: 'var(--text)',
+    padding: '9px 11px',
+    fontSize: 13,
+    fontFamily: 'var(--font-body)',
+    marginBottom: 14,
+  }
+
+  const modalSection: CSSProperties = {
+    background: 'var(--s2)',
+    border: '1px solid var(--border)',
+    borderRadius: 10,
+    padding: '16px 16px',
+    marginBottom: 14,
+  }
+
+  const btnPrimary: CSSProperties = {
+    background: 'var(--accent)',
+    color: '#0a0a0a',
+    border: 'none',
+    borderRadius: 6,
+    padding: '9px 16px',
+    fontSize: 12,
+    fontFamily: 'var(--font-body)',
+    fontWeight: 700,
+    cursor: 'pointer',
+    letterSpacing: '.04em',
+    textTransform: 'uppercase',
+  }
+
+  const btnGhost: CSSProperties = {
+    background: 'transparent',
+    color: 'var(--muted2)',
+    border: '1px solid var(--border)',
+    borderRadius: 6,
+    padding: '9px 16px',
+    fontSize: 12,
+    fontFamily: 'var(--font-body)',
+    fontWeight: 600,
+    cursor: 'pointer',
+    width: '100%',
+  }
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const key = getNavPrefsKey(household?.id)
+    const raw = window.localStorage.getItem(key)
+    const defaultOrder = NAV_ITEMS.map((item) => item.id)
+
+    if (!raw) {
+      setHiddenNavItems([])
+      setNavOrder(defaultOrder)
+      setNavPrefsLoaded(true)
+      return
+    }
+
+    try {
+      const parsed = JSON.parse(raw)
+      setHiddenNavItems(Array.isArray(parsed?.hidden) ? parsed.hidden : [])
+
+      const savedOrder = Array.isArray(parsed?.order) ? parsed.order : []
+      const cleanedSavedOrder = savedOrder.filter((id: string) => defaultOrder.includes(id))
+      const missingIds = defaultOrder.filter((id) => !cleanedSavedOrder.includes(id))
+
+      setNavOrder([...cleanedSavedOrder, ...missingIds])
+    } catch {
+      setHiddenNavItems([])
+      setNavOrder(defaultOrder)
+    }
+
+    setNavPrefsLoaded(true)
+  }, [household?.id])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (!navPrefsLoaded) return
+
+    const key = getNavPrefsKey(household?.id)
+
+    window.localStorage.setItem(
+      key,
+      JSON.stringify({
+        hidden: hiddenNavItems,
+        order: navOrder,
+      })
+    )
+
+    window.dispatchEvent(new CustomEvent('se-nav-prefs-changed'))
+  }, [hiddenNavItems, navOrder, household?.id, navPrefsLoaded])
+
+  useEffect(() => {
+    if (!showSettings) return
+    applyPreviewTheme(themeColor)
+  }, [themeColor, showSettings])
+
   function openAccount() {
     setAccountName(displayName)
     setShowAccount(true)
@@ -243,37 +584,38 @@ export default function Topbar({
 
   async function saveAccount() {
     if (!accountName.trim() || !currentUser?.id) return
+
+    const nextName = accountName.trim()
+
     await supabase
       .from('profiles')
-      .upsert({ id: currentUser.id, display_name: accountName.trim() }, { onConflict: 'id' })
+      .upsert({ id: currentUser.id, display_name: nextName }, { onConflict: 'id' })
+
+    updateMyProfile(nextName)
     setShowAccount(false)
-    router.refresh()
   }
 
   async function saveInsightSettings() {
     if (!household?.id || !insightName.trim()) return
 
+    const nextInsightName = insightName.trim()
+
     await supabase
       .from('households')
       .update({
-        name: insightName.trim(),
+        name: nextInsightName,
         invite_code: inviteCode,
       })
       .eq('id', household.id)
+
+    updateHouseholdName(nextInsightName)
 
     saveData({
       ...data,
       theme: themeColor,
     })
 
-    const light = lightenColor(themeColor, 0.15)
-    const rgb = hexToRgb(themeColor)
-    document.documentElement.style.setProperty('--accent', themeColor)
-    document.documentElement.style.setProperty('--accent2', light)
-    document.documentElement.style.setProperty('--accent-rgb', `${rgb.r}, ${rgb.g}, ${rgb.b}`)
-
     setShowSettings(false)
-    router.refresh()
   }
 
   async function logout() {
@@ -298,10 +640,7 @@ export default function Topbar({
     setDeleteInsightError('')
     setIsDeletingInsight(true)
 
-    const { error } = await supabase
-      .from('households')
-      .delete()
-      .eq('id', household.id)
+    const { error } = await supabase.from('households').delete().eq('id', household.id)
 
     if (error) {
       setDeleteInsightError('Verwijderen is niet gelukt. Probeer het opnieuw.')
@@ -316,12 +655,14 @@ export default function Topbar({
   function applyPreviewTheme(color: string) {
     const light = lightenColor(color, 0.15)
     const rgb = hexToRgb(color)
+
     document.documentElement.style.setProperty('--accent', color)
     document.documentElement.style.setProperty('--accent2', light)
     document.documentElement.style.setProperty('--accent-rgb', `${rgb.r}, ${rgb.g}, ${rgb.b}`)
     window.dispatchEvent(new CustomEvent('se-theme-preview', { detail: { color } }))
   }
-    function setThemeFromHex(nextColor: string) {
+
+  function setThemeFromHex(nextColor: string) {
     const normalized = nextColor.toLowerCase()
     setThemeColor(normalized)
     setPickerHSV(hexToHsv(normalized))
@@ -389,6 +730,7 @@ export default function Topbar({
       e.preventDefault()
       updateHue(e.touches[0].clientX)
     }
+
     const stop = () => {
       window.removeEventListener('mousemove', onMouseMove)
       window.removeEventListener('mouseup', stop)
@@ -410,6 +752,7 @@ export default function Topbar({
       e.preventDefault()
       updateSV(e.touches[0].clientX, e.touches[0].clientY)
     }
+
     const stop = () => {
       window.removeEventListener('mousemove', onMouseMove)
       window.removeEventListener('mouseup', stop)
@@ -430,9 +773,7 @@ export default function Topbar({
 
   function shareEmail() {
     if (!inviteUrl) return
-    window.location.href = `mailto:?subject=Samen Even uitnodiging&body=${encodeURIComponent(
-      inviteUrl
-    )}`
+    window.location.href = `mailto:?subject=Samen Even uitnodiging&body=${encodeURIComponent(inviteUrl)}`
   }
 
   async function shareNative() {
@@ -446,167 +787,13 @@ export default function Topbar({
           url: inviteUrl,
         })
       } catch {}
+
       return
     }
 
     await copyInvite()
   }
 
-  function saveN1(val: string) {
-    saveData({ ...data, names: { ...data.names, user1: val } })
-  }
-
-  function saveN2(val: string) {
-    saveData({ ...data, names: { ...data.names, user2: val } })
-  }
-
-  const modalBg: React.CSSProperties = {
-    position: 'fixed',
-    inset: 0,
-    background: 'rgba(0,0,0,.75)',
-    zIndex: 500,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
-  }
-
-  const modal: React.CSSProperties = {
-    background: 'var(--s1)',
-    border: '1px solid var(--border)',
-    borderRadius: 14,
-    padding: 28,
-    width: '100%',
-    maxWidth: 520,
-    position: 'relative',
-    maxHeight: '90vh',
-    overflowY: 'auto',
-    boxShadow: '0 24px 60px rgba(0,0,0,.42)',
-  }
-
-  const modalLabel: React.CSSProperties = {
-    fontSize: 11,
-    fontWeight: 600,
-    letterSpacing: '.08em',
-    textTransform: 'uppercase',
-    color: 'var(--muted)',
-    marginBottom: 6,
-    display: 'block',
-  }
-
-  const modalInp: React.CSSProperties = {
-    width: '100%',
-    background: 'var(--s2)',
-    border: '1px solid var(--border)',
-    borderRadius: 6,
-    color: 'var(--text)',
-    padding: '9px 11px',
-    fontSize: 13,
-    fontFamily: 'var(--font-body)',
-    marginBottom: 14,
-  }
-
-  const modalSection: React.CSSProperties = {
-    background: 'var(--s2)',
-    border: '1px solid var(--border)',
-    borderRadius: 10,
-    padding: '16px 16px',
-    marginBottom: 14,
-  }
-
-  const btnPrimary: React.CSSProperties = {
-    background: 'var(--accent)',
-    color: '#0a0a0a',
-    border: 'none',
-    borderRadius: 6,
-    padding: '9px 16px',
-    fontSize: 12,
-    fontFamily: 'var(--font-body)',
-    fontWeight: 700,
-    cursor: 'pointer',
-    letterSpacing: '.04em',
-    textTransform: 'uppercase',
-  }
-
-  const btnGhost: React.CSSProperties = {
-    background: 'transparent',
-    color: 'var(--muted2)',
-    border: '1px solid var(--border)',
-    borderRadius: 6,
-    padding: '9px 16px',
-    fontSize: 12,
-    fontFamily: 'var(--font-body)',
-    fontWeight: 600,
-    cursor: 'pointer',
-    width: '100%',
-  }
-
-  useEffect(() => {
-  if (typeof window === 'undefined') return
-  const key = getNavPrefsKey(household?.id)
-  const raw = window.localStorage.getItem(key)
-  const defaultOrder = NAV_ITEMS.map((item) => item.id)
-
-  if (!raw) {
-    setHiddenNavItems([])
-    setNavOrder(defaultOrder)
-    setNavPrefsLoaded(true)
-    return
-  }
-
-  try {
-    const parsed = JSON.parse(raw)
-    setHiddenNavItems(Array.isArray(parsed?.hidden) ? parsed.hidden : [])
-
-    const savedOrder = Array.isArray(parsed?.order) ? parsed.order : []
-    const cleanedSavedOrder = savedOrder.filter((id: string) => defaultOrder.includes(id))
-    const missingIds = defaultOrder.filter((id) => !cleanedSavedOrder.includes(id))
-
-    setNavOrder([...cleanedSavedOrder, ...missingIds])
-  } catch {
-    setHiddenNavItems([])
-    setNavOrder(defaultOrder)
-  }
-
-  setNavPrefsLoaded(true)
-}, [household?.id])
-
-useEffect(() => {
-  if (typeof window === 'undefined') return
-  if (!navPrefsLoaded) return
-
-  const key = getNavPrefsKey(household?.id)
-
-  window.localStorage.setItem(
-    key,
-    JSON.stringify({
-      hidden: hiddenNavItems,
-      order: navOrder,
-    })
-  )
-
-  window.dispatchEvent(new CustomEvent('se-nav-prefs-changed'))
-}, [hiddenNavItems, navOrder, household?.id])
-
-const iconButton: React.CSSProperties = {
-  width: 40,
-  height: 40,
-  background: 'transparent',
-  border: '1px solid var(--border)',
-  borderRadius: 10,
-  cursor: 'pointer',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  color: 'var(--muted)',
-  flexShrink: 0,
-  transition: '.15s',
-}
-
-    useEffect(() => {
-    if (!showSettings) return
-    applyPreviewTheme(themeColor)
-  }, [themeColor, showSettings])
   const rgb = hexToRgb(themeColor)
 
   return (
@@ -639,6 +826,8 @@ const iconButton: React.CSSProperties = {
         >
           <button
             onClick={() => router.push('/picker')}
+            onMouseEnter={() => setIsBackHovered(true)}
+            onMouseLeave={() => setIsBackHovered(false)}
             aria-label="Terug naar overzicht"
             title="Terug naar overzicht"
             style={{
@@ -647,11 +836,14 @@ const iconButton: React.CSSProperties = {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'flex-start',
-              color: 'var(--muted)',
+              color: isBackHovered ? 'var(--accent)' : 'var(--muted)',
               borderRadius: 10,
-              border: '1px solid transparent',
+              border: 'none',
+              background: 'transparent',
               padding: 0,
               flexShrink: 0,
+              transition: 'color .15s, transform .15s',
+              transform: isBackHovered ? 'translateX(-1px) scale(1.08)' : 'none',
             }}
           >
             <ArrowLeftIcon />
@@ -740,7 +932,14 @@ const iconButton: React.CSSProperties = {
             </span>
           </div>
 
-          <button onClick={openSettings} style={iconButton} title="Insight-instellingen" aria-label="Insight-instellingen">
+          <button
+            onClick={openSettings}
+            onMouseEnter={() => setIsSettingsHovered(true)}
+            onMouseLeave={() => setIsSettingsHovered(false)}
+            style={iconButton}
+            title="Insight-instellingen"
+            aria-label="Insight-instellingen"
+          >
             <GearIcon />
           </button>
 
@@ -792,107 +991,23 @@ const iconButton: React.CSSProperties = {
       </header>
 
       {showAccount && (
-        <div style={modalBg} onClick={(e) => e.target === e.currentTarget && setShowAccount(false)}>
-          <div style={modal}>
-            <button
-              onClick={() => setShowAccount(false)}
-              style={{
-                position: 'absolute',
-                top: 14,
-                right: 14,
-                width: 32,
-                height: 32,
-                background: 'transparent',
-                border: '1px solid var(--border)',
-                borderRadius: 8,
-                color: 'var(--muted)',
-                fontSize: 18,
-                cursor: 'pointer',
-                lineHeight: 1,
-                padding: 0,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              ×
-            </button>
-
-            <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 20, fontFamily: 'var(--font-heading)' }}>
-              Mijn account
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
-              <div
-                style={{
-                  width: 60,
-                  height: 60,
-                  borderRadius: '50%',
-                  background: 'var(--accent)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 20,
-                  fontWeight: 700,
-                  color: '#0a0a0a',
-                  overflow: 'hidden',
-                }}
-              >
-                {avatarUrl ? (
-                  <img src={avatarUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
-                ) : (
-                  initials
-                )}
-              </div>
-            </div>
-
-            <label style={modalLabel}>Jouw naam</label>
-            <input style={modalInp} type="text" value={accountName} onChange={(e) => setAccountName(e.target.value)} />
-
-            <label style={modalLabel}>E-mailadres</label>
-            <input style={{ ...modalInp, opacity: 0.6 }} type="email" value={currentUser?.email || ''} disabled />
-
-            <div style={modalSection}>
-              <div
-                style={{
-                  fontSize: 10,
-                  fontWeight: 700,
-                  letterSpacing: '.1em',
-                  textTransform: 'uppercase',
-                  color: 'var(--muted)',
-                  marginBottom: 10,
-                }}
-              >
-                Persoonlijk
-              </div>
-              <div style={{ fontSize: 11, color: 'var(--muted2)', lineHeight: 1.6 }}>
-                Je Google-naam wordt als eerste gebruikt. Hier kun je die naam altijd aanpassen voor Samen Even.
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <button
-                onClick={logout}
-                style={{
-                  background: 'rgba(200,60,60,.1)',
-                  color: 'var(--danger)',
-                  border: '1px solid rgba(200,60,60,.2)',
-                  borderRadius: 5,
-                  padding: '11px 16px',
-                  fontSize: 11,
-                  fontFamily: 'var(--font-body)',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                }}
-              >
-                Uitloggen
-              </button>
-              <button onClick={saveAccount} style={{ ...btnPrimary, width: '100%' }}>
-                Opslaan
-              </button>
-            </div>
-          </div>
-        </div>
+        <AccountModal
+          modalBg={modalBg}
+          modal={modal}
+          modalLabel={modalLabel}
+          modalInp={modalInp}
+          modalSection={modalSection}
+          btnPrimary={btnPrimary}
+          avatarUrl={avatarUrl}
+          initials={initials}
+          displayName={displayName}
+          accountName={accountName}
+          currentUserEmail={currentUser?.email}
+          setAccountName={setAccountName}
+          saveAccount={saveAccount}
+          logout={logout}
+          onClose={() => setShowAccount(false)}
+        />
       )}
 
       {showSettings && (
@@ -927,7 +1042,14 @@ const iconButton: React.CSSProperties = {
               ×
             </button>
 
-            <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 20, fontFamily: 'var(--font-heading)' }}>
+            <div
+              style={{
+                fontSize: 16,
+                fontWeight: 700,
+                marginBottom: 20,
+                fontFamily: 'var(--font-heading)',
+              }}
+            >
               Insight-instellingen
             </div>
 
@@ -944,8 +1066,14 @@ const iconButton: React.CSSProperties = {
               >
                 Insight
               </div>
+
               <label style={modalLabel}>Naam van de Insight</label>
-              <input style={modalInp} type="text" value={insightName} onChange={(e) => setInsightName(e.target.value)} />
+              <input
+                style={modalInp}
+                type="text"
+                value={insightName}
+                onChange={(e) => setInsightName(e.target.value)}
+              />
             </div>
 
             <div style={modalSection}>
@@ -982,7 +1110,14 @@ const iconButton: React.CSSProperties = {
                 {inviteUrl}
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10 }}>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr',
+                  gap: 8,
+                  marginBottom: 10,
+                }}
+              >
                 <button onClick={copyInvite} style={btnGhost}>
                   {copied ? 'Gekopieerd!' : 'Kopieer'}
                 </button>
@@ -1138,6 +1273,7 @@ const iconButton: React.CSSProperties = {
                     }}
                   />
                 </div>
+
                 <div>
                   <label style={modalLabel}>G</label>
                   <input
@@ -1158,6 +1294,7 @@ const iconButton: React.CSSProperties = {
                     }}
                   />
                 </div>
+
                 <div>
                   <label style={modalLabel}>B</label>
                   <input
@@ -1195,66 +1332,72 @@ const iconButton: React.CSSProperties = {
                 Navigatie
               </div>
 
-              <div style={{ fontSize: 11, color: 'var(--muted2)', marginBottom: 12, lineHeight: 1.6 }}>
+              <div
+                style={{
+                  fontSize: 11,
+                  color: 'var(--muted2)',
+                  marginBottom: 12,
+                  lineHeight: 1.6,
+                }}
+              >
                 Vink uit om een onderdeel in de navigatie te verbergen.
               </div>
 
               <div id="nav-config-list" style={{ display: 'grid', gap: 8 }}>
-  {navOrder
-  .map((id) => NAV_ITEMS.find((item) => item.id === id))
-  .filter(Boolean)
-  .map((item) => {
-    const checked = !hiddenNavItems.includes(item!.id)
+                {navOrder
+                  .map((id) => NAV_ITEMS.find((item) => item.id === id))
+                  .filter(Boolean)
+                  .map((item) => {
+                    const checked = !hiddenNavItems.includes(item!.id)
 
-    return (
-      <label
-        key={item!.id}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 10,
-          padding: '8px 10px',
-          borderRadius: 8,
-          border: '1px solid var(--border)',
-          background: 'rgba(255,255,255,.02)',
-          cursor: 'pointer',
-        }}
-      >
-        <input
-          type="checkbox"
-          checked={checked}
-          onChange={() => {
-            setHiddenNavItems((prev) => {
-              const next = prev.includes(item!.id)
-                ? prev.filter((id) => id !== item!.id)
-                : [...prev, item!.id]
+                    return (
+                      <label
+                        key={item!.id}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 10,
+                          padding: '8px 10px',
+                          borderRadius: 8,
+                          border: '1px solid var(--border)',
+                          background: 'rgba(255,255,255,.02)',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => {
+                            setHiddenNavItems((prev) => {
+                              const next = prev.includes(item!.id)
+                                ? prev.filter((id) => id !== item!.id)
+                                : [...prev, item!.id]
 
-              return next
-            })
-          }}
+                              return next
+                            })
+                          }}
+                          style={{
+                            width: 15,
+                            height: 15,
+                            accentColor: 'var(--accent)',
+                            flexShrink: 0,
+                          }}
+                        />
 
-          style={{
-            width: 15,
-            height: 15,
-            accentColor: 'var(--accent)',
-            flexShrink: 0,
-          }}
-        />
-
-        <span
-          style={{
-            flex: 1,
-            fontSize: 13,
-            fontWeight: 500,
-            color: checked ? 'var(--text)' : 'var(--muted)',
-          }}
-        >
-          {item!.label}
-        </span>
-      </label>
-    )
-  })}
-</div>
+                        <span
+                          style={{
+                            flex: 1,
+                            fontSize: 13,
+                            fontWeight: 500,
+                            color: checked ? 'var(--text)' : 'var(--muted)',
+                          }}
+                        >
+                          {item!.label}
+                        </span>
+                      </label>
+                    )
+                  })}
+              </div>
 
               <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 10, lineHeight: 1.6 }}>
                 Dit zijn persoonlijke instellingen, niet gedeeld met anderen.

@@ -1,7 +1,7 @@
 'use client'
 
 import { useInsight } from '@/lib/insight-context'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 
 function fmt(n: number, d = 2) {
   return '€\u00a0' + n.toFixed(d).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.')
@@ -58,8 +58,7 @@ function darken(hex: string, factor = 0.45) {
 }
 
 export default function Dashboard() {
-  const { data, members, currentUser } = useInsight()
-  const donutRef = useRef<HTMLCanvasElement>(null)
+  const { data } = useInsight()
   const [previewTheme, setPreviewTheme] = useState(data.theme || '#00c2ff')
 
   const n1 = data.names?.user1 || 'Gebruiker 1'
@@ -124,11 +123,20 @@ export default function Dashboard() {
   const totalShared = jSh + dSh
   const totalSparen = jSv + dSv
   const totalPrive = jPr + dPr
+  const totalDonut = totalShared + totalSparen + totalPrive
 
-  const myMember = members.find((m: any) => m.user_id === currentUser?.id)
-  const hour = new Date().getHours()
-  const greeting = hour < 12 ? 'Goedemorgen' : hour < 18 ? 'Goedemiddag' : 'Goedenavond'
-  const myName = myMember?.display_name?.split(' ')[0] || 'daar'
+  const sharedPct = totalDonut ? (totalShared / totalDonut) * 100 : 0
+  const sparenPct = totalDonut ? (totalSparen / totalDonut) * 100 : 0
+  const privePct = totalDonut ? (totalPrive / totalDonut) * 100 : 0
+
+  const donutBackground =
+    totalDonut > 0
+      ? `conic-gradient(
+          ${accentDark} 0% ${sharedPct}%,
+          ${accent} ${sharedPct}% ${sharedPct + sparenPct}%,
+          ${accentLight} ${sharedPct + sparenPct}% 100%
+        )`
+      : 'var(--s3)'
 
   const upcoming = (data.abonnementen || [])
     .map((s: any) => ({ ...s, days: daysUntil(s.date) }))
@@ -146,53 +154,6 @@ export default function Dashboard() {
       { label: 'Prive restant', pct: r, c: accentLight },
     ]
   }
-
-  useEffect(() => {
-    const c = donutRef.current
-    if (!c) return
-
-    const dpr = window.devicePixelRatio || 1
-    c.width = 110 * dpr
-    c.height = 110 * dpr
-
-    const ctx = c.getContext('2d')
-    if (!ctx) return
-
-    ctx.setTransform(1, 0, 0, 1, 0, 0)
-    ctx.scale(dpr, dpr)
-    ctx.clearRect(0, 0, 110, 110)
-
-    const total = totalShared + totalSparen + totalPrive
-    if (!total) return
-
-    const segs = [
-      { v: totalShared, c: accentDark },
-      { v: totalSparen, c: accent },
-      { v: totalPrive, c: accentLight },
-    ]
-
-    let a = -Math.PI / 2
-    const cx = 55
-    const cy = 55
-    const r = 50
-    const inn = 30
-
-    segs.forEach((seg) => {
-      const sa = (seg.v / total) * 2 * Math.PI
-      ctx.beginPath()
-      ctx.moveTo(cx, cy)
-      ctx.arc(cx, cy, r, a, a + sa)
-      ctx.closePath()
-      ctx.fillStyle = seg.c
-      ctx.fill()
-      a += sa
-    })
-
-    ctx.beginPath()
-    ctx.arc(cx, cy, inn, 0, 2 * Math.PI)
-    ctx.fillStyle = '#1a1a1a'
-    ctx.fill()
-  }, [totalShared, totalSparen, totalPrive, previewTheme])
 
   const panel: React.CSSProperties = {
     background: 'var(--s1)',
@@ -214,22 +175,6 @@ export default function Dashboard() {
 
   return (
     <div style={{ overflowX: 'hidden' }}>
-      <div style={{ marginBottom: 24 }}>
-        <div
-          style={{
-            fontSize: 22,
-            fontWeight: 700,
-            fontFamily: 'var(--font-heading)',
-            marginBottom: 4,
-          }}
-        >
-          {greeting}, {myName}
-        </div>
-        <div style={{ fontSize: 12, color: 'var(--muted)' }}>
-          Jouw gedeelde financiële inzichten
-        </div>
-      </div>
-
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, alignItems: 'stretch' }}>
         <div style={{ gridColumn: '1 / -1', ...panel }}>
           <div
@@ -377,7 +322,25 @@ export default function Dashboard() {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
-            <canvas ref={donutRef} style={{ flexShrink: 0, width: 110, height: 110 }} />
+            <div
+              style={{
+                position: 'relative',
+                flexShrink: 0,
+                width: 110,
+                height: 110,
+                borderRadius: '50%',
+                background: donutBackground,
+              }}
+            >
+              <div
+                style={{
+                  position: 'absolute',
+                  inset: 25,
+                  borderRadius: '50%',
+                  background: 'var(--s1)',
+                }}
+              />
+            </div>
             <div style={{ fontSize: 12.5, display: 'flex', flexDirection: 'column', gap: 8 }}>
               {[
                 { c: accentDark, l: 'Gezamenlijke lasten', v: totalShared },
