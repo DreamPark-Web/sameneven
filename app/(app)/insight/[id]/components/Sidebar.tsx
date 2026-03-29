@@ -1,5 +1,14 @@
 'use client'
 
+import { useEffect, useState } from 'react'
+
+function getNavPrefsKey() {
+  if (typeof window === 'undefined') return 'se_nav_nohousehold'
+  const path = window.location.pathname.split('/')
+  const householdId = path[path.length - 1] || 'nohousehold'
+  return `se_nav_${householdId}`
+}
+
 function DashboardIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -96,6 +105,47 @@ export default function Sidebar({
   activePage: string
   setActivePage: (p: string) => void
 }) {
+  const [hiddenNavItems, setHiddenNavItems] = useState<string[]>([])
+
+  useEffect(() => {
+  if (typeof window === 'undefined') return
+
+  const readPrefs = () => {
+    const raw = window.localStorage.getItem(getNavPrefsKey())
+    if (!raw) {
+      setHiddenNavItems([])
+      return
+    }
+
+    try {
+      const parsed = JSON.parse(raw)
+      setHiddenNavItems(Array.isArray(parsed?.hidden) ? parsed.hidden : [])
+    } catch {
+      setHiddenNavItems([])
+    }
+  }
+
+  const handleStorage = (event: StorageEvent) => {
+    if (event.key && event.key !== getNavPrefsKey()) return
+    readPrefs()
+  }
+
+  const handleNavPrefsChanged = () => {
+    readPrefs()
+  }
+
+  readPrefs()
+  window.addEventListener('focus', readPrefs)
+  window.addEventListener('storage', handleStorage)
+  window.addEventListener('se-nav-prefs-changed', handleNavPrefsChanged)
+
+  return () => {
+    window.removeEventListener('focus', readPrefs)
+    window.removeEventListener('storage', handleStorage)
+    window.removeEventListener('se-nav-prefs-changed', handleNavPrefsChanged)
+  }
+}, [])
+
   return (
     <aside
       style={{
@@ -119,7 +169,7 @@ export default function Sidebar({
           overflowY: 'auto',
         }}
       >
-        {NAV_ITEMS.map((item) => {
+        {NAV_ITEMS.filter((item) => !hiddenNavItems.includes(item.id)).map((item) => {
           const active = activePage === item.id
 
           return (

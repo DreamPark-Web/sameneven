@@ -16,6 +16,22 @@ const THEMES = {
   violet: '#a78bfa',
 }
 
+const NAV_ITEMS = [
+  { id: 'dashboard', label: 'Dashboard' },
+  { id: 'inkomsten', label: 'Inkomsten' },
+  { id: 'gezamenlijk', label: 'Gezamenlijke Kosten' },
+  { id: 'prive', label: 'Privé Kosten' },
+  { id: 'sparen', label: 'Sparen' },
+  { id: 'schulden', label: 'Schulden' },
+  { id: 'abonnementen', label: 'Abonnementen' },
+  { id: 'advies', label: 'Advies' },
+  { id: 'leden', label: 'Leden' },
+]
+
+function getNavPrefsKey(householdId?: string) {
+  return `se_nav_${householdId || 'nohousehold'}`
+}
+
 function GearIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -152,6 +168,16 @@ export default function Topbar({
   const svRef = useRef<HTMLDivElement | null>(null)
   const hueRef = useRef<HTMLDivElement | null>(null)
   const [copied, setCopied] = useState(false)
+  const [hiddenNavItems, setHiddenNavItems] = useState<string[]>([])
+  const [navPrefsLoaded, setNavPrefsLoaded] = useState(false)
+  const [rgbInput, setRgbInput] = useState(() => {
+  const rgb = hexToRgb(data?.theme || '#00c2ff')
+  return {
+    r: String(rgb.r),
+    g: String(rgb.g),
+    b: String(rgb.b),
+  }
+})
 
   const myMember = members.find((m: any) => m.user_id === currentUser?.id)
   const displayName =
@@ -194,11 +220,18 @@ export default function Topbar({
 
   function openSettings() {
     const currentTheme = data?.theme || '#00c2ff'
+    const currentRgb = hexToRgb(currentTheme)
+
     setInsightName(household?.name || '')
     setInviteCode(household?.invite_code || '')
     setThemeColor(currentTheme)
     setPickerHSV(hexToHsv(currentTheme))
     setSettingsStartTheme(currentTheme)
+    setRgbInput({
+      r: String(currentRgb.r),
+      g: String(currentRgb.g),
+      b: String(currentRgb.b),
+    })
     setShowSettings(true)
   }
 
@@ -272,6 +305,29 @@ export default function Topbar({
     const normalized = nextColor.toLowerCase()
     setThemeColor(normalized)
     setPickerHSV(hexToHsv(normalized))
+  }
+
+  function setThemeFromRgb(next: { r?: string; g?: string; b?: string }) {
+    const current = hexToRgb(themeColor)
+    const r = clamp(parseInt(next.r ?? String(current.r), 10) || 0, 0, 255)
+    const g = clamp(parseInt(next.g ?? String(current.g), 10) || 0, 0, 255)
+    const b = clamp(parseInt(next.b ?? String(current.b), 10) || 0, 0, 255)
+
+    const hex =
+      `#${r.toString(16).padStart(2, '0')}` +
+      `${g.toString(16).padStart(2, '0')}` +
+      `${b.toString(16).padStart(2, '0')}`
+
+    setThemeFromHex(hex)
+    setRgbInput({
+      r: String(r),
+      g: String(g),
+      b: String(b),
+    })
+  }
+
+  function commitRgbInput() {
+    setThemeFromRgb(rgbInput)
   }
 
   function updateHue(clientX: number) {
@@ -465,20 +521,57 @@ export default function Topbar({
     width: '100%',
   }
 
-  const iconButton: React.CSSProperties = {
-    width: 40,
-    height: 40,
-    background: 'transparent',
-    border: '1px solid var(--border)',
-    borderRadius: 10,
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    color: 'var(--muted)',
-    flexShrink: 0,
-    transition: '.15s',
+  useEffect(() => {
+  if (typeof window === 'undefined') return
+  const key = getNavPrefsKey(household?.id)
+  const raw = window.localStorage.getItem(key)
+
+  if (!raw) {
+    setHiddenNavItems([])
+    setNavPrefsLoaded(true)
+    return
   }
+
+  try {
+    const parsed = JSON.parse(raw)
+    setHiddenNavItems(Array.isArray(parsed?.hidden) ? parsed.hidden : [])
+  } catch {
+    setHiddenNavItems([])
+  }
+
+  setNavPrefsLoaded(true)
+}, [household?.id])
+
+useEffect(() => {
+  if (typeof window === 'undefined') return
+  if (!navPrefsLoaded) return
+
+  const key = getNavPrefsKey(household?.id)
+
+  window.localStorage.setItem(
+    key,
+    JSON.stringify({
+      hidden: hiddenNavItems,
+    })
+  )
+
+  window.dispatchEvent(new CustomEvent('se-nav-prefs-changed'))
+}, [hiddenNavItems, household?.id])
+
+const iconButton: React.CSSProperties = {
+  width: 40,
+  height: 40,
+  background: 'transparent',
+  border: '1px solid var(--border)',
+  borderRadius: 10,
+  cursor: 'pointer',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  color: 'var(--muted)',
+  flexShrink: 0,
+  transition: '.15s',
+}
 
     useEffect(() => {
     if (!showSettings) return
@@ -899,25 +992,6 @@ export default function Topbar({
                 Accentkleur van deze Insight
               </div>
 
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
-                {Object.values(THEMES).map((color) => (
-                  <button
-                    key={color}
-                    onClick={() => setThemeFromHex(color)}
-                    style={{
-                      width: 28,
-                      height: 28,
-                      borderRadius: '50%',
-                      background: color,
-                      border: themeColor === color ? '2px solid var(--text)' : '2px solid transparent',
-                      cursor: 'pointer',
-                      flexShrink: 0,
-                    }}
-                    title={color}
-                  />
-                ))}
-              </div>
-
               <div
                 style={{
                   height: 44,
@@ -1016,15 +1090,63 @@ export default function Topbar({
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
                 <div>
                   <label style={modalLabel}>R</label>
-                  <input style={{ ...modalInp, marginBottom: 0, textAlign: 'center' }} value={rgb.r} disabled />
+                  <input
+                    style={{ ...modalInp, marginBottom: 0, textAlign: 'center' }}
+                    type="number"
+                    min="0"
+                    max="255"
+                    inputMode="numeric"
+                    value={rgbInput.r}
+                    onChange={(e) => setRgbInput((prev) => ({ ...prev, r: e.target.value }))}
+                    onBlur={commitRgbInput}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        commitRgbInput()
+                        ;(e.currentTarget as HTMLInputElement).blur()
+                      }
+                    }}
+                  />
                 </div>
                 <div>
                   <label style={modalLabel}>G</label>
-                  <input style={{ ...modalInp, marginBottom: 0, textAlign: 'center' }} value={rgb.g} disabled />
+                  <input
+                    style={{ ...modalInp, marginBottom: 0, textAlign: 'center' }}
+                    type="number"
+                    min="0"
+                    max="255"
+                    inputMode="numeric"
+                    value={rgbInput.g}
+                    onChange={(e) => setRgbInput((prev) => ({ ...prev, g: e.target.value }))}
+                    onBlur={commitRgbInput}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        commitRgbInput()
+                        ;(e.currentTarget as HTMLInputElement).blur()
+                      }
+                    }}
+                  />
                 </div>
                 <div>
                   <label style={modalLabel}>B</label>
-                  <input style={{ ...modalInp, marginBottom: 0, textAlign: 'center' }} value={rgb.b} disabled />
+                  <input
+                    style={{ ...modalInp, marginBottom: 0, textAlign: 'center' }}
+                    type="number"
+                    min="0"
+                    max="255"
+                    inputMode="numeric"
+                    value={rgbInput.b}
+                    onChange={(e) => setRgbInput((prev) => ({ ...prev, b: e.target.value }))}
+                    onBlur={commitRgbInput}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        commitRgbInput()
+                        ;(e.currentTarget as HTMLInputElement).blur()
+                      }
+                    }}
+                  />
                 </div>
               </div>
             </div>
@@ -1047,7 +1169,60 @@ export default function Topbar({
                 Sleep om te herordenen. Uitvinken om te verbergen.
               </div>
 
-              <div id="nav-config-list" />
+              <div id="nav-config-list" style={{ display: 'grid', gap: 8 }}>
+  {NAV_ITEMS.map((item) => {
+    const checked = !hiddenNavItems.includes(item.id)
+
+    return (
+      <label
+        key={item.id}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          padding: '8px 10px',
+          borderRadius: 8,
+          border: '1px solid var(--border)',
+          background: 'rgba(255,255,255,.02)',
+          cursor: 'pointer',
+        }}
+      >
+        <span style={{ color: 'var(--muted)', fontSize: 14, lineHeight: 1 }}>☰</span>
+
+        <input
+          type="checkbox"
+          checked={checked}
+          onChange={() => {
+            setHiddenNavItems((prev) => {
+              const next = prev.includes(item.id)
+                ? prev.filter((id) => id !== item.id)
+                : [...prev, item.id]
+
+              return next
+            })
+          }}
+          
+          style={{
+            width: 15,
+            height: 15,
+            accentColor: 'var(--accent)',
+            flexShrink: 0,
+          }}
+        />
+
+        <span
+          style={{
+            fontSize: 13,
+            fontWeight: 500,
+            color: checked ? 'var(--text)' : 'var(--muted)',
+          }}
+        >
+          {item.label}
+        </span>
+      </label>
+    )
+  })}
+</div>
 
               <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 10, lineHeight: 1.6 }}>
                 Dit zijn persoonlijke instellingen, niet gedeeld met anderen.
