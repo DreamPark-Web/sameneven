@@ -3,92 +3,84 @@
 import { useState } from 'react'
 import { useInsight } from '@/lib/insight-context'
 
-type IncomeItem = { id: string; label: string; value: number }
+type Item = { id: string; label: string; value: number }
 
-function fmt(n: number) {
-  return '€ ' + n.toFixed(2).replace('.', ',')
-}
+function fmt(n: number) { return '€\u00a0' + n.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.') }
+function sum(arr: Item[]) { return (arr || []).reduce((a, i) => a + i.value, 0) }
 
-function PersonPanel({
-  name,
-  items,
-  onAdd,
-  onDelete,
-  canEdit,
-}: {
-  name: string
-  items: IncomeItem[]
-  onAdd: (label: string, value: number) => void
-  onDelete: (id: string) => void
-  canEdit: boolean
+const panel: React.CSSProperties = { background: 'var(--s1)', border: '1px solid var(--border)', borderRadius: 8, padding: '22px 26px', marginBottom: 22 }
+const panelHd: React.CSSProperties = { marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }
+
+function PersonPanel({ name, items, onAdd, onDelete, onEdit, canEdit }: {
+  name: string; items: Item[]; onAdd: (label: string, value: number) => void
+  onDelete: (id: string) => void; onEdit: (id: string, label: string, value: number) => void; canEdit: boolean
 }) {
+  const [open, setOpen] = useState(false)
   const [label, setLabel] = useState('')
   const [value, setValue] = useState('')
-  const [open, setOpen] = useState(false)
-  const total = items.reduce((a, i) => a + i.value, 0)
+  const total = sum(items)
 
   return (
-    <div className="bg-[#1a1a1a] border border-[#2e2e2e] rounded-xl overflow-hidden">
-      <div className="flex items-center justify-between px-5 py-4 border-b border-[#2e2e2e]">
-        <p className="text-xs font-bold uppercase tracking-widest text-[#666]">{name}</p>
+    <div style={panel}>
+      <div style={panelHd}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+          <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--accent)', fontFamily: 'var(--font-heading)' }}>{name}</span>
+          <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--muted)' }}>Inkomsten</span>
+        </div>
         {canEdit && (
-          <button
-            onClick={() => setOpen(!open)}
-            className="text-xs text-[#00c2ff] border border-[#00c2ff]/30 px-3 py-1.5 rounded-lg hover:bg-[#00c2ff]/10 transition"
-          >
+          <button onClick={() => setOpen(!open)} style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '4px 10px', borderRadius: 5, cursor: 'pointer', border: '1px solid var(--border)', background: 'transparent', color: 'var(--muted2)', transition: 'all .15s' }}>
             + Post
           </button>
         )}
       </div>
 
       {open && (
-        <div className="px-5 py-3 border-b border-[#2e2e2e] flex gap-2">
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 14, paddingBottom: 14, borderBottom: '1px solid var(--border)' }}>
           <input
-            className="flex-1 bg-[#222] border border-[#2e2e2e] text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#00c2ff]"
-            placeholder="Omschrijving"
-            value={label}
-            onChange={e => setLabel(e.target.value)}
+            style={{ flex: 1, minWidth: 80, background: 'var(--s2)', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'left' }}
+            placeholder="Omschrijving" value={label} onChange={e => setLabel(e.target.value)}
           />
           <input
-            className="w-32 bg-[#222] border border-[#2e2e2e] text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#00c2ff]"
-            placeholder="Bedrag"
-            type="number"
-            value={value}
-            onChange={e => setValue(e.target.value)}
+            style={{ width: 100, background: 'var(--s2)', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'right' }}
+            type="number" placeholder="Bedrag" value={value} onChange={e => setValue(e.target.value)}
           />
-          <button
-            onClick={() => {
-              if (!label.trim() || !value) return
-              onAdd(label.trim(), parseFloat(value))
-              setLabel(''); setValue(''); setOpen(false)
-            }}
-            className="bg-[#00c2ff] text-black text-sm font-bold px-4 py-2 rounded-lg hover:bg-[#40d8ff] transition"
-          >
-            OK
+          <button onClick={() => { if (!label.trim() || !value) return; onAdd(label.trim(), parseFloat(value)); setLabel(''); setValue(''); setOpen(false) }}
+            style={{ fontFamily: 'var(--font-body)', fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 5, cursor: 'pointer', border: 'none', background: 'var(--accent)', color: '#0a0a0a' }}>
+            Toevoegen
+          </button>
+          <button onClick={() => setOpen(false)} style={{ fontFamily: 'var(--font-body)', fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 5, cursor: 'pointer', background: 'transparent', color: 'var(--muted2)', border: '1px solid var(--border)' }}>
+            Annuleren
           </button>
         </div>
       )}
 
       <div>
-        {items.map((item, i) => (
-          <div key={item.id} className={`flex items-center justify-between px-5 py-3 ${i > 0 ? 'border-t border-[#2e2e2e]' : ''}`}>
-            <span className="text-sm text-white">{item.label}</span>
-            <div className="flex items-center gap-3">
-              <span className="text-sm font-semibold text-[#00c2ff]">{fmt(item.value)}</span>
-              {canEdit && (
-                <button onClick={() => onDelete(item.id)} className="text-[#444] hover:text-[#e05050] transition text-lg leading-none">×</button>
-              )}
-            </div>
+        {items.map(item => (
+          <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 0', borderBottom: '1px solid rgba(255,255,255,.04)' }}>
+            <span style={{ flex: 1, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.label}</span>
+            <input
+              type="number"
+              defaultValue={item.value}
+              onBlur={e => onEdit(item.id, item.label, parseFloat(e.target.value) || 0)}
+              disabled={!canEdit}
+              style={{ width: 100, background: canEdit ? 'var(--s2)' : 'transparent', border: canEdit ? '1px solid var(--border)' : 'none', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}
+            />
+            {canEdit && (
+              <button onClick={() => onDelete(item.id)} style={{ width: 26, height: 26, background: 'rgba(200,60,60,.1)', color: 'var(--danger)', border: '1px solid rgba(200,60,60,.2)', borderRadius: 4, cursor: 'pointer', fontSize: 14, fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>×</button>
+            )}
           </div>
         ))}
-        {items.length === 0 && (
-          <p className="text-sm text-[#444] px-5 py-4">Nog geen inkomsten.</p>
-        )}
       </div>
 
-      <div className="px-5 py-3 border-t border-[#2e2e2e] bg-[#141414] flex justify-between items-center">
-        <span className="text-xs text-[#666]">Totaal per maand</span>
-        <span className="text-base font-bold text-[#00c2ff]">{fmt(total)}</span>
+      <div style={{ marginTop: 14 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '14px 0 10px' }}>
+          <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.13em', textTransform: 'uppercase', color: 'var(--muted)', whiteSpace: 'nowrap' }}>Totaal</span>
+          <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+        </div>
+        <div style={{ background: 'var(--s2)', borderRadius: 6, padding: '13px 15px' }}>
+          <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--muted)' }}>Totaal netto per maand</div>
+          <div style={{ fontSize: 22, fontWeight: 700, fontVariantNumeric: 'tabular-nums', marginTop: 4, color: 'var(--accent)' }}>{fmt(total)}</div>
+        </div>
       </div>
     </div>
   )
@@ -98,15 +90,11 @@ export default function Inkomsten() {
   const { data, saveData, canEdit } = useInsight()
   const n1 = data.names?.user1 || 'Gebruiker 1'
   const n2 = data.names?.user2 || 'Gebruiker 2'
-
-  const u1Income: IncomeItem[] = data.user1?.income || []
-  const u2Income: IncomeItem[] = data.user2?.income || []
-  const total1 = u1Income.reduce((a, i) => a + i.value, 0)
-  const total2 = u2Income.reduce((a, i) => a + i.value, 0)
-  const totalIncome = total1 + total2
-
-  const u1Ratio = totalIncome ? ((total1 / totalIncome) * 100).toFixed(1) : '50.0'
-  const u2Ratio = totalIncome ? ((total2 / totalIncome) * 100).toFixed(1) : '50.0'
+  const u1: Item[] = data.user1?.income || []
+  const u2: Item[] = data.user2?.income || []
+  const t1 = sum(u1), t2 = sum(u2), total = t1 + t2
+  const r1 = total ? (t1 / total * 100).toFixed(1) + '%' : '—'
+  const r2 = total ? (t2 / total * 100).toFixed(1) + '%' : '—'
 
   function addIncome(slot: 'user1' | 'user2', label: string, value: number) {
     const item = { id: slot + Date.now(), label, value }
@@ -114,50 +102,43 @@ export default function Inkomsten() {
     updated[slot] = { ...updated[slot], income: [...(updated[slot]?.income || []), item] }
     saveData(updated)
   }
-
   function deleteIncome(slot: 'user1' | 'user2', id: string) {
     const updated = { ...data }
-    updated[slot] = { ...updated[slot], income: updated[slot].income.filter((i: IncomeItem) => i.id !== id) }
+    updated[slot] = { ...updated[slot], income: updated[slot].income.filter((i: Item) => i.id !== id) }
+    saveData(updated)
+  }
+  function editIncome(slot: 'user1' | 'user2', id: string, label: string, value: number) {
+    const updated = { ...data }
+    updated[slot] = { ...updated[slot], income: updated[slot].income.map((i: Item) => i.id === id ? { ...i, label, value } : i) }
     saveData(updated)
   }
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-white">Inkomsten</h1>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        <PersonPanel name={n1} items={u1} onAdd={(l, v) => addIncome('user1', l, v)} onDelete={id => deleteIncome('user1', id)} onEdit={(id, l, v) => editIncome('user1', id, l, v)} canEdit={canEdit('user1')} />
+        <PersonPanel name={n2} items={u2} onAdd={(l, v) => addIncome('user2', l, v)} onDelete={id => deleteIncome('user2', id)} onEdit={(id, l, v) => editIncome('user2', id, l, v)} canEdit={canEdit('user2')} />
       </div>
-
-      <div className="grid grid-cols-3 gap-4 mb-6">
-        <div className="bg-[#1a1a1a] border border-[#2e2e2e] rounded-xl p-4">
-          <p className="text-xs text-[#666] uppercase tracking-widest mb-1">Totaal gezamenlijk</p>
-          <p className="text-xl font-bold text-[#00c2ff]">{fmt(totalIncome)}</p>
-          <p className="text-xs text-[#666] mt-1">per maand</p>
+      <div style={panel}>
+        <div style={panelHd}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--muted)' }}>Overzicht</span>
+            <span style={{ fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-heading)' }}>Gecombineerd inkomen</span>
+          </div>
         </div>
-        <div className="bg-[#1a1a1a] border border-[#2e2e2e] rounded-xl p-4">
-          <p className="text-xs text-[#666] uppercase tracking-widest mb-1">Aandeel {n1}</p>
-          <p className="text-xl font-bold text-white">{u1Ratio}%</p>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
+          {[
+            { label: 'Totaal gezamenlijk', val: fmt(total), sub: 'per maand', color: 'var(--accent)' },
+            { label: `Aandeel ${n1}`, val: r1, color: 'var(--accent)' },
+            { label: `Aandeel ${n2}`, val: r2, color: 'var(--accent)' },
+          ].map((s, i) => (
+            <div key={i} style={{ background: 'var(--s1)', border: '1px solid var(--border)', borderRadius: 8, padding: '15px 17px', borderTop: '2px solid var(--accent)' }}>
+              <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--muted)' }}>{s.label}</div>
+              <div style={{ fontSize: i === 0 ? 28 : 19, fontWeight: 700, lineHeight: 1, margin: '6px 0 4px', fontVariantNumeric: 'tabular-nums', color: s.color }}>{s.val}</div>
+              {s.sub && <div style={{ fontSize: 11, color: 'var(--muted2)' }}>{s.sub}</div>}
+            </div>
+          ))}
         </div>
-        <div className="bg-[#1a1a1a] border border-[#2e2e2e] rounded-xl p-4">
-          <p className="text-xs text-[#666] uppercase tracking-widest mb-1">Aandeel {n2}</p>
-          <p className="text-xl font-bold text-white">{u2Ratio}%</p>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-5">
-        <PersonPanel
-          name={n1}
-          items={u1Income}
-          onAdd={(l, v) => addIncome('user1', l, v)}
-          onDelete={(id) => deleteIncome('user1', id)}
-          canEdit={canEdit('user1')}
-        />
-        <PersonPanel
-          name={n2}
-          items={u2Income}
-          onAdd={(l, v) => addIncome('user2', l, v)}
-          onDelete={(id) => deleteIncome('user2', id)}
-          canEdit={canEdit('user2')}
-        />
       </div>
     </div>
   )

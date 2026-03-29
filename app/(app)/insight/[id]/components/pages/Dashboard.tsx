@@ -1,134 +1,539 @@
 'use client'
 
 import { useInsight } from '@/lib/insight-context'
+import { useEffect, useRef, useState } from 'react'
 
-function fmt(n: number) { return '€ ' + n.toFixed(2).replace('.', ',') }
+function fmt(n: number, d = 2) {
+  return '€\u00a0' + n.toFixed(d).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+}
+function fmtK(n: number) {
+  return Math.abs(n) >= 1000
+    ? '€\u00a0' + (n / 1000).toFixed(1).replace('.', ',') + 'k'
+    : fmt(n, 0)
+}
+function sum(arr: any[]) {
+  return (arr || []).reduce((a: number, i: any) => a + (i.value || 0), 0)
+}
+
+function daysUntil(dateStr: string) {
+  if (!dateStr) return null
+  const today = new Date()
+  const next = new Date(dateStr)
+  while (next < today) next.setFullYear(next.getFullYear() + 1)
+  return Math.ceil((next.getTime() - today.getTime()) / 86400000)
+}
+
+function subMonthly(s: any) {
+  return s.freq === 'jaarlijks' ? s.amount / 12 : s.amount
+}
+
+const FREQL: Record<string, string> = {
+  maandelijks: 'p/mnd',
+  jaarlijks: 'p/jr',
+}
+
+function hexToRgb(hex: string) {
+  const clean = (hex || '#00c2ff').replace('#', '')
+  return {
+    r: parseInt(clean.slice(0, 2), 16) || 0,
+    g: parseInt(clean.slice(2, 4), 16) || 0,
+    b: parseInt(clean.slice(4, 6), 16) || 0,
+  }
+}
+
+function lighten(hex: string, factor = 0.5) {
+  const { r, g, b } = hexToRgb(hex)
+  const lr = Math.min(255, Math.round(r + (255 - r) * factor))
+  const lg = Math.min(255, Math.round(g + (255 - g) * factor))
+  const lb = Math.min(255, Math.round(b + (255 - b) * factor))
+  return `rgb(${lr}, ${lg}, ${lb})`
+}
+
+function darken(hex: string, factor = 0.45) {
+  const { r, g, b } = hexToRgb(hex)
+  const dr = Math.max(0, Math.round(r * factor))
+  const dg = Math.max(0, Math.round(g * factor))
+  const db = Math.max(0, Math.round(b * factor))
+  return `rgb(${dr}, ${dg}, ${db})`
+}
 
 export default function Dashboard() {
   const { data, members, currentUser } = useInsight()
+  const donutRef = useRef<HTMLCanvasElement>(null)
+  const [previewTheme, setPreviewTheme] = useState(data.theme || '#00c2ff')
 
   const n1 = data.names?.user1 || 'Gebruiker 1'
   const n2 = data.names?.user2 || 'Gebruiker 2'
 
-  const u1Income = (data.user1?.income || []).reduce((a: number, i: any) => a + i.value, 0)
-  const u2Income = (data.user2?.income || []).reduce((a: number, i: any) => a + i.value, 0)
-  const totalIncome = u1Income + u2Income
-  const u1Ratio = totalIncome ? u1Income / totalIncome : 0.5
-  const u2Ratio = 1 - u1Ratio
+  const jI = sum(data.user1?.income || [])
+  const dI = sum(data.user2?.income || [])
+  const totalIncome = jI + dI
+  const jRatio = totalIncome ? jI / totalIncome : 0.5
+  const dRatio = 1 - jRatio
 
-  const shared = data.shared || []
-  const totalShared = shared.reduce((a: number, c: any) => a + c.value, 0)
-  const u1Private = (data.user1?.private || []).reduce((a: number, i: any) => a + i.value, 0)
-  const u2Private = (data.user2?.private || []).reduce((a: number, i: any) => a + i.value, 0)
-  const u1SharedSav = (data.user1?.savings?.shared || []).reduce((a: number, i: any) => a + i.value, 0)
-  const u2SharedSav = (data.user2?.savings?.shared || []).reduce((a: number, i: any) => a + i.value, 0)
-  const u1PrivSav = (data.user1?.savings?.private || []).reduce((a: number, i: any) => a + i.value, 0)
-  const u2PrivSav = (data.user2?.savings?.private || []).reduce((a: number, i: any) => a + i.value, 0)
-  const u1Transfer = (totalShared * u1Ratio) + u1SharedSav
-  const u2Transfer = (totalShared * u2Ratio) + u2SharedSav
-  const u1Rest = u1Income - u1Transfer - u1Private - u1PrivSav
-  const u2Rest = u2Income - u2Transfer - u2Private - u2PrivSav
+  const jSh = (data.shared || []).reduce((a: number, c: any) => {
+    const v = c.value || 0
+    if (c.split === '5050') return a + v / 2
+    if (c.split === 'user1') return a + v
+    if (c.split === 'user2') return a
+    return a + v * jRatio
+  }, 0)
 
-  const totalSparen = (data.spaarpotjes || []).reduce((a: number, p: any) => a + p.current, 0)
-  const totalSchuld = (data.schulden || []).reduce((a: number, s: any) => a + s.balance, 0)
-  const totalSubs = (data.abonnementen || []).reduce((a: number, s: any) =>
-    a + (s.freq === 'jaarlijks' ? s.amount / 12 : s.amount), 0)
+  const dSh = (data.shared || []).reduce((a: number, c: any) => {
+    const v = c.value || 0
+    if (c.split === '5050') return a + v / 2
+    if (c.split === 'user1') return a
+    if (c.split === 'user2') return a + v
+    return a + v * dRatio
+  }, 0)
+
+  const jPr = sum(data.user1?.private || [])
+  const dPr = sum(data.user2?.private || [])
+  const jSsh = sum(data.user1?.savings?.shared || [])
+  const dSsh = sum(data.user2?.savings?.shared || [])
+  const jSprivate = sum(data.user1?.savings?.private || [])
+  const dSprivate = sum(data.user2?.savings?.private || [])
+  const jSv = jSsh + jSprivate
+  const dSv = dSsh + dSprivate
+
+  const jTr = jSh + jSsh
+  const dTr = dSh + dSsh
+  const jR = jI - jTr - jPr - jSprivate
+  const dR = dI - dTr - dPr - dSprivate
+
+    const accentHex = (previewTheme || data.theme || '#00c2ff').toLowerCase()
+  const accent = accentHex
+  const accentDark = darken(accentHex, 0.45)
+  const accentLight = lighten(accentHex, 0.55)
+    useEffect(() => {
+    setPreviewTheme(data.theme || '#00c2ff')
+  }, [data.theme])
+
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const customEvent = event as CustomEvent<{ color?: string }>
+      if (customEvent.detail?.color) {
+        setPreviewTheme(customEvent.detail.color)
+      }
+    }
+
+    window.addEventListener('se-theme-preview', handler)
+    return () => window.removeEventListener('se-theme-preview', handler)
+  }, [])
+
+  const totalShared = jSh + dSh
+  const totalSparen = jSv + dSv
+  const totalPrive = jPr + dPr
 
   const myMember = members.find((m: any) => m.user_id === currentUser?.id)
   const hour = new Date().getHours()
   const greeting = hour < 12 ? 'Goedemorgen' : hour < 18 ? 'Goedemiddag' : 'Goedenavond'
   const myName = myMember?.display_name?.split(' ')[0] || 'daar'
 
-  const upcomingSubs = (data.abonnementen || []).filter((s: any) => {
-    if (!s.date) return false
-    const today = new Date()
-    const next = new Date(s.date)
-    while (next < today) next.setFullYear(next.getFullYear() + 1)
-    return Math.ceil((next.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)) <= 60
-  }).sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime())
+  const upcoming = (data.abonnementen || [])
+    .map((s: any) => ({ ...s, days: daysUntil(s.date) }))
+    .filter((s: any) => s.days !== null && s.days >= -3 && s.days <= 60)
+    .sort((a: any, b: any) => a.days - b.days)
+
+  function renderPerc(inc: number, sh: number, pr: number, sv: number) {
+    const l = inc ? (sh + pr) / inc : 0
+    const sp = inc ? sv / inc : 0
+    const r = Math.max(0, 1 - l - sp)
+
+    return [
+      { label: 'Vaste lasten', pct: l, c: accentDark },
+      { label: 'Sparen', pct: sp, c: accent },
+      { label: 'Prive restant', pct: r, c: accentLight },
+    ]
+  }
+
+  useEffect(() => {
+    const c = donutRef.current
+    if (!c) return
+
+    const dpr = window.devicePixelRatio || 1
+    c.width = 110 * dpr
+    c.height = 110 * dpr
+
+    const ctx = c.getContext('2d')
+    if (!ctx) return
+
+    ctx.setTransform(1, 0, 0, 1, 0, 0)
+    ctx.scale(dpr, dpr)
+    ctx.clearRect(0, 0, 110, 110)
+
+    const total = totalShared + totalSparen + totalPrive
+    if (!total) return
+
+    const segs = [
+      { v: totalShared, c: accentDark },
+      { v: totalSparen, c: accent },
+      { v: totalPrive, c: accentLight },
+    ]
+
+    let a = -Math.PI / 2
+    const cx = 55
+    const cy = 55
+    const r = 50
+    const inn = 30
+
+    segs.forEach((seg) => {
+      const sa = (seg.v / total) * 2 * Math.PI
+      ctx.beginPath()
+      ctx.moveTo(cx, cy)
+      ctx.arc(cx, cy, r, a, a + sa)
+      ctx.closePath()
+      ctx.fillStyle = seg.c
+      ctx.fill()
+      a += sa
+    })
+
+    ctx.beginPath()
+    ctx.arc(cx, cy, inn, 0, 2 * Math.PI)
+    ctx.fillStyle = '#1a1a1a'
+    ctx.fill()
+  }, [totalShared, totalSparen, totalPrive, previewTheme])
+
+  const panel: React.CSSProperties = {
+    background: 'var(--s1)',
+    border: '1px solid var(--border)',
+    borderRadius: 8,
+    padding: '22px 26px',
+    marginBottom: 0,
+  }
+
+  const panelHd: React.CSSProperties = {
+    marginBottom: 16,
+    paddingBottom: 12,
+    borderBottom: '1px solid var(--border)',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 8,
+  }
 
   return (
-    <div id="page-dashboard">
-      <div style={{ marginBottom: 28 }}>
-        <div style={{ fontSize: 24, fontWeight: 700, fontFamily: 'var(--font-heading)' }}>{greeting}, {myName}</div>
-        <div className="caption" style={{ marginTop: 4 }}>Hier is een overzicht van jullie financiën.</div>
-      </div>
-
-      <div className="strip" style={{ marginBottom: 20 }}>
-        <div className="stat-card ac">
-          <div className="eyebrow">Totaal inkomen</div>
-          <div className="stat-val" style={{ color: 'var(--accent)' }}>{fmt(totalIncome)}</div>
-          <div className="caption">per maand</div>
+    <div style={{ overflowX: 'hidden' }}>
+      <div style={{ marginBottom: 24 }}>
+        <div
+          style={{
+            fontSize: 22,
+            fontWeight: 700,
+            fontFamily: 'var(--font-heading)',
+            marginBottom: 4,
+          }}
+        >
+          {greeting}, {myName}
         </div>
-        <div className="stat-card ac">
-          <div className="eyebrow">Gezamenlijke lasten</div>
-          <div className="stat-val" style={{ color: 'var(--accent)' }}>{fmt(totalShared)}</div>
-          <div className="caption">per maand</div>
-        </div>
-        <div className="stat-card ac">
-          <div className="eyebrow">Abonnementen</div>
-          <div className="stat-val" style={{ color: 'var(--accent)' }}>{fmt(totalSubs)}</div>
-          <div className="caption">per maand</div>
-        </div>
-        <div className="stat-card ac">
-          <div className="eyebrow">Totaal gespaard</div>
-          <div className="stat-val" style={{ color: 'var(--accent)' }}>{fmt(totalSparen)}</div>
-          <div className="caption">in spaarpotten</div>
-        </div>
-        <div className="stat-card" style={{ borderTopColor: totalSchuld > 0 ? 'var(--danger)' : 'var(--ok)' }}>
-          <div className="eyebrow">Totaal schulden</div>
-          <div className="stat-val" style={{ color: totalSchuld > 0 ? 'var(--danger)' : 'var(--ok)' }}>{fmt(totalSchuld)}</div>
+        <div style={{ fontSize: 12, color: 'var(--muted)' }}>
+          Jouw gedeelde financiële inzichten
         </div>
       </div>
 
-      <div className="duo" style={{ marginBottom: 20 }}>
-        {[{ name: n1, transfer: u1Transfer, rest: u1Rest }, { name: n2, transfer: u2Transfer, rest: u2Rest }].map(({ name, transfer, rest }) => (
-          <div key={name} className="panel" style={{ marginBottom: 0 }}>
-            <div className="panel-hd">
-              <div className="panel-hd-left">
-                <span className="person-name">{name}</span>
-                <span className="panel-sub">Maandoverzicht</span>
-              </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, alignItems: 'stretch' }}>
+        <div style={{ gridColumn: '1 / -1', ...panel }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              marginBottom: 14,
+              paddingBottom: 12,
+              borderBottom: '1px solid var(--border)',
+            }}
+          >
+            <div
+              style={{
+                width: 30,
+                height: 30,
+                background: 'rgba(var(--accent-rgb), .10)',
+                border: '1px solid rgba(var(--accent-rgb), .20)',
+                borderRadius: 7,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2.5" strokeLinecap="round">
+                <rect x="3" y="3" width="7" height="7" />
+                <rect x="14" y="3" width="7" height="7" />
+                <rect x="14" y="14" width="7" height="7" />
+                <rect x="3" y="14" width="7" height="7" />
+              </svg>
             </div>
-            <div className="totals-bar">
-              <div className="total-box">
-                <div className="eyebrow">Over te maken</div>
-                <div className="total-val" style={{ color: 'var(--accent)' }}>{fmt(transfer)}</div>
-                <div className="caption">per maand</div>
+            <span
+              style={{
+                fontSize: 10,
+                fontWeight: 700,
+                letterSpacing: '.12em',
+                textTransform: 'uppercase',
+                color: 'var(--muted)',
+              }}
+            >
+              Dashboard overzicht
+            </span>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(165px, 1fr))', gap: 12 }}>
+            {[
+              { label: `Inkomen ${n1}`, val: fmtK(jI), cls: 'ac', color: 'var(--accent)', sub: 'per maand' },
+              { label: `Inkomen ${n2}`, val: fmtK(dI), cls: 'ac', color: 'var(--accent)', sub: 'per maand' },
+              { label: `Lasten ${n1}`, val: fmtK(jSh + jPr), cls: 'ng', color: 'var(--danger)', sub: 'gezamenlijk + prive' },
+              { label: `Lasten ${n2}`, val: fmtK(dSh + dPr), cls: 'ng', color: 'var(--danger)', sub: 'gezamenlijk + prive' },
+              { label: `Restant ${n1}`, val: fmtK(jR), cls: jR >= 0 ? 'ok' : 'ng', color: jR >= 0 ? 'var(--ok)' : 'var(--danger)', sub: 'na lasten & sparen' },
+              { label: `Restant ${n2}`, val: fmtK(dR), cls: dR >= 0 ? 'ok' : 'ng', color: dR >= 0 ? 'var(--ok)' : 'var(--danger)', sub: 'na lasten & sparen' },
+            ].map((s, i) => (
+              <div
+                key={i}
+                style={{
+                  background: 'var(--s1)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 8,
+                  padding: '15px 17px',
+                  borderTop: `2px solid ${s.cls === 'ac' ? 'var(--accent)' : s.cls === 'ok' ? 'var(--ok)' : 'var(--danger)'}`,
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 600,
+                    letterSpacing: '.14em',
+                    textTransform: 'uppercase',
+                    color: s.cls === 'ac' ? 'var(--accent)' : s.cls === 'ng' ? 'var(--danger)' : 'var(--muted)',
+                  }}
+                >
+                  {s.label}
+                </div>
+                <div
+                  style={{
+                    fontSize: 28,
+                    fontWeight: 700,
+                    lineHeight: 1,
+                    margin: '6px 0 4px',
+                    fontVariantNumeric: 'tabular-nums',
+                    color: s.color,
+                  }}
+                >
+                  {s.val}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--muted2)', lineHeight: 1.6 }}>{s.sub}</div>
               </div>
-              <div className="total-box">
-                <div className="eyebrow">Vrij besteedbaar</div>
-                <div className="total-val" style={{ color: rest < 0 ? 'var(--danger)' : 'var(--ok)' }}>{fmt(rest)}</div>
-                <div className="caption">per maand</div>
-              </div>
+            ))}
+          </div>
+        </div>
+
+        <div style={panel}>
+          <div style={panelHd}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--muted)' }}>
+                Maandelijks
+              </span>
+              <span style={{ fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-heading)' }}>
+                Over te maken
+              </span>
             </div>
           </div>
-        ))}
-      </div>
 
-      {upcomingSubs.length > 0 && (
-        <div className="panel">
-          <div className="panel-hd">
-            <div className="panel-hd-left">
-              <span className="panel-sub">Abonnementen</span>
-              <span style={{ fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-heading)' }}>Binnenkort verlopen</span>
+          <div style={{ display: 'flex', gap: 12 }}>
+            {[{ name: n1, val: jTr }, { name: n2, val: dTr }].map(({ name, val }) => (
+              <div
+                key={name}
+                style={{
+                  background: 'var(--s2)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 7,
+                  padding: '16px 20px',
+                  textAlign: 'center',
+                  flex: 1,
+                }}
+              >
+                <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--accent)' }}>
+                  {name}
+                </div>
+                <div style={{ fontSize: 34, fontWeight: 700, lineHeight: 1, margin: '6px 0 4px', fontVariantNumeric: 'tabular-nums', color: 'var(--accent)' }}>
+                  {fmtK(val)}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--muted2)' }}>per maand</div>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ fontSize: 11, color: 'var(--muted2)', marginTop: 10, lineHeight: 1.6 }}>
+            Lasten + gezamenlijke spaarbijdrage.
+          </div>
+        </div>
+
+        <div style={panel}>
+          <div style={panelHd}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--muted)' }}>
+                Verdeling
+              </span>
+              <span style={{ fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-heading)' }}>
+                Maandelijkse uitgaven
+              </span>
             </div>
           </div>
-          {upcomingSubs.slice(0, 5).map((s: any) => {
-            const today = new Date()
-            const next = new Date(s.date)
-            while (next < today) next.setFullYear(next.getFullYear() + 1)
-            const days = Math.ceil((next.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
-            return (
-              <div key={s.id} className="row-item">
-                <span className="row-lbl">{s.name}</span>
-                <span style={{ fontSize: 13, color: 'var(--muted2)' }}>{fmt(s.amount)}</span>
-                <span className={`badge ${days <= 14 ? 'bg-ng' : 'bg-ac'}`}>{days} dgn</span>
-              </div>
-            )
-          })}
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
+            <canvas ref={donutRef} style={{ flexShrink: 0, width: 110, height: 110 }} />
+            <div style={{ fontSize: 12.5, display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {[
+                { c: accentDark, l: 'Gezamenlijke lasten', v: totalShared },
+                { c: accent, l: 'Sparen', v: totalSparen },
+                { c: accentLight, l: 'Prive kosten', v: totalPrive },
+              ].map((s, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                  <div style={{ width: 9, height: 9, borderRadius: 2, background: s.c, flexShrink: 0 }} />
+                  <span>{s.l}: {fmtK(s.v)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
-      )}
+
+        <div style={panel}>
+          <div style={panelHd}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--accent)', fontFamily: 'var(--font-heading)' }}>
+                {n1}
+              </span>
+              <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--muted)' }}>
+                Verdeling inkomen
+              </span>
+            </div>
+          </div>
+
+          {renderPerc(jI, jSh, jPr, jSv).map((x, i) => (
+            <div key={i} style={{ marginBottom: 12 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5, fontSize: 12.5 }}>
+                <span>{x.label}</span>
+                <span style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+                  {(x.pct * 100).toFixed(1)}%
+                </span>
+              </div>
+              <div style={{ height: 5, background: 'var(--s3)', borderRadius: 3, overflow: 'hidden' }}>
+                <div
+                  style={{
+                    height: '100%',
+                    borderRadius: 3,
+                    width: `${(Math.max(0, x.pct) * 100).toFixed(2)}%`,
+                    background: x.c,
+                    transition: 'width .5s ease',
+                  }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div style={panel}>
+          <div style={panelHd}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--accent)', fontFamily: 'var(--font-heading)' }}>
+                {n2}
+              </span>
+              <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--muted)' }}>
+                Verdeling inkomen
+              </span>
+            </div>
+          </div>
+
+          {renderPerc(dI, dSh, dPr, dSv).map((x, i) => (
+            <div key={i} style={{ marginBottom: 12 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5, fontSize: 12.5 }}>
+                <span>{x.label}</span>
+                <span style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+                  {(x.pct * 100).toFixed(1)}%
+                </span>
+              </div>
+              <div style={{ height: 5, background: 'var(--s3)', borderRadius: 3, overflow: 'hidden' }}>
+                <div
+                  style={{
+                    height: '100%',
+                    borderRadius: 3,
+                    width: `${(Math.max(0, x.pct) * 100).toFixed(2)}%`,
+                    background: x.c,
+                    transition: 'width .5s ease',
+                  }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ gridColumn: '1 / -1', ...panel }}>
+          <div style={panelHd}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--muted)' }}>
+                Komende 60 dagen
+              </span>
+              <span style={{ fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-heading)' }}>
+                Vervaldagen abonnementen
+              </span>
+            </div>
+          </div>
+
+          {upcoming.length === 0 ? (
+            <div style={{ fontSize: 11, color: 'var(--muted2)', lineHeight: 1.6 }}>
+              Geen vervaldagen de komende 60 dagen.
+            </div>
+          ) : (
+            upcoming.map((s: any) => {
+              const bcStyle =
+                s.days <= 0
+                  ? { background: 'rgba(224,80,80,.12)', color: 'var(--danger)' }
+                  : s.days <= 14
+                    ? { background: 'rgba(224,80,80,.12)', color: 'var(--danger)' }
+                    : s.days <= 30
+                      ? { background: 'rgba(212,160,23,.12)', color: 'var(--warn)' }
+                      : { background: 'rgba(76,175,130,.12)', color: 'var(--ok)' }
+
+              return (
+                <div
+                  key={s.id}
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    gap: 10,
+                    padding: '10px 14px',
+                    background: 'var(--s2)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 6,
+                    marginBottom: 6,
+                  }}
+                >
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, fontFamily: 'var(--font-heading)' }}>
+                      {s.name}
+                    </div>
+                    <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
+                      {fmt(s.amount, 2)} {FREQL[s.freq] || ''} · {fmt(subMonthly(s), 2)}/mnd
+                    </div>
+                  </div>
+
+                  <span
+                    style={{
+                      fontSize: 10,
+                      fontWeight: 700,
+                      letterSpacing: '.07em',
+                      textTransform: 'uppercase',
+                      padding: '3px 7px',
+                      borderRadius: 4,
+                      whiteSpace: 'nowrap',
+                      ...bcStyle,
+                    }}
+                  >
+                    {s.days <= 0 ? 'Verlopen' : `${s.days} dgn`}
+                  </span>
+                </div>
+              )
+            })
+          )}
+        </div>
+      </div>
     </div>
   )
 }

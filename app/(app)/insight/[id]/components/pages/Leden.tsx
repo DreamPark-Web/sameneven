@@ -1,15 +1,21 @@
 'use client'
 
-import { useInsight } from '@/lib/insight-context'
 import { useState } from 'react'
+import { useInsight } from '@/lib/insight-context'
+import { createClient } from '@/lib/supabase'
 
 export default function Leden() {
   const { members, household, currentUser, myRole, data } = useInsight()
   const [copied, setCopied] = useState(false)
+  const supabase = createClient()
 
-  const inviteUrl = typeof window !== 'undefined'
-    ? `${window.location.origin}?invite=${household?.invite_code || ''}`
-    : ''
+  const n1 = data.names?.user1 || 'Gebruiker 1'
+  const n2 = data.names?.user2 || 'Gebruiker 2'
+  const slotLabel: Record<string, string> = { user1: n1, user2: n2 }
+  const roleLabel: Record<string, string> = { owner: 'Eigenaar', admin: 'Beheerder', editor: 'Redacteur', viewer: 'Kijker' }
+  const isOwner = myRole === 'owner' || myRole === 'admin'
+
+  const inviteUrl = typeof window !== 'undefined' ? `${window.location.origin}?invite=${household?.invite_code || ''}` : ''
 
   function copyInvite() {
     navigator.clipboard.writeText(inviteUrl)
@@ -17,66 +23,50 @@ export default function Leden() {
     setTimeout(() => setCopied(false), 2000)
   }
 
-  const isOwner = myRole === 'owner' || myRole === 'admin'
-  const n1 = data.names?.user1 || 'Gebruiker 1'
-  const n2 = data.names?.user2 || 'Gebruiker 2'
-  const slotLabel: Record<string, string> = { user1: n1, user2: n2 }
-  const roleLabel: Record<string, string> = {
-    owner: 'Eigenaar', admin: 'Beheerder', editor: 'Redacteur', viewer: 'Kijker'
-  }
+  const panel: React.CSSProperties = { background: 'var(--s1)', border: '1px solid var(--border)', borderRadius: 8, padding: '22px 26px', marginBottom: 22 }
 
   return (
-    <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-white">Leden</h1>
-        <p className="text-sm text-[#666] mt-1">{members.length} {members.length === 1 ? 'lid' : 'leden'}</p>
+    <div style={panel}>
+      <div style={{ marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid var(--border)' }}>
+        <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--muted)' }}>Insight</span>
+        <div style={{ fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-heading)' }}>Leden</div>
       </div>
+      <div style={{ fontSize: 12, color: 'var(--muted2)', marginBottom: 14, lineHeight: 1.7 }}>Alle genodigde en gekoppelde leden van deze Insight blijven hier zichtbaar, ook wanneer ze offline zijn.</div>
 
-      <div className="bg-[#1a1a1a] border border-[#2e2e2e] rounded-xl overflow-hidden mb-6">
-        {members.map((member, i) => {
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 16 }}>
+        {members.map(member => {
           const isMe = member.user_id === currentUser?.id
           const displayName = member.display_name || 'Onbekend'
           const initials = displayName.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase()
           return (
-            <div key={member.user_id} className={`flex items-center justify-between px-5 py-4 ${i > 0 ? 'border-t border-[#2e2e2e]' : ''}`}>
-              <div className="flex items-center gap-3">
-                {member.avatar_url ? (
-                  <img src={member.avatar_url} className="w-9 h-9 rounded-full" alt={displayName} />
-                ) : (
-                  <div className="w-9 h-9 rounded-full bg-[#00c2ff]/20 flex items-center justify-center text-[#00c2ff] text-sm font-bold">
-                    {initials}
-                  </div>
-                )}
-                <div>
-                  <p className="text-white text-sm font-semibold">
-                    {displayName}
-                    {isMe && <span className="text-xs text-[#666] ml-2">(jij)</span>}
-                  </p>
-                  <p className="text-xs text-[#666]">
-                    {member.slot ? slotLabel[member.slot] || member.slot : 'Geen slot'}
-                  </p>
+            <div key={member.user_id} style={{ background: 'var(--s2)', border: '1px solid var(--border)', borderRadius: 14, padding: 18, display: 'grid', gridTemplateColumns: '72px 1fr', gap: 14, alignItems: 'start' }}>
+              <div style={{ width: 64, height: 64, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 700, color: '#0a0a0a', background: 'var(--accent)', overflow: 'hidden', flexShrink: 0, marginTop: 2 }}>
+                {member.avatar_url ? <img src={member.avatar_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt={displayName} /> : initials}
+              </div>
+              <div>
+                <div style={{ fontSize: 20, fontWeight: 800, fontFamily: 'var(--font-heading)', lineHeight: 1.15 }}>
+                  {displayName}{isMe && <span style={{ fontSize: 12, fontWeight: 400, color: 'var(--muted)', marginLeft: 6 }}>(jij)</span>}
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 6, lineHeight: 1.6 }}>
+                  {member.slot ? slotLabel[member.slot] || member.slot : 'Geen slot'} · {roleLabel[member.role] || member.role}
+                </div>
+                <div style={{ marginTop: 12, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 999, background: 'rgba(255,255,255,.04)', fontSize: 10, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--accent)', border: '1px solid rgba(0,194,255,.18)' }}>
+                  {roleLabel[member.role] || member.role}
                 </div>
               </div>
-              <span className="text-xs bg-[#2e2e2e] text-[#999] px-2 py-1 rounded-full">
-                {roleLabel[member.role] || member.role}
-              </span>
             </div>
           )
         })}
       </div>
 
       {isOwner && (
-        <div className="bg-[#1a1a1a] border border-[#2e2e2e] rounded-xl p-5">
-          <p className="text-xs font-bold uppercase tracking-widest text-[#666] mb-3">Uitnodigen</p>
-          <p className="text-sm text-[#666] mb-4">Deel deze link om iemand toegang te geven tot deze Insight.</p>
-          <div className="flex gap-2">
-            <div className="flex-1 bg-[#222] border border-[#2e2e2e] rounded-lg px-3 py-2 text-sm text-[#666] truncate">
+        <div style={{ marginTop: 22, paddingTop: 22, borderTop: '1px solid var(--border)' }}>
+          <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 8 }}>Uitnodigingslink</div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <div style={{ flex: 1, background: 'var(--s3)', borderRadius: 5, padding: '8px 10px', fontSize: 11, color: 'var(--accent)', letterSpacing: '.04em', fontFamily: 'var(--font-body)', wordBreak: 'break-all' }}>
               {inviteUrl || 'Geen uitnodigingslink beschikbaar'}
             </div>
-            <button
-              onClick={copyInvite}
-              className="bg-[#00c2ff] text-black text-sm font-bold px-4 py-2 rounded-lg hover:bg-[#40d8ff] transition whitespace-nowrap"
-            >
+            <button onClick={copyInvite} style={{ fontFamily: 'var(--font-body)', fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 5, cursor: 'pointer', border: 'none', background: 'var(--accent)', color: '#0a0a0a', whiteSpace: 'nowrap' }}>
               {copied ? 'Gekopieerd!' : 'Kopieer'}
             </button>
           </div>

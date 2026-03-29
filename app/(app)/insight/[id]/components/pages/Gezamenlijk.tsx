@@ -3,160 +3,150 @@
 import { useState } from 'react'
 import { useInsight } from '@/lib/insight-context'
 
-type CostItem = { id: string; label: string; value: number; split: 'ratio' | '5050' | 'user1' | 'user2' }
-
-function fmt(n: number) { return '€ ' + n.toFixed(2).replace('.', ',') }
+type CostItem = { id: string; label: string; value: number; split: string }
+function fmt(n: number) { return '€\u00a0' + n.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.') }
+function sum(arr: any[]) { return (arr || []).reduce((a: number, i: any) => a + (i.value || 0), 0) }
 
 export default function Gezamenlijk() {
   const { data, saveData, canEdit } = useInsight()
-  const [showForm, setShowForm] = useState(false)
+  const [open, setOpen] = useState(false)
   const [form, setForm] = useState({ label: '', value: '', split: 'ratio' })
 
   const n1 = data.names?.user1 || 'Gebruiker 1'
   const n2 = data.names?.user2 || 'Gebruiker 2'
   const items: CostItem[] = data.shared || []
 
-  const totalU1Income = (data.user1?.income || []).reduce((a: number, i: any) => a + i.value, 0)
-  const totalU2Income = (data.user2?.income || []).reduce((a: number, i: any) => a + i.value, 0)
-  const totalIncome = totalU1Income + totalU2Income
-  const u1Ratio = totalIncome ? totalU1Income / totalIncome : 0.5
-  const u2Ratio = 1 - u1Ratio
+  const u1Inc = sum(data.user1?.income || [])
+  const u2Inc = sum(data.user2?.income || [])
+  const totalInc = u1Inc + u2Inc
+  const r1 = totalInc ? u1Inc / totalInc : 0.5
+  const r2 = 1 - r1
 
-  function splitCost(item: CostItem) {
-    const v = item.value
-    if (item.split === '5050') return { u1: v / 2, u2: v / 2 }
-    if (item.split === 'user1') return { u1: v, u2: 0 }
-    if (item.split === 'user2') return { u1: 0, u2: v }
-    return { u1: v * u1Ratio, u2: v * u2Ratio }
+  function splitVal(item: CostItem) {
+    if (item.split === '5050') return { u1: item.value / 2, u2: item.value / 2 }
+    if (item.split === 'user1') return { u1: item.value, u2: 0 }
+    if (item.split === 'user2') return { u1: 0, u2: item.value }
+    return { u1: item.value * r1, u2: item.value * r2 }
   }
 
-  const totals = items.reduce((acc, item) => {
-    const { u1, u2 } = splitCost(item)
-    return { u1: acc.u1 + u1, u2: acc.u2 + u2 }
-  }, { u1: 0, u2: 0 })
+  const u1Sh = sum(data.user1?.savings?.shared || [])
+  const u2Sh = sum(data.user2?.savings?.shared || [])
+  const totU1 = items.reduce((a, i) => a + splitVal(i).u1, 0)
+  const totU2 = items.reduce((a, i) => a + splitVal(i).u2, 0)
+  const jTr = totU1 + u1Sh, dTr = totU2 + u2Sh
+
+  const editable = canEdit('user1') || canEdit('user2')
+  const SPLITS: Record<string, string> = { ratio: 'Naar rato', '5050': '50/50', user1: n1, user2: n2 }
 
   function addItem() {
     if (!form.label.trim() || !form.value) return
-    const item: CostItem = {
-      id: 'sh' + Date.now(),
-      label: form.label.trim(),
-      value: parseFloat(form.value),
-      split: form.split as CostItem['split'],
-    }
+    const item: CostItem = { id: 'sh' + Date.now(), label: form.label.trim(), value: parseFloat(form.value), split: form.split }
     saveData({ ...data, shared: [...items, item] })
     setForm({ label: '', value: '', split: 'ratio' })
-    setShowForm(false)
+    setOpen(false)
+  }
+  function deleteItem(id: string) { saveData({ ...data, shared: items.filter(i => i.id !== id) }) }
+  function editItem(id: string, field: 'label' | 'value' | 'split', val: string) {
+    saveData({ ...data, shared: items.map(i => i.id === id ? { ...i, [field]: field === 'value' ? parseFloat(val) || 0 : val } : i) })
   }
 
-  function deleteItem(id: string) {
-    saveData({ ...data, shared: items.filter(i => i.id !== id) })
-  }
-
-  const splitLabel: Record<string, string> = {
-    ratio: 'Naar rato', '5050': '50/50',
-    user1: `Volledig ${n1}`, user2: `Volledig ${n2}`
-  }
-
-  const editable = canEdit('user1') || canEdit('user2')
+  const panel: React.CSSProperties = { background: 'var(--s1)', border: '1px solid var(--border)', borderRadius: 8, padding: '22px 26px', marginBottom: 22 }
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-white">Gezamenlijke Kosten</h1>
-          <p className="text-sm text-[#666] mt-1">Gedeelde vaste lasten</p>
+    <div style={panel}>
+      <div style={{ marginBottom: 12, paddingBottom: 0, borderBottom: 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+          <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--muted)' }}>Maandelijks</span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent)', fontFamily: 'var(--font-heading)' }}>Gezamenlijke vaste lasten</span>
         </div>
         {editable && (
-          <button
-            onClick={() => setShowForm(!showForm)}
-            className="bg-[#00c2ff] text-black text-sm font-bold px-4 py-2 rounded-lg hover:bg-[#40d8ff] transition"
-          >
-            + Toevoegen
+          <button onClick={() => setOpen(!open)} style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '4px 10px', borderRadius: 5, cursor: 'pointer', border: '1px solid var(--border)', background: 'transparent', color: 'var(--muted2)' }}>
+            + Post
           </button>
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-4 mb-6">
-        <div className="bg-[#1a1a1a] border border-[#2e2e2e] rounded-xl p-4">
-          <p className="text-xs text-[#666] uppercase tracking-widest mb-1">Aandeel {n1}</p>
-          <p className="text-xl font-bold text-[#00c2ff]">{fmt(totals.u1)}</p>
-          <p className="text-xs text-[#666] mt-1">per maand</p>
-        </div>
-        <div className="bg-[#1a1a1a] border border-[#2e2e2e] rounded-xl p-4">
-          <p className="text-xs text-[#666] uppercase tracking-widest mb-1">Aandeel {n2}</p>
-          <p className="text-xl font-bold text-[#00c2ff]">{fmt(totals.u2)}</p>
-          <p className="text-xs text-[#666] mt-1">per maand</p>
-        </div>
-      </div>
-
-      {showForm && (
-        <div className="bg-[#1a1a1a] border border-[#2e2e2e] rounded-xl p-5 mb-6">
-          <div className="grid grid-cols-3 gap-3 mb-3">
-            <input
-              className="bg-[#222] border border-[#2e2e2e] text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#00c2ff]"
-              placeholder="Omschrijving"
-              value={form.label}
-              onChange={e => setForm({ ...form, label: e.target.value })}
-            />
-            <input
-              className="bg-[#222] border border-[#2e2e2e] text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#00c2ff]"
-              placeholder="Bedrag"
-              type="number"
-              value={form.value}
-              onChange={e => setForm({ ...form, value: e.target.value })}
-            />
-            <select
-              className="bg-[#222] border border-[#2e2e2e] text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#00c2ff]"
-              value={form.split}
-              onChange={e => setForm({ ...form, split: e.target.value })}
-            >
-              <option value="ratio">Naar rato</option>
-              <option value="5050">50/50</option>
-              <option value="user1">Volledig {n1}</option>
-              <option value="user2">Volledig {n2}</option>
-            </select>
-          </div>
-          <div className="flex gap-2 justify-end">
-            <button onClick={() => setShowForm(false)} className="text-sm text-[#666] px-4 py-2 hover:text-white transition">Annuleren</button>
-            <button onClick={addItem} className="bg-[#00c2ff] text-black text-sm font-bold px-4 py-2 rounded-lg hover:bg-[#40d8ff] transition">Opslaan</button>
-          </div>
+      {open && (
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 14, paddingBottom: 14, borderBottom: '1px solid var(--border)' }}>
+          <input style={{ flex: 2, minWidth: 120, background: 'var(--s2)', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'left' }}
+            placeholder="Omschrijving" value={form.label} onChange={e => setForm({ ...form, label: e.target.value })} />
+          <input style={{ width: 100, background: 'var(--s2)', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'right' }}
+            type="number" placeholder="Bedrag" value={form.value} onChange={e => setForm({ ...form, value: e.target.value })} />
+          <select style={{ background: 'var(--s2)', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--text)', padding: '6px 8px', fontSize: 12, fontFamily: 'var(--font-body)', cursor: 'pointer' }}
+            value={form.split} onChange={e => setForm({ ...form, split: e.target.value })}>
+            <option value="ratio">Naar rato</option>
+            <option value="5050">50/50</option>
+            <option value="user1">{n1}</option>
+            <option value="user2">{n2}</option>
+          </select>
+          <button onClick={addItem} style={{ fontFamily: 'var(--font-body)', fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 5, cursor: 'pointer', border: 'none', background: 'var(--accent)', color: '#0a0a0a' }}>Toevoegen</button>
+          <button onClick={() => setOpen(false)} style={{ fontFamily: 'var(--font-body)', fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 5, cursor: 'pointer', background: 'transparent', color: 'var(--muted2)', border: '1px solid var(--border)' }}>Annuleren</button>
         </div>
       )}
 
-      <div className="bg-[#1a1a1a] border border-[#2e2e2e] rounded-xl overflow-hidden">
-        <div className="grid grid-cols-4 px-5 py-2 border-b border-[#2e2e2e] text-xs font-bold uppercase tracking-widest text-[#666]">
-          <span className="col-span-2">Omschrijving</span>
-          <span>{n1}</span>
-          <span>{n2}</span>
-        </div>
-        {items.map((item, i) => {
-          const { u1, u2 } = splitCost(item)
-          return (
-            <div key={item.id} className={`grid grid-cols-4 items-center px-5 py-3 ${i > 0 ? 'border-t border-[#2e2e2e]' : ''}`}>
-              <div className="col-span-2">
-                <span className="text-white text-sm">{item.label}</span>
-                <span className="text-xs text-[#666] ml-2">{splitLabel[item.split]}</span>
-              </div>
-              <span className="text-sm text-[#00c2ff] font-semibold">{fmt(u1)}</span>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-[#00c2ff] font-semibold">{fmt(u2)}</span>
-                {editable && (
-                  <button onClick={() => deleteItem(item.id)} className="text-[#444] hover:text-[#e05050] transition text-lg leading-none">×</button>
-                )}
-              </div>
-            </div>
-          )
-        })}
-        {items.length === 0 && (
-          <p className="text-sm text-[#444] px-5 py-6">Nog geen gezamenlijke kosten.</p>
-        )}
-        {items.length > 0 && (
-          <div className="grid grid-cols-4 px-5 py-3 border-t border-[#2e2e2e] bg-[#141414]">
-            <span className="col-span-2 text-xs text-[#666]">Totaal</span>
-            <span className="text-sm font-bold text-white">{fmt(totals.u1)}</span>
-            <span className="text-sm font-bold text-white">{fmt(totals.u2)}</span>
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr>
+              <th style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--muted)', padding: '6px 8px 8px', textAlign: 'left', borderBottom: '1px solid var(--border)', minWidth: 180 }}>Omschrijving</th>
+              <th style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--muted)', padding: '6px 8px 8px', textAlign: 'right', borderBottom: '1px solid var(--border)' }}>Bedrag</th>
+              <th style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--muted)', padding: '6px 8px 8px', borderBottom: '1px solid var(--border)' }}>Verdeling</th>
+              <th style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--accent)', padding: '6px 8px 8px', textAlign: 'right', borderBottom: '1px solid var(--border)' }}>{n1}</th>
+              <th style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--accent)', padding: '6px 8px 8px', textAlign: 'right', borderBottom: '1px solid var(--border)' }}>{n2}</th>
+              <th style={{ borderBottom: '1px solid var(--border)' }}></th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.map(item => {
+              const { u1, u2 } = splitVal(item)
+              return (
+                <tr key={item.id}>
+                  <td style={{ padding: '7px 8px', fontSize: 13, verticalAlign: 'middle', borderBottom: '1px solid rgba(255,255,255,.04)' }}>
+                    {editable ? (
+                      <input defaultValue={item.label} onBlur={e => editItem(item.id, 'label', e.target.value)}
+                        style={{ background: 'transparent', border: 'none', color: 'var(--text)', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', width: '100%', cursor: 'text', borderBottom: '1px dashed transparent' }}
+                      />
+                    ) : item.label}
+                  </td>
+                  <td style={{ padding: '7px 8px', fontSize: 13, verticalAlign: 'middle', borderBottom: '1px solid rgba(255,255,255,.04)', textAlign: 'right' }}>
+                    {editable ? (
+                      <input type="number" defaultValue={item.value} onBlur={e => editItem(item.id, 'value', e.target.value)}
+                        style={{ width: 90, background: 'var(--s2)', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--text)', padding: '4px 6px', fontSize: 12, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'right' }}
+                      />
+                    ) : fmt(item.value)}
+                  </td>
+                  <td style={{ padding: '7px 8px', fontSize: 13, verticalAlign: 'middle', borderBottom: '1px solid rgba(255,255,255,.04)' }}>
+                    {editable ? (
+                      <select value={item.split} onChange={e => editItem(item.id, 'split', e.target.value)}
+                        style={{ background: 'var(--s2)', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--text)', padding: '4px 6px', fontSize: 11, fontFamily: 'var(--font-body)', cursor: 'pointer' }}>
+                        <option value="ratio">Naar rato</option>
+                        <option value="5050">50/50</option>
+                        <option value="user1">{n1}</option>
+                        <option value="user2">{n2}</option>
+                      </select>
+                    ) : SPLITS[item.split]}
+                  </td>
+                  <td style={{ padding: '7px 8px', fontSize: 13, verticalAlign: 'middle', borderBottom: '1px solid rgba(255,255,255,.04)', textAlign: 'right', color: 'var(--accent)', fontVariantNumeric: 'tabular-nums' }}>{fmt(u1)}</td>
+                  <td style={{ padding: '7px 8px', fontSize: 13, verticalAlign: 'middle', borderBottom: '1px solid rgba(255,255,255,.04)', textAlign: 'right', color: 'var(--accent)', fontVariantNumeric: 'tabular-nums' }}>{fmt(u2)}</td>
+                  <td style={{ padding: '7px 8px', verticalAlign: 'middle', borderBottom: '1px solid rgba(255,255,255,.04)' }}>
+                    {editable && <button onClick={() => deleteItem(item.id)} style={{ width: 26, height: 26, background: 'rgba(200,60,60,.1)', color: 'var(--danger)', border: '1px solid rgba(200,60,60,.2)', borderRadius: 4, cursor: 'pointer', fontSize: 14, fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>×</button>}
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--border)' }}>
+        {[{ name: n1, tr: jTr, sh: totU1, sav: u1Sh }, { name: n2, tr: dTr, sh: totU2, sav: u2Sh }].map(({ name, tr, sh, sav }) => (
+          <div key={name} style={{ background: 'var(--s2)', borderRadius: 6, padding: '13px 15px' }}>
+            <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--accent)' }}>{name}</div>
+            <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--muted)', marginTop: 2 }}>Totaal over te maken</div>
+            <div style={{ fontSize: 22, fontWeight: 700, fontVariantNumeric: 'tabular-nums', marginTop: 4, color: 'var(--accent)' }}>{fmt(tr)}</div>
+            <div style={{ fontSize: 11, color: 'var(--muted2)', marginTop: 4 }}>Lasten {fmt(sh)} + sparen {fmt(sav)}</div>
           </div>
-        )}
+        ))}
       </div>
     </div>
   )

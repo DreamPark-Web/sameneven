@@ -56,6 +56,75 @@ export function useInsight() {
   return ctx
 }
 
+function migrateData(d: any): any {
+  if (!d) return d
+  d = { ...d }
+  // Rename jerry/daphne to user1/user2
+  if (d.jerry !== undefined && d.user1 === undefined) { d.user1 = d.jerry; delete d.jerry }
+  if (d.daphne !== undefined && d.user2 === undefined) { d.user2 = d.daphne; delete d.daphne }
+  // Rename subscriptions to abonnementen
+  if (d.subscriptions !== undefined && d.abonnementen === undefined) {
+    d.abonnementen = d.subscriptions
+    delete d.subscriptions
+  }
+  // Fix person field in abonnementen
+  if (d.abonnementen) {
+    d.abonnementen = d.abonnementen.map((s: any) => ({
+      ...s,
+      person: s.person === 'jerry' ? 'user1' : s.person === 'daphne' ? 'user2' : s.person
+    }))
+  }
+  // Fix wie in schulden
+  if (d.schulden) {
+    d.schulden = d.schulden.map((s: any) => ({
+      ...s,
+      wie: s.wie === 'jerry' ? 'user1' : s.wie === 'daphne' ? 'user2' : s.wie
+    }))
+  }
+  // Fix split in shared
+  if (d.shared) {
+    d.shared = d.shared.map((s: any) => ({
+      ...s,
+      split: s.split === 'jerry' ? 'user1' : s.split === 'daphne' ? 'user2' : s.split
+    }))
+  }
+  return d
+}
+
+function lightenColor(hex: string, factor = 0.15) {
+  const r = parseInt(hex.slice(1, 3), 16)
+  const g = parseInt(hex.slice(3, 5), 16)
+  const b = parseInt(hex.slice(5, 7), 16)
+
+  const lr = Math.min(255, Math.round(r + (255 - r) * factor))
+  const lg = Math.min(255, Math.round(g + (255 - g) * factor))
+  const lb = Math.min(255, Math.round(b + (255 - b) * factor))
+
+  return `#${lr.toString(16).padStart(2, '0')}${lg.toString(16).padStart(2, '0')}${lb.toString(16).padStart(2, '0')}`
+}
+
+function hexToRgb(hex: string) {
+  const clean = (hex || '#00c2ff').replace('#', '')
+  return {
+    r: parseInt(clean.slice(0, 2), 16) || 0,
+    g: parseInt(clean.slice(2, 4), 16) || 0,
+    b: parseInt(clean.slice(4, 6), 16) || 0,
+  }
+}
+
+function applyThemeVars(color: string) {
+  if (typeof document === 'undefined') return
+
+  const hex = (color || '#00c2ff').toLowerCase()
+  const light = lightenColor(hex, 0.15)
+  const { r, g, b } = hexToRgb(hex)
+
+  const root = document.documentElement
+  root.style.setProperty('--accent', hex)
+  root.style.setProperty('--accent2', light)
+  root.style.setProperty('--accent-rgb', `${r}, ${g}, ${b}`)
+}
+
 export function InsightProvider({ children, householdId }: { children: React.ReactNode; householdId: string }) {
   const [data, setData] = useState<InsightData>(DEFAULTS)
   const [members, setMembers] = useState<Member[]>([])
@@ -124,7 +193,8 @@ export function InsightProvider({ children, householdId }: { children: React.Rea
         .maybeSingle()
 
       if (hhData?.data) {
-        setData({ ...DEFAULTS, ...hhData.data })
+        const migrated = migrateData(hhData.data)
+        setData({ ...DEFAULTS, ...migrated })
       }
 
       setReady(true)
@@ -138,7 +208,7 @@ export function InsightProvider({ children, householdId }: { children: React.Rea
             .eq('household_id', householdId)
             .maybeSingle()
           if (fresh?.data) {
-            setData({ ...DEFAULTS, ...fresh.data })
+            setData({ ...DEFAULTS, ...migrateData(fresh.data) })
             setSyncState('live')
             setTimeout(() => setSyncState('ok'), 2500)
           }
@@ -149,7 +219,7 @@ export function InsightProvider({ children, householdId }: { children: React.Rea
           filter: `household_id=eq.${householdId}`
         }, async (payload: any) => {
           if (payload.new?.updated_by === user.id) return
-          setData({ ...DEFAULTS, ...payload.new.data })
+          setData({ ...DEFAULTS, ...migrateData(payload.new.data) })
           setSyncState('live')
           setTimeout(() => setSyncState('ok'), 2500)
         })
@@ -159,6 +229,10 @@ export function InsightProvider({ children, householdId }: { children: React.Rea
     }
     init()
   }, [householdId])
+
+  useEffect(() => {
+  applyThemeVars(data.theme || DEFAULTS.theme)
+}, [data.theme])
 
   const saveData = useCallback((newData: InsightData) => {
     const updated = { ...newData, lastUpdated: new Date().toISOString() }
