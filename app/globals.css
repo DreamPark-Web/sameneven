@@ -1,6 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
 :root {
+  color-scheme: dark;
   --bg: #0F0F0F;
   --s1: #141414;
   --s2: #1a1a1a;
@@ -11,9 +12,9 @@
   --card-border: rgba(232, 196, 154, 0.12);
   --muted: #666;
   --muted2: #999;
-  --accent: #00dcc8;
-  --accent2: #33e7d6;
-  --accent-rgb: 0, 220, 200;
+  --accent: #E8C49A;
+  --accent2: #EBCCA9;
+  --accent-rgb: 232, 196, 154;
   --accent-fg: #0a0a0a;
   --input-border: #2e2e2e;
   --cancel-border: #2e2e2e;

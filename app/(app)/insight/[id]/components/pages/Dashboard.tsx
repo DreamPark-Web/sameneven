@@ -42,7 +42,7 @@ const FREQL: Record<string, string> = {
 }
 
 function hexToRgb(hex: string) {
-  const clean = (hex || '#00c2ff').replace('#', '')
+  const clean = (hex || '#E8C49A').replace('#', '')
   return {
     r: parseInt(clean.slice(0, 2), 16) || 0,
     g: parseInt(clean.slice(2, 4), 16) || 0,
@@ -68,7 +68,7 @@ function darken(hex: string, factor = 0.45) {
 
 export default function Dashboard() {
   const { data, isSingleUser } = useInsight()
-  const [previewTheme, setPreviewTheme] = useState(data.theme || '#00c2ff')
+  const [previewTheme, setPreviewTheme] = useState(data.theme || '#E8C49A')
 
   const n1 = data.names?.user1 || 'Gebruiker 1'
   const n2 = data.names?.user2 || 'Gebruiker 2'
@@ -109,12 +109,12 @@ export default function Dashboard() {
   const jR = jI - jTr - jPr - jSprivate
   const dR = dI - dTr - dPr - dSprivate
 
-    const accentHex = (previewTheme || data.theme || '#00c2ff').toLowerCase()
+    const accentHex = (previewTheme || data.theme || '#E8C49A').toLowerCase()
   const accent = accentHex
   const accentDark = darken(accentHex, 0.45)
   const accentLight = lighten(accentHex, 0.55)
     useEffect(() => {
-    setPreviewTheme(data.theme || '#00c2ff')
+    setPreviewTheme(data.theme || '#E8C49A')
   }, [data.theme])
 
   useEffect(() => {

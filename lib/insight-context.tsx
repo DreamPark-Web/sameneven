@@ -245,6 +245,15 @@ export function InsightProvider({ children, householdId }: { children: React.Rea
   }, [data.theme])
 
   useEffect(() => {
+    return () => {
+      const root = document.documentElement
+      root.style.removeProperty('--accent')
+      root.style.removeProperty('--accent2')
+      root.style.removeProperty('--accent-rgb')
+    }
+  }, [])
+
+  useEffect(() => {
     if (typeof document === 'undefined') return
     const observer = new MutationObserver(() => {
       applyThemeVars(data.theme || DEFAULTS.theme)

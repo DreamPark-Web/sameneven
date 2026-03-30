@@ -423,9 +423,9 @@ export default function Topbar({
   const [insightName, setInsightName] = useState('')
   const [inviteCode, setInviteCode] = useState(household?.invite_code || '')
 
-  const [themeColor, setThemeColor] = useState(data?.theme || '#00c2ff')
-  const [pickerHSV, setPickerHSV] = useState(() => hexToHsv(data?.theme || '#00c2ff'))
-  const [settingsStartTheme, setSettingsStartTheme] = useState(data?.theme || '#00c2ff')
+  const [themeColor, setThemeColor] = useState(data?.theme || '#E8C49A')
+  const [pickerHSV, setPickerHSV] = useState(() => hexToHsv(data?.theme || '#E8C49A'))
+  const [settingsStartTheme, setSettingsStartTheme] = useState(data?.theme || '#E8C49A')
 
   const [copied, setCopied] = useState(false)
 
@@ -450,7 +450,7 @@ export default function Topbar({
   }, [isDark])
 
   const [rgbInput, setRgbInput] = useState(() => {
-    const rgb = hexToRgb(data?.theme || '#00c2ff')
+    const rgb = hexToRgb(data?.theme || '#E8C49A')
     return {
       r: String(rgb.r),
       g: String(rgb.g),
@@ -662,7 +662,7 @@ export default function Topbar({
   }
 
   function openSettings() {
-    const currentTheme = data?.theme || '#00c2ff'
+    const currentTheme = data?.theme || '#E8C49A'
     const currentRgb = hexToRgb(currentTheme)
 
     setInsightName(household?.name || '')
