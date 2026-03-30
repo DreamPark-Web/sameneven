@@ -6,11 +6,20 @@ import { useEffect, useState } from 'react'
 function fmt(n: number, d = 2) {
   return '€\u00a0' + n.toFixed(d).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.')
 }
-function fmtK(n: number) {
-  return Math.abs(n) >= 1000
-    ? '€\u00a0' + (n / 1000).toFixed(1).replace('.', ',') + 'k'
-    : fmt(n, 0)
+function fmtK(n: number) { return '€\u00a0' + Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') }
+function Num({ v }: { v: string }) {
+  if (v.startsWith('€')) {
+    const num = v.replace(/^€[\u00a0 ]*/, '')
+    return (
+      <>
+        <span style={{ fontFamily: 'var(--font-body)' }}>€{'\u00a0'}</span>
+        <span style={{ fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums' }}>{num}</span>
+      </>
+    )
+  }
+  return <span style={{ fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums' }}>{v}</span>
 }
+
 function sum(arr: any[]) {
   return (arr || []).reduce((a: number, i: any) => a + (i.value || 0), 0)
 }
@@ -220,7 +229,7 @@ export default function Dashboard() {
             </span>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(165px, 1fr))', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 12, alignItems: 'stretch' }}>
             {[
               { label: `Inkomen ${n1}`, val: fmtK(jI), cls: 'ac', color: 'var(--accent)', sub: 'per maand' },
               { label: `Inkomen ${n2}`, val: fmtK(dI), cls: 'ac', color: 'var(--accent)', sub: 'per maand' },
@@ -256,11 +265,10 @@ export default function Dashboard() {
                     fontWeight: 700,
                     lineHeight: 1,
                     margin: '6px 0 4px',
-                    fontVariantNumeric: 'tabular-nums',
                     color: s.color,
                   }}
                 >
-                  {s.val}
+                  <Num v={s.val} />
                 </div>
                 <div style={{ fontSize: 11, color: 'var(--muted2)', lineHeight: 1.6 }}>{s.sub}</div>
               </div>
@@ -296,8 +304,8 @@ export default function Dashboard() {
                 <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--accent)' }}>
                   {name}
                 </div>
-                <div style={{ fontSize: 34, fontWeight: 700, lineHeight: 1, margin: '6px 0 4px', fontVariantNumeric: 'tabular-nums', color: 'var(--accent)' }}>
-                  {fmtK(val)}
+                <div style={{ fontSize: 34, fontWeight: 700, lineHeight: 1, margin: '6px 0 4px', color: 'var(--accent)' }}>
+                  <Num v={fmtK(val)} />
                 </div>
                 <div style={{ fontSize: 11, color: 'var(--muted2)' }}>per maand</div>
               </div>
@@ -349,7 +357,7 @@ export default function Dashboard() {
               ].map((s, i) => (
                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
                   <div style={{ width: 9, height: 9, borderRadius: 2, background: s.c, flexShrink: 0 }} />
-                  <span>{s.l}: {fmtK(s.v)}</span>
+                  <span>{s.l}: <Num v={fmtK(s.v)} /></span>
                 </div>
               ))}
             </div>
@@ -372,7 +380,7 @@ export default function Dashboard() {
             <div key={i} style={{ marginBottom: 12 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5, fontSize: 12.5 }}>
                 <span>{x.label}</span>
-                <span style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+                <span style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>
                   {(x.pct * 100).toFixed(1)}%
                 </span>
               </div>
@@ -407,7 +415,7 @@ export default function Dashboard() {
             <div key={i} style={{ marginBottom: 12 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5, fontSize: 12.5 }}>
                 <span>{x.label}</span>
-                <span style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+                <span style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>
                   {(x.pct * 100).toFixed(1)}%
                 </span>
               </div>
@@ -473,7 +481,7 @@ export default function Dashboard() {
                       {s.name}
                     </div>
                     <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
-                      {fmt(s.amount, 2)} {FREQL[s.freq] || ''} · {fmt(subMonthly(s), 2)}/mnd
+                      <Num v={fmt(s.amount, 2)} /> {FREQL[s.freq] || ''} · <Num v={fmt(subMonthly(s), 2)} />/mnd
                     </div>
                   </div>
 

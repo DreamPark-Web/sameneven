@@ -5,8 +5,7 @@ import { useInsight } from '@/lib/insight-context'
 
 type Schuld = { id: string; naam: string; type: string; wie: string; balance: number; payment: number; rate: number; fixedYears: number; fixedStart: string }
 
-function fmt(n: number) { return '€\u00a0' + n.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.') }
-function fmtK(n: number) { return Math.abs(n) >= 1000 ? '€\u00a0' + (n / 1000).toFixed(1).replace('.', ',') + 'k' : fmt(Math.round(n)) }
+function fmtK(n: number) { return '€\u00a0' + Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') }
 
 function calcMonths(bal: number, pay: number, rate: number) {
   if (!bal || !pay || pay <= 0) return null
@@ -181,7 +180,7 @@ export default function Schulden() {
               )}
 
               <div style={{ background: 'var(--s3)', borderRadius: 6, padding: '14px 16px', marginTop: 12 }}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, alignItems: 'stretch' }}>
                   {[
                     { label: 'Resterende schuld', val: fmtK(sc.balance), color: 'var(--text)' },
                     { label: 'Maanden resterend', val: months === Infinity ? '∞' : months ? `${months}` : '—', color: 'var(--text)' },
@@ -190,7 +189,7 @@ export default function Schulden() {
                   ].map((s, i) => (
                     <div key={i}>
                       <div style={eyebrow}>{s.label}</div>
-                      <div style={{ fontSize: 24, fontWeight: 700, lineHeight: 1, fontVariantNumeric: 'tabular-nums', marginTop: 4, color: s.color }}>{s.val}</div>
+                      <div style={{ fontSize: 24, fontWeight: 700, lineHeight: 1, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)', marginTop: 4, color: s.color }}>{s.val}</div>
                     </div>
                   ))}
                 </div>
@@ -206,7 +205,7 @@ export default function Schulden() {
           <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--muted)' }}>Gecombineerd</span>
           <div style={{ fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-heading)' }}>Totaaloverzicht</div>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, alignItems: 'stretch' }}>
           {[
             { label: 'Totale schuld', val: fmtK(totalBalance), borderTop: 'var(--accent)' },
             { label: 'Totale maandlast', val: fmtK(totalPayment), borderTop: 'var(--border)' },
@@ -214,7 +213,7 @@ export default function Schulden() {
           ].map((s, i) => (
             <div key={i} style={{ background: 'var(--s1)', border: '1px solid var(--border)', borderRadius: 8, padding: '15px 17px', borderTop: `2px solid ${s.borderTop}` }}>
               <div style={eyebrow}>{s.label}</div>
-              <div style={{ fontSize: 28, fontWeight: 700, lineHeight: 1, margin: '6px 0 4px', fontVariantNumeric: 'tabular-nums', color: s.color || 'var(--text)' }}>{s.val}</div>
+              <div style={{ fontSize: 28, fontWeight: 700, lineHeight: 1, margin: '6px 0 4px', fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)', color: s.color || 'var(--text)' }}>{s.val}</div>
             </div>
           ))}
         </div>

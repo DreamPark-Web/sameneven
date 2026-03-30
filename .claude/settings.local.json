@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(wc -l \"c:\\\\Users\\\\Jerry\\\\sameneven\\\\app\\\\\\(app\\)\\\\insight\\\\[id]\\\\components\\\\pages\\\\Dashboard.tsx\")"
+    ]
+  }
+}

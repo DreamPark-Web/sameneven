@@ -4,13 +4,25 @@ import { useState } from 'react'
 import { useInsight } from '@/lib/insight-context'
 
 type CostItem = { id: string; label: string; value: number; split: string }
-function fmt(n: number) { return '€\u00a0' + n.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.') }
+function fmt(n: number, d = 2) { return '€\u00a0' + n.toFixed(d).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.') }
 function sum(arr: any[]) { return (arr || []).reduce((a: number, i: any) => a + (i.value || 0), 0) }
+
+function GripIcon() {
+  return (
+    <svg width="10" height="14" viewBox="0 0 10 14" fill="currentColor" style={{ flexShrink: 0, display: 'block' }}>
+      <circle cx="3" cy="2" r="1.2" /><circle cx="7" cy="2" r="1.2" />
+      <circle cx="3" cy="7" r="1.2" /><circle cx="7" cy="7" r="1.2" />
+      <circle cx="3" cy="12" r="1.2" /><circle cx="7" cy="12" r="1.2" />
+    </svg>
+  )
+}
 
 export default function Gezamenlijk() {
   const { data, saveData, canEdit } = useInsight()
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState({ label: '', value: '', split: 'ratio' })
+  const [dragging, setDragging] = useState<number | null>(null)
+  const [dragOver, setDragOver] = useState<number | null>(null)
 
   const n1 = data.names?.user1 || 'Gebruiker 1'
   const n2 = data.names?.user2 || 'Gebruiker 2'
@@ -48,6 +60,18 @@ export default function Gezamenlijk() {
   function deleteItem(id: string) { saveData({ ...data, shared: items.filter(i => i.id !== id) }) }
   function editItem(id: string, field: 'label' | 'value' | 'split', val: string) {
     saveData({ ...data, shared: items.map(i => i.id === id ? { ...i, [field]: field === 'value' ? parseFloat(val) || 0 : val } : i) })
+  }
+  function reorderItems(newItems: CostItem[]) {
+    saveData({ ...data, shared: newItems })
+  }
+  function handleDrop(toIdx: number) {
+    if (dragging === null || dragging === toIdx) return
+    const next = [...items]
+    const [moved] = next.splice(dragging, 1)
+    next.splice(toIdx, 0, moved)
+    reorderItems(next)
+    setDragging(null)
+    setDragOver(null)
   }
 
   const panel: React.CSSProperties = { background: 'var(--s1)', border: '1px solid var(--border)', borderRadius: 8, padding: '22px 26px', marginBottom: 22 }
@@ -88,6 +112,7 @@ export default function Gezamenlijk() {
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr>
+              {editable && <th style={{ width: 20, borderBottom: '1px solid var(--border)', padding: '6px 4px 8px' }}></th>}
               <th style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--muted)', padding: '6px 8px 8px', textAlign: 'left', borderBottom: '1px solid var(--border)', minWidth: 180 }}>Omschrijving</th>
               <th style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--muted)', padding: '6px 8px 8px', textAlign: 'right', borderBottom: '1px solid var(--border)' }}>Bedrag</th>
               <th style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--muted)', padding: '6px 8px 8px', borderBottom: '1px solid var(--border)' }}>Verdeling</th>
@@ -97,14 +122,28 @@ export default function Gezamenlijk() {
             </tr>
           </thead>
           <tbody>
-            {items.map(item => {
+            {items.map((item, idx) => {
               const { u1, u2 } = splitVal(item)
               return (
-                <tr key={item.id}>
+                <tr
+                  key={item.id}
+                  draggable={editable}
+                  onDragStart={() => setDragging(idx)}
+                  onDragEnd={() => { setDragging(null); setDragOver(null) }}
+                  onDragOver={e => { e.preventDefault(); setDragOver(idx) }}
+                  onDragLeave={() => setDragOver(d => d === idx ? null : d)}
+                  onDrop={() => handleDrop(idx)}
+                  style={{ borderTop: dragOver === idx && dragging !== idx ? '2px solid var(--accent)' : '2px solid transparent', opacity: dragging === idx ? 0.4 : 1, transition: 'opacity .15s' }}
+                >
+                  {editable && (
+                    <td style={{ padding: '7px 4px', verticalAlign: 'middle', borderBottom: '1px solid rgba(255,255,255,.04)', cursor: 'grab', color: 'var(--muted)' }}>
+                      <GripIcon />
+                    </td>
+                  )}
                   <td style={{ padding: '7px 8px', fontSize: 13, verticalAlign: 'middle', borderBottom: '1px solid rgba(255,255,255,.04)' }}>
                     {editable ? (
                       <input defaultValue={item.label} onBlur={e => editItem(item.id, 'label', e.target.value)}
-                        style={{ background: 'transparent', border: 'none', color: 'var(--text)', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', width: '100%', cursor: 'text', borderBottom: '1px dashed transparent' }}
+                        style={{ background: 'transparent', border: 'none', color: 'var(--text)', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', width: '100%', cursor: 'text' }}
                       />
                     ) : item.label}
                   </td>
@@ -126,8 +165,8 @@ export default function Gezamenlijk() {
                       </select>
                     ) : SPLITS[item.split]}
                   </td>
-                  <td style={{ padding: '7px 8px', fontSize: 13, verticalAlign: 'middle', borderBottom: '1px solid rgba(255,255,255,.04)', textAlign: 'right', color: 'var(--accent)', fontVariantNumeric: 'tabular-nums' }}>{fmt(u1)}</td>
-                  <td style={{ padding: '7px 8px', fontSize: 13, verticalAlign: 'middle', borderBottom: '1px solid rgba(255,255,255,.04)', textAlign: 'right', color: 'var(--accent)', fontVariantNumeric: 'tabular-nums' }}>{fmt(u2)}</td>
+                  <td style={{ padding: '7px 8px', fontSize: 13, verticalAlign: 'middle', borderBottom: '1px solid rgba(255,255,255,.04)', textAlign: 'right', color: 'var(--accent)', fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>{fmt(u1)}</td>
+                  <td style={{ padding: '7px 8px', fontSize: 13, verticalAlign: 'middle', borderBottom: '1px solid rgba(255,255,255,.04)', textAlign: 'right', color: 'var(--accent)', fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>{fmt(u2)}</td>
                   <td style={{ padding: '7px 8px', verticalAlign: 'middle', borderBottom: '1px solid rgba(255,255,255,.04)' }}>
                     {editable && <button onClick={() => deleteItem(item.id)} style={{ width: 26, height: 26, background: 'rgba(200,60,60,.1)', color: 'var(--danger)', border: '1px solid rgba(200,60,60,.2)', borderRadius: 4, cursor: 'pointer', fontSize: 14, fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>×</button>}
                   </td>
@@ -138,13 +177,13 @@ export default function Gezamenlijk() {
         </table>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--border)' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--border)', alignItems: 'stretch' }}>
         {[{ name: n1, tr: jTr, sh: totU1, sav: u1Sh }, { name: n2, tr: dTr, sh: totU2, sav: u2Sh }].map(({ name, tr, sh, sav }) => (
           <div key={name} style={{ background: 'var(--s2)', borderRadius: 6, padding: '13px 15px' }}>
             <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--accent)' }}>{name}</div>
             <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--muted)', marginTop: 2 }}>Totaal over te maken</div>
-            <div style={{ fontSize: 22, fontWeight: 700, fontVariantNumeric: 'tabular-nums', marginTop: 4, color: 'var(--accent)' }}>{fmt(tr)}</div>
-            <div style={{ fontSize: 11, color: 'var(--muted2)', marginTop: 4 }}>Lasten {fmt(sh)} + sparen {fmt(sav)}</div>
+            <div style={{ fontSize: 22, fontWeight: 700, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)', marginTop: 4, color: 'var(--accent)' }}>{fmt(tr, 0)}</div>
+            <div style={{ fontSize: 11, color: 'var(--muted2)', marginTop: 4 }}>Lasten <span style={{ fontFamily: 'var(--font-mono)' }}>{fmt(sh, 0)}</span> + sparen <span style={{ fontFamily: 'var(--font-mono)' }}>{fmt(sav, 0)}</span></div>
           </div>
         ))}
       </div>

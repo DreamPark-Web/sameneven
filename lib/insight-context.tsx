@@ -47,7 +47,9 @@ type InsightContextType = {
   saveData: (newData: InsightData) => void
   canEdit: (slot: string) => boolean
   updateHouseholdName: (name: string) => void
-  updateMyProfile: (displayName: string) => void
+  updateMyProfile: (displayName: string, avatarUrl?: string) => void
+  updateMemberRole: (userId: string, role: string) => void
+  updateMemberSlot: (userId: string, slot: string | null) => void
 }
 
 const InsightContext = createContext<InsightContextType | null>(null)
@@ -256,6 +258,7 @@ export function InsightProvider({ children, householdId }: { children: React.Rea
   }, [householdId, currentUser, saveTimeout])
 
   const canEdit = useCallback((slot: string) => {
+    if (myRole === 'viewer') return false
     if (myRole === 'owner' || myRole === 'admin') return true
     return mySlot === slot
   }, [myRole, mySlot])
@@ -264,15 +267,27 @@ export function InsightProvider({ children, householdId }: { children: React.Rea
     setHousehold((prev: any) => prev ? { ...prev, name } : prev)
   }, [])
 
-  const updateMyProfile = useCallback((displayName: string) => {
+  const updateMyProfile = useCallback((displayName: string, avatarUrl?: string) => {
     setMembers((prev) =>
       prev.map((member) =>
         member.user_id === currentUser?.id
-          ? { ...member, display_name: displayName }
+          ? { ...member, display_name: displayName, ...(avatarUrl !== undefined ? { avatar_url: avatarUrl } : {}) }
           : member
       )
     )
   }, [currentUser?.id])
+
+  const updateMemberRole = useCallback((userId: string, role: string) => {
+    setMembers((prev) =>
+      prev.map((member) => member.user_id === userId ? { ...member, role } : member)
+    )
+  }, [])
+
+  const updateMemberSlot = useCallback((userId: string, slot: string | null) => {
+    setMembers((prev) =>
+      prev.map((member) => member.user_id === userId ? { ...member, slot } : member)
+    )
+  }, [])
 
   if (!ready) return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -294,6 +309,8 @@ export function InsightProvider({ children, householdId }: { children: React.Rea
         canEdit,
         updateHouseholdName,
         updateMyProfile,
+        updateMemberRole,
+        updateMemberSlot,
       }}
     >
       {children}

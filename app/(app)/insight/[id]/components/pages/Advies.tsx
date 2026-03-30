@@ -2,7 +2,7 @@
 
 import { useInsight } from '@/lib/insight-context'
 
-function fmtK(n: number) { return Math.abs(n) >= 1000 ? '€\u00a0' + (n / 1000).toFixed(1).replace('.', ',') + 'k' : '€\u00a0' + Math.round(n).toString() }
+function fmtK(n: number) { return '€\u00a0' + Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') }
 function calcMonths(bal: number, pay: number, rate: number) {
   if (!bal || !pay || pay <= 0) return null
   const r = rate / 100 / 12

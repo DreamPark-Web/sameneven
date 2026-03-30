@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GetClear — Brand Identity</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:       #0F0F0F;
+  --bg2:      #141414;
+  --bg3:      #1A1A1A;
+  --bg4:      #222222;
+  --amber:    #E8C49A;
+  --amber-lo: #C49A6A;
+  --white:    #F5F5F5;
+  --muted:    rgba(245,245,245,0.45);
+  --faint:    rgba(232,196,154,0.06);
+  --border:   rgba(232,196,154,0.12);
+  --sans:     'Inter', sans-serif;
+  --tabular:  'Inter', sans-serif;
+  --num:      font-variant-numeric: tabular-nums;
+}
+
+body {
+  background: var(--bg);
+  color: var(--white);
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.65;
+}
+
+.page { max-width: 1040px; margin: 0 auto; padding: 0 52px; }
+.section { padding: 72px 0; border-bottom: 1px solid var(--border); }
+
+.sec-tag {
+  font-family: var(--sans);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--amber-lo);
+  margin-bottom: 8px;
+}
+.sec-title {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin-bottom: 40px;
+}
+
+/* ── HERO ── */
+.hero {
+  padding: 88px 0 72px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 48px;
+}
+.hero-left { flex: 1; }
+.hero-eyebrow {
+  font-family: var(--sans);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--amber-lo);
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.hero-eyebrow::before {
+  content: '';
+  display: block;
+  width: 24px;
+  height: 1px;
+  background: var(--amber-lo);
+}
+.hero-h1 {
+  font-size: 64px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  margin-bottom: 16px;
+}
+.hero-h1 .get  { color: var(--white); }
+.hero-h1 .clear { color: var(--amber); }
+.hero-sub {
+  font-size: 15px;
+  color: var(--muted);
+  font-weight: 300;
+  max-width: 340px;
+}
+.hero-icon { flex-shrink: 0; }
+
+/* ── LOGO GRID ── */
+.logo-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+}
+.logo-tile {
+  border-radius: 18px;
+  padding: 36px 32px;
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  background: var(--bg3);
+}
+.logo-tile.on-amber { background: var(--amber); }
+.logo-tile.on-light { background: #F0EDE8; }
+
+.tile-caption {
+  font-family: var(--sans);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.tile-caption.on-light { color: rgba(0,0,0,0.35); }
+.tile-caption.on-amber { color: rgba(0,0,0,0.4); }
+
+.logotype {
+  font-family: var(--sans);
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.logotype .get   { color: var(--white); }
+.logotype .clear { color: var(--amber); }
+.logotype.on-light .get   { color: #1A1A1A; }
+.logotype.on-light .clear { color: #8B6A3E; }
+.logotype.on-amber .get   { color: rgba(0,0,0,0.75); }
+.logotype.on-amber .clear { color: rgba(0,0,0,0.4); }
+
+.logotype.xl { font-size: 36px; }
+.logotype.lg { font-size: 26px; }
+.logotype.md { font-size: 18px; }
+.logotype.sm { font-size: 13px; }
+
+/* ── ICON SIZES ── */
+.icon-sizes {
+  display: flex;
+  align-items: flex-end;
+  gap: 32px;
+  flex-wrap: wrap;
+}
+.icon-size-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+.size-px {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 0.05em;
+}
+
+/* ── PALETTE ── */
+.palette {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 28px;
+}
+.swatch { display: flex; flex-direction: column; gap: 10px; }
+.swatch-block {
+  width: 120px;
+  height: 80px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+}
+.swatch-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--white);
+}
+.swatch-hex {
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+
+/* ── TYPOGRAPHY ── */
+.type-row {
+  display: flex;
+  align-items: center;
+  gap: 40px;
+  padding: 24px 0;
+  border-bottom: 1px solid var(--border);
+}
+.type-row:first-child { border-top: 1px solid var(--border); }
+.type-meta { width: 180px; flex-shrink: 0; }
+.type-meta-name { font-size: 13px; font-weight: 500; color: var(--white); }
+.type-meta-spec { font-family: var(--sans); font-size: 10px; font-weight: 400; letter-spacing: 0.05em; color: var(--muted); margin-top: 3px; }
+
+/* ── NOTE ── */
+.note {
+  background: var(--faint);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 20px;
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 28px;
+  line-height: 1.6;
+}
+.note strong { color: var(--white); font-weight: 500; }
+
+/* ── TAGLINES ── */
+.tl-row {
+  display: flex;
+  align-items: baseline;
+  gap: 20px;
+  padding: 18px 0;
+  border-bottom: 1px solid var(--border);
+}
+.tl-row:first-child { border-top: 1px solid var(--border); }
+.tl-tag {
+  font-family: var(--sans);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--amber-lo);
+  width: 100px;
+  flex-shrink: 0;
+}
+.tl-text {
+  font-size: 17px;
+  font-weight: 300;
+  color: var(--white);
+}
+.tl-text strong { font-weight: 600; color: var(--amber); }
+
+/* ── DO/DONT ── */
+.dd-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.dd-card {
+  border-radius: 14px;
+  padding: 28px;
+  border: 1px solid var(--border);
+  background: var(--bg3);
+}
+.dd-flag {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-bottom: 20px;
+  font-weight: 500;
+}
+.dd-do .dd-flag   { color: #7FD4A0; }
+.dd-dont .dd-flag { color: #D47F7F; }
+.dd-items { display: flex; flex-direction: column; gap: 10px; }
+.dd-item {
+  font-size: 13px;
+  color: var(--muted);
+  padding-left: 16px;
+  position: relative;
+  line-height: 1.5;
+}
+.dd-do .dd-item::before {
+  content: '✓';
+  position: absolute;
+  left: 0;
+  color: #7FD4A0;
+  font-size: 11px;
+}
+.dd-dont .dd-item::before {
+  content: '×';
+  position: absolute;
+  left: 0;
+  color: #D47F7F;
+  font-size: 13px;
+}
+
+/* ── FOOTER ── */
+.footer {
+  padding: 48px 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* ── DIAMOND SVG ── */
+.diamond-logo {
+  display: block;
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-left">
+    <p class="hero-eyebrow">Brand Identity</p>
+    <h1 class="hero-h1">
+      <span class="get">Get</span> <span class="clear">Clear</span>
+    </h1>
+    <p class="hero-sub">Financieel inzicht, samen. Helder zicht op wat telt — voor koppels, gezinnen en huisgenoten.</p>
+  </div>
+  <div class="hero-icon">
+    <svg class="diamond-logo" width="110" height="110" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="heroFill" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#E8C49A" stop-opacity="0.3"/>
+          <stop offset="100%" stop-color="#E8C49A" stop-opacity="0.1"/>
+        </linearGradient>
+      </defs>
+      <polygon points="65,18 135,18 192,62 100,175 8,62" fill="url(#heroFill)"/>
+      <polyline points="65,18 135,18 192,62 100,175 8,62 65,18" fill="none" stroke="#E8C49A" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/>
+      <line x1="65" y1="18" x2="48" y2="66" fill="none" stroke="#E8C49A" stroke-width="5" stroke-linecap="round"/>
+      <line x1="135" y1="18" x2="152" y2="66" fill="none" stroke="#E8C49A" stroke-width="5" stroke-linecap="round"/>
+      <line x1="65" y1="18" x2="100" y2="66" fill="none" stroke="#E8C49A" stroke-width="5" stroke-linecap="round"/>
+      <line x1="135" y1="18" x2="100" y2="66" fill="none" stroke="#E8C49A" stroke-width="5" stroke-linecap="round"/>
+      <polyline points="8,62 48,66 100,66 152,66 192,62" fill="none" stroke="#E8C49A" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/>
+      <line x1="48" y1="66" x2="100" y2="175" fill="none" stroke="#E8C49A" stroke-width="5" stroke-linecap="round"/>
+      <line x1="152" y1="66" x2="100" y2="175" fill="none" stroke="#E8C49A" stroke-width="5" stroke-linecap="round"/>
+      <line x1="100" y1="66" x2="100" y2="175" fill="none" stroke="#E8C49A" stroke-width="5" stroke-linecap="round"/>
+      <line x1="8" y1="118" x2="192" y2="118" fill="none" stroke="#E8C49A" stroke-width="5" stroke-linecap="round"/>
+    </svg>
+  </div>
+</div>
+
+<!-- 01 LOGO -->
+<div class="section">
+  <p class="sec-tag">01 — Logo</p>
+  <p class="sec-title">Wordmark</p>
+  <div class="logo-grid">
+
+    <div class="logo-tile">
+      <p class="tile-caption">Donker (standaard)</p>
+      <div class="logotype xl"><span class="get">Get</span> <span class="clear">Clear</span></div>
+      <div class="logotype lg"><span class="get">Get</span> <span class="clear">Clear</span></div>
+      <div class="logotype md"><span class="get">Get</span> <span class="clear">Clear</span></div>
+      <div class="logotype sm"><span class="get">Get</span> <span class="clear">Clear</span></div>
+    </div>
+
+    <div class="logo-tile on-light">
+      <p class="tile-caption on-light">Licht</p>
+      <div class="logotype on-light xl"><span class="get">Get</span> <span class="clear">Clear</span></div>
+      <div class="logotype on-light lg"><span class="get">Get</span> <span class="clear">Clear</span></div>
+      <div class="logotype on-light md"><span class="get">Get</span> <span class="clear">Clear</span></div>
+      <div class="logotype on-light sm"><span class="get">Get</span> <span class="clear">Clear</span></div>
+    </div>
+
+    <div class="logo-tile on-amber">
+      <p class="tile-caption on-amber">Op amber</p>
+      <div class="logotype on-amber xl"><span class="get">Get</span> <span class="clear">Clear</span></div>
+      <div class="logotype on-amber lg"><span class="get">Get</span> <span class="clear">Clear</span></div>
+      <div class="logotype on-amber md"><span class="get">Get</span> <span class="clear">Clear</span></div>
+      <div class="logotype on-amber sm"><span class="get">Get</span> <span class="clear">Clear</span></div>
+    </div>
+
+  </div>
+  <div class="note">
+    <strong>Wordmark regel</strong> — Schrijf altijd "Get Clear" als twee aparte woorden met een spatie. "Get" altijd in off-white (#F5F5F5), "Clear" altijd in amber (#E8C49A). Nooit omwisselen, nooit beide in dezelfde kleur, nooit aan elkaar als "GetClear". Minimale weergavegrootte: 13px.
+  </div>
+</div>
+
+<!-- 02 ICOON -->
+<div class="section">
+  <p class="sec-tag">02 — Icoon</p>
+  <p class="sec-title">Diamant mark</p>
+  <div class="icon-sizes">
+
+    <div class="icon-size-col">
+      <svg width="120" height="120" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+        <defs><linearGradient id="f1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#E8C49A" stop-opacity="0.3"/><stop offset="100%" stop-color="#E8C49A" stop-opacity="0.1"/></linearGradient></defs>
+        <polygon points="65,18 135,18 192,62 100,175 8,62" fill="url(#f1)"/>
+        <polyline points="65,18 135,18 192,62 100,175 8,62 65,18" fill="none" stroke="#E8C49A" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/>
+        <line x1="65" y1="18" x2="48" y2="66" fill="none" stroke="#E8C49A" stroke-width="5" stroke-linecap="round"/>
+        <line x1="135" y1="18" x2="152" y2="66" fill="none" stroke="#E8C49A" stroke-width="5" stroke-linecap="round"/>
+        <line x1="65" y1="18" x2="100" y2="66" fill="none" stroke="#E8C49A" stroke-width="5" stroke-linecap="round"/>
+        <line x1="135" y1="18" x2="100" y2="66" fill="none" stroke="#E8C49A" stroke-width="5" stroke-linecap="round"/>
+        <polyline points="8,62 48,66 100,66 152,66 192,62" fill="none" stroke="#E8C49A" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/>
+        <line x1="48" y1="66" x2="100" y2="175" fill="none" stroke="#E8C49A" stroke-width="5" stroke-linecap="round"/>
+        <line x1="152" y1="66" x2="100" y2="175" fill="none" stroke="#E8C49A" stroke-width="5" stroke-linecap="round"/>
+        <line x1="100" y1="66" x2="100" y2="175" fill="none" stroke="#E8C49A" stroke-width="5" stroke-linecap="round"/>
+        <line x1="8" y1="118" x2="192" y2="118" fill="none" stroke="#E8C49A" stroke-width="5" stroke-linecap="round"/>
+      </svg>
+      <p class="size-px">120px</p>
+    </div>
+
+    <div class="icon-size-col">
+      <svg width="96" height="96" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+        <defs><linearGradient id="f2" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#E8C49A" stop-opacity="0.3"/><stop offset="100%" stop-color="#E8C49A" stop-opacity="0.1"/></linearGradient></defs>
+        <polygon points="65,18 135,18 192,62 100,175 8,62" fill="url(#f2)"/>
+        <polyline points="65,18 135,18 192,62 100,175 8,62 65,18" fill="none" stroke="#E8C49A" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/>
+        <line x1="65" y1="18" x2="48" y2="66" fill="none" stroke="#E8C49A" stroke-width="5" stroke-linecap="round"/>
+        <line x1="135" y1="18" x2="152" y2="66" fill="none" stroke="#E8C49A" stroke-width="5" stroke-linecap="round"/>
+        <line x1="65" y1="18" x2="100" y2="66" fill="none" stroke="#E8C49A" stroke-width="5" stroke-linecap="round"/>
+        <line x1="135" y1="18" x2="100" y2="66" fill="none" stroke="#E8C49A" stroke-width="5" stroke-linecap="round"/>
+        <polyline points="8,62 48,66 100,66 152,66 192,62" fill="none" stroke="#E8C49A" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/>
+        <line x1="48" y1="66" x2="100" y2="175" fill="none" stroke="#E8C49A" stroke-width="5" stroke-linecap="round"/>
+        <line x1="152" y1="66" x2="100" y2="175" fill="none" stroke="#E8C49A" stroke-width="5" stroke-linecap="round"/>
+        <line x1="100" y1="66" x2="100" y2="175" fill="none" stroke="#E8C49A" stroke-width="5" stroke-linecap="round"/>
+        <line x1="8" y1="118" x2="192" y2="118" fill="none" stroke="#E8C49A" stroke-width="5" stroke-linecap="round"/>
+      </svg>
+      <p class="size-px">96px</p>
+    </div>
+
+    <div class="icon-size-col">
+      <svg width="64" height="64" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+        <defs><linearGradient id="f3" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#E8C49A" stop-opacity="0.3"/><stop offset="100%" stop-color="#E8C49A" stop-opacity="0.1"/></linearGradient></defs>
+        <polygon points="65,18 135,18 192,62 100,175 8,62" fill="url(#f3)"/>
+        <polyline points="65,18 135,18 192,62 100,175 8,62 65,18" fill="none" stroke="#E8C49A" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"/>
+        <line x1="65" y1="18" x2="48" y2="66" fill="none" stroke="#E8C49A" stroke-width="6" stroke-linecap="round"/>
+        <line x1="135" y1="18" x2="152" y2="66" fill="none" stroke="#E8C49A" stroke-width="6" stroke-linecap="round"/>
+        <line x1="65" y1="18" x2="100" y2="66" fill="none" stroke="#E8C49A" stroke-width="6" stroke-linecap="round"/>
+        <line x1="135" y1="18" x2="100" y2="66" fill="none" stroke="#E8C49A" stroke-width="6" stroke-linecap="round"/>
+        <polyline points="8,62 48,66 100,66 152,66 192,62" fill="none" stroke="#E8C49A" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"/>
+        <line x1="48" y1="66" x2="100" y2="175" fill="none" stroke="#E8C49A" stroke-width="6" stroke-linecap="round"/>
+        <line x1="152" y1="66" x2="100" y2="175" fill="none" stroke="#E8C49A" stroke-width="6" stroke-linecap="round"/>
+        <line x1="100" y1="66" x2="100" y2="175" fill="none" stroke="#E8C49A" stroke-width="6" stroke-linecap="round"/>
+        <line x1="8" y1="118" x2="192" y2="118" fill="none" stroke="#E8C49A" stroke-width="6" stroke-linecap="round"/>
+      </svg>
+      <p class="size-px">64px</p>
+    </div>
+
+    <div class="icon-size-col">
+      <svg width="40" height="40" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+        <defs><linearGradient id="f4" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#E8C49A" stop-opacity="0.3"/><stop offset="100%" stop-color="#E8C49A" stop-opacity="0.1"/></linearGradient></defs>
+        <polygon points="65,18 135,18 192,62 100,175 8,62" fill="url(#f4)"/>
+        <polyline points="65,18 135,18 192,62 100,175 8,62 65,18" fill="none" stroke="#E8C49A" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
+        <line x1="65" y1="18" x2="100" y2="66" fill="none" stroke="#E8C49A" stroke-width="8" stroke-linecap="round"/>
+        <line x1="135" y1="18" x2="100" y2="66" fill="none" stroke="#E8C49A" stroke-width="8" stroke-linecap="round"/>
+        <line x1="8" y1="62" x2="192" y2="62" fill="none" stroke="#E8C49A" stroke-width="8" stroke-linecap="round"/>
+        <line x1="100" y1="66" x2="100" y2="175" fill="none" stroke="#E8C49A" stroke-width="8" stroke-linecap="round"/>
+        <line x1="8" y1="118" x2="192" y2="118" fill="none" stroke="#E8C49A" stroke-width="8" stroke-linecap="round"/>
+      </svg>
+      <p class="size-px">40px</p>
+    </div>
+
+    <div class="icon-size-col">
+      <svg width="24" height="24" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+        <polygon points="65,18 135,18 192,62 100,175 8,62" fill="#E8C49A" fill-opacity="0.25"/>
+        <polyline points="65,18 135,18 192,62 100,175 8,62 65,18" fill="none" stroke="#E8C49A" stroke-width="10" stroke-linejoin="round" stroke-linecap="round"/>
+        <line x1="8" y1="62" x2="192" y2="62" fill="none" stroke="#E8C49A" stroke-width="10" stroke-linecap="round"/>
+        <line x1="100" y1="62" x2="100" y2="175" fill="none" stroke="#E8C49A" stroke-width="10" stroke-linecap="round"/>
+      </svg>
+      <p class="size-px">24px</p>
+    </div>
+
+  </div>
+  <div class="note" style="margin-top:32px;">
+    <strong>Schaal gedrag</strong> — Onder 64px verdwijnen de interne facetlijnen stapsgewijs. Onder 40px alleen de buitenste contouren. Onder 24px alleen de outline. De amber fill blijft altijd zichtbaar.
+  </div>
+</div>
+
+<!-- 03 KLEUREN -->
+<div class="section">
+  <p class="sec-tag">03 — Kleur</p>
+  <p class="sec-title">Palet</p>
+  <div class="palette">
+    <div class="swatch">
+      <div class="swatch-block" style="background:#E8C49A;"></div>
+      <div><p class="swatch-name">Amber</p><p class="swatch-hex">#E8C49A</p></div>
+    </div>
+    <div class="swatch">
+      <div class="swatch-block" style="background:#C49A6A;"></div>
+      <div><p class="swatch-name">Amber dim</p><p class="swatch-hex">#C49A6A</p></div>
+    </div>
+    <div class="swatch">
+      <div class="swatch-block" style="background:#0F0F0F; border:1px solid rgba(255,255,255,0.08);"></div>
+      <div><p class="swatch-name">Deep black</p><p class="swatch-hex">#0F0F0F</p></div>
+    </div>
+    <div class="swatch">
+      <div class="swatch-block" style="background:#141414; border:1px solid rgba(255,255,255,0.08);"></div>
+      <div><p class="swatch-name">Topbar</p><p class="swatch-hex">#141414</p></div>
+    </div>
+    <div class="swatch">
+      <div class="swatch-block" style="background:#1A1A1A; border:1px solid rgba(255,255,255,0.08);"></div>
+      <div><p class="swatch-name">Card</p><p class="swatch-hex">#1A1A1A</p></div>
+    </div>
+    <div class="swatch">
+      <div class="swatch-block" style="background:#F5F5F5;"></div>
+      <div><p class="swatch-name">Off-white</p><p class="swatch-hex">#F5F5F5</p></div>
+    </div>
+    <div class="swatch">
+      <div class="swatch-block" style="background:rgba(245,245,245,0.45); border:1px solid rgba(255,255,255,0.08);"></div>
+      <div><p class="swatch-name">Muted</p><p class="swatch-hex">F5F5F5 · 45%</p></div>
+    </div>
+  </div>
+  <div class="note">
+    <strong>Kleurverhouding</strong> — Deep black 75% · Card grijs 15% · Off-white 7% · Amber 3%. Amber is exclusief voor het logo accent, actieve states, iconen en highlights. Gebruik het spaarzaam — elke keer dat amber verschijnt moet het iets betekenen.
+  </div>
+</div>
+
+<!-- 04 TYPOGRAFIE -->
+<div class="section">
+  <p class="sec-tag">04 — Typografie</p>
+  <p class="sec-title">Lettertype systeem</p>
+  <div>
+    <div class="type-row">
+      <div class="type-meta"><p class="type-meta-name">Display</p><p class="type-meta-spec">Inter 600 · 40px</p></div>
+      <p style="font-size:40px; font-weight:600; letter-spacing:-0.03em; line-height:1;">Get <span style="color:var(--amber);">Clear</span></p>
+    </div>
+    <div class="type-row">
+      <div class="type-meta"><p class="type-meta-name">Heading 1</p><p class="type-meta-spec">Inter 600 · 28px</p></div>
+      <p style="font-size:28px; font-weight:600; letter-spacing:-0.02em;">Goedemorgen, Knight</p>
+    </div>
+    <div class="type-row">
+      <div class="type-meta"><p class="type-meta-name">Heading 2</p><p class="type-meta-spec">Inter 500 · 18px</p></div>
+      <p style="font-size:18px; font-weight:500;">Maandelijkse uitgaven</p>
+    </div>
+    <div class="type-row">
+      <div class="type-meta"><p class="type-meta-name">Body</p><p class="type-meta-spec">Inter 300 · 15px</p></div>
+      <p style="font-size:15px; font-weight:300; color:var(--muted); max-width:440px;">Get Clear maakt het makkelijk om financiën bij te houden met iedereen die je vertrouwt — als stel, gezin of huisgenoten.</p>
+    </div>
+    <div class="type-row">
+      <div class="type-meta"><p class="type-meta-name">Label</p><p class="type-meta-spec">Inter 500 · 11px · spaced</p></div>
+      <p style="font-size:11px; font-weight:500; letter-spacing:0.12em; text-transform:uppercase; color:var(--amber);">Abonnementen · 18 dgn</p>
+    </div>
+    <div class="type-row">
+      <div class="type-meta"><p class="type-meta-name">Bedrag</p><p class="type-meta-spec">Inter 500 · 28px · tabular</p></div>
+      <p style="font-size:28px; font-weight:500; font-variant-numeric:tabular-nums; color:var(--amber);">€ 3.342,00</p>
+    </div>
+  </div>
+  <div class="note" style="margin-top:20px;">
+    <strong>Één font, volledig systeem</strong> — Inter voor alles in de interface. Bedragen krijgen <code style="background:var(--bg4);padding:1px 5px;border-radius:4px;font-size:11px;">font-variant-numeric: tabular-nums</code> zodat cijfers even breed zijn en perfect uitlijnen in tabellen en overzichten. Labels krijgen letter-spacing en font-weight 500 voor leesbaarheid op kleine groottes.
+  </div>
+</div>
+
+<!-- 05 TAGLINES -->
+<div class="section">
+  <p class="sec-tag">05 — Taal &amp; tone</p>
+  <p class="sec-title">Taglines</p>
+  <div>
+    <div class="tl-row"><span class="tl-tag">Primair</span><p class="tl-text"><strong>Get Clear</strong> over je financiën.</p></div>
+    <div class="tl-row"><span class="tl-tag">App store</span><p class="tl-text">Financieel inzicht voor iedereen die je vertrouwt.</p></div>
+    <div class="tl-row"><span class="tl-tag">Landing</span><p class="tl-text">Geen gedoe. Gewoon <strong>helder</strong>.</p></div>
+    <div class="tl-row"><span class="tl-tag">Push</span><p class="tl-text">Netflix verlengt over 18 dagen. Even checken?</p></div>
+    <div class="tl-row"><span class="tl-tag">Onboarding</span><p class="tl-text">Nodig iemand uit. Voeg een insight toe. Klaar.</p></div>
+    <div class="tl-row"><span class="tl-tag">Social</span><p class="tl-text">Voor stellen, gezinnen &amp; huisgenoten.</p></div>
+    <div class="tl-row"><span class="tl-tag">Leeg state</span><p class="tl-text">Voeg je eerste post toe om te beginnen.</p></div>
+  </div>
+  <div class="note">
+    <strong>Stem</strong> — Rustig maar betrokken. Nooit betuttelend. Geen financieel jargon. Altijd menselijk en direct. Gebruik korte zinnen. "Helder" en "inzicht" zijn kernwoorden — ze keren terug in de interface taal.
+  </div>
+</div>
+
+<!-- 06 DO/DONT -->
+<div class="section">
+  <p class="sec-tag">06 — Gebruik</p>
+  <p class="sec-title">Do's &amp; don'ts</p>
+  <div class="dd-grid">
+    <div class="dd-card dd-do">
+      <p class="dd-flag">Wel doen</p>
+      <div class="dd-items">
+        <p class="dd-item">Schrijf de naam altijd als "Get Clear" — twee woorden, hoofdletter G en C, met spatie</p>
+        <p class="dd-item">Houd "Clear" in het wordmark altijd in amber (#E8C49A)</p>
+        <p class="dd-item">Gebruik #0F0F0F als primaire achtergrond</p>
+        <p class="dd-item">Gebruik JetBrains Mono voor alle geldbedragen en percentages</p>
+        <p class="dd-item">Gebruik amber spaarzaam — alleen voor actieve en belangrijke elementen</p>
+        <p class="dd-item">Genoeg witruimte rondom het logo — minimaal gelijke marge als de icoonhoogte</p>
+      </div>
+    </div>
+    <div class="dd-card dd-dont">
+      <p class="dd-flag">Niet doen</p>
+      <div class="dd-items">
+        <p class="dd-item">Schrijf de naam niet als "GetClear", "getclear" of "get clear" (aan elkaar of kleine letters)</p>
+        <p class="dd-item">Gebruik amber niet als achtergrondvlak achter tekst</p>
+        <p class="dd-item">Gebruik pure zwart (#000000) niet als achtergrond — te hard</p>
+        <p class="dd-item">Gebruik font-variant-numeric: tabular-nums op Inter voor geldbedragen</p>
+        <p class="dd-item">Pas het logo niet toe kleiner dan 13px hoogte</p>
+        <p class="dd-item">Voeg geen extra kleuren toe buiten het palet</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<div class="footer">
+  <div class="logotype md"><span class="get">Get</span> <span class="clear">Clear</span></div>
+  <p style="font-family:var(--sans); font-size:10px; font-weight:400; letter-spacing:0.08em; color:var(--muted);">Brand Identity · 2026</p>
+</div>
+
+</div>
+</body>
+</html>

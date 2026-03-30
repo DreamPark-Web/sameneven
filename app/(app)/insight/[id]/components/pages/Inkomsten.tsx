@@ -5,20 +5,54 @@ import { useInsight } from '@/lib/insight-context'
 
 type Item = { id: string; label: string; value: number }
 
-function fmt(n: number) { return '€\u00a0' + n.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.') }
+function fmt(n: number, d = 2) { return '€\u00a0' + n.toFixed(d).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.') }
 function sum(arr: Item[]) { return (arr || []).reduce((a, i) => a + i.value, 0) }
 
 const panel: React.CSSProperties = { background: 'var(--s1)', border: '1px solid var(--border)', borderRadius: 8, padding: '22px 26px', marginBottom: 22 }
 const panelHd: React.CSSProperties = { marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }
 
-function PersonPanel({ name, items, onAdd, onDelete, onEdit, canEdit }: {
-  name: string; items: Item[]; onAdd: (label: string, value: number) => void
-  onDelete: (id: string) => void; onEdit: (id: string, label: string, value: number) => void; canEdit: boolean
+function GripIcon() {
+  return (
+    <svg width="10" height="14" viewBox="0 0 10 14" fill="currentColor" style={{ flexShrink: 0, display: 'block' }}>
+      <circle cx="3" cy="2" r="1.2" /><circle cx="7" cy="2" r="1.2" />
+      <circle cx="3" cy="7" r="1.2" /><circle cx="7" cy="7" r="1.2" />
+      <circle cx="3" cy="12" r="1.2" /><circle cx="7" cy="12" r="1.2" />
+    </svg>
+  )
+}
+
+function PersonPanel({ name, items, onAdd, onDelete, onEdit, onReorder, canEdit }: {
+  name: string; items: Item[]
+  onAdd: (label: string, value: number) => void
+  onDelete: (id: string) => void
+  onEdit: (id: string, label: string, value: number) => void
+  onReorder: (items: Item[]) => void
+  canEdit: boolean
 }) {
   const [open, setOpen] = useState(false)
   const [label, setLabel] = useState('')
   const [value, setValue] = useState('')
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editVal, setEditVal] = useState('')
+  const [dragging, setDragging] = useState<number | null>(null)
+  const [dragOver, setDragOver] = useState<number | null>(null)
   const total = sum(items)
+
+  function commitLabel(item: Item) {
+    const trimmed = editVal.trim()
+    if (trimmed && trimmed !== item.label) onEdit(item.id, trimmed, item.value)
+    setEditingId(null)
+  }
+
+  function handleDrop(toIdx: number) {
+    if (dragging === null || dragging === toIdx) return
+    const next = [...items]
+    const [moved] = next.splice(dragging, 1)
+    next.splice(toIdx, 0, moved)
+    onReorder(next)
+    setDragging(null)
+    setDragOver(null)
+  }
 
   return (
     <div style={panel}>
@@ -55,13 +89,44 @@ function PersonPanel({ name, items, onAdd, onDelete, onEdit, canEdit }: {
       )}
 
       <div>
-        {items.map(item => (
-          <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 0', borderBottom: '1px solid rgba(255,255,255,.04)' }}>
-            <span style={{ flex: 1, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.label}</span>
+        {items.map((item, idx) => (
+          <div
+            key={item.id}
+            draggable={canEdit}
+            onDragStart={() => setDragging(idx)}
+            onDragEnd={() => { setDragging(null); setDragOver(null) }}
+            onDragOver={e => { e.preventDefault(); setDragOver(idx) }}
+            onDragLeave={() => setDragOver(d => d === idx ? null : d)}
+            onDrop={() => handleDrop(idx)}
+            style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 0', borderBottom: '1px solid rgba(255,255,255,.04)', borderTop: dragOver === idx && dragging !== idx ? '2px solid var(--accent)' : '2px solid transparent', opacity: dragging === idx ? 0.4 : 1, transition: 'opacity .15s' }}
+          >
+            {canEdit && (
+              <span style={{ color: 'var(--muted)', cursor: 'grab', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                <GripIcon />
+              </span>
+            )}
+            {editingId === item.id ? (
+              <input
+                autoFocus
+                value={editVal}
+                onChange={e => setEditVal(e.target.value)}
+                onBlur={() => commitLabel(item)}
+                onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); else if (e.key === 'Escape') setEditingId(null) }}
+                style={{ flex: 1, fontSize: 13, background: 'var(--s2)', border: '1px solid var(--accent)', borderRadius: 5, color: 'var(--text)', padding: '3px 7px', outline: 'none', fontFamily: 'var(--font-body)' }}
+              />
+            ) : (
+              <span
+                onClick={() => { if (!canEdit) return; setEditingId(item.id); setEditVal(item.label) }}
+                title={canEdit ? 'Klik om te bewerken' : undefined}
+                style={{ flex: 1, fontSize: 13, cursor: canEdit ? 'text' : 'default', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+              >
+                {item.label}
+              </span>
+            )}
             <input
               type="number"
               defaultValue={item.value}
-              onBlur={e => onEdit(item.id, item.label, parseFloat(e.target.value) || 0)}
+              onBlur={e => onEdit(item.id, editingId === item.id ? editVal.trim() || item.label : item.label, parseFloat(e.target.value) || 0)}
               disabled={!canEdit}
               style={{ width: 100, background: canEdit ? 'var(--s2)' : 'transparent', border: canEdit ? '1px solid var(--border)' : 'none', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}
             />
@@ -79,7 +144,7 @@ function PersonPanel({ name, items, onAdd, onDelete, onEdit, canEdit }: {
         </div>
         <div style={{ background: 'var(--s2)', borderRadius: 6, padding: '13px 15px' }}>
           <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--muted)' }}>Totaal netto per maand</div>
-          <div style={{ fontSize: 22, fontWeight: 700, fontVariantNumeric: 'tabular-nums', marginTop: 4, color: 'var(--accent)' }}>{fmt(total)}</div>
+          <div style={{ fontSize: 22, fontWeight: 700, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)', marginTop: 4, color: 'var(--accent)' }}>{fmt(total, 0)}</div>
         </div>
       </div>
     </div>
@@ -112,12 +177,17 @@ export default function Inkomsten() {
     updated[slot] = { ...updated[slot], income: updated[slot].income.map((i: Item) => i.id === id ? { ...i, label, value } : i) }
     saveData(updated)
   }
+  function reorderIncome(slot: 'user1' | 'user2', newItems: Item[]) {
+    const updated = { ...data }
+    updated[slot] = { ...updated[slot], income: newItems }
+    saveData(updated)
+  }
 
   return (
     <div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-        <PersonPanel name={n1} items={u1} onAdd={(l, v) => addIncome('user1', l, v)} onDelete={id => deleteIncome('user1', id)} onEdit={(id, l, v) => editIncome('user1', id, l, v)} canEdit={canEdit('user1')} />
-        <PersonPanel name={n2} items={u2} onAdd={(l, v) => addIncome('user2', l, v)} onDelete={id => deleteIncome('user2', id)} onEdit={(id, l, v) => editIncome('user2', id, l, v)} canEdit={canEdit('user2')} />
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, alignItems: 'stretch' }}>
+        <PersonPanel name={n1} items={u1} onAdd={(l, v) => addIncome('user1', l, v)} onDelete={id => deleteIncome('user1', id)} onEdit={(id, l, v) => editIncome('user1', id, l, v)} onReorder={items => reorderIncome('user1', items)} canEdit={canEdit('user1')} />
+        <PersonPanel name={n2} items={u2} onAdd={(l, v) => addIncome('user2', l, v)} onDelete={id => deleteIncome('user2', id)} onEdit={(id, l, v) => editIncome('user2', id, l, v)} onReorder={items => reorderIncome('user2', items)} canEdit={canEdit('user2')} />
       </div>
       <div style={panel}>
         <div style={panelHd}>
@@ -126,15 +196,15 @@ export default function Inkomsten() {
             <span style={{ fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-heading)' }}>Gecombineerd inkomen</span>
           </div>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, alignItems: 'stretch' }}>
           {[
-            { label: 'Totaal gezamenlijk', val: fmt(total), sub: 'per maand', color: 'var(--accent)' },
+            { label: 'Totaal gezamenlijk', val: fmt(total, 0), sub: 'per maand', color: 'var(--accent)' },
             { label: `Aandeel ${n1}`, val: r1, color: 'var(--accent)' },
             { label: `Aandeel ${n2}`, val: r2, color: 'var(--accent)' },
           ].map((s, i) => (
             <div key={i} style={{ background: 'var(--s1)', border: '1px solid var(--border)', borderRadius: 8, padding: '15px 17px', borderTop: '2px solid var(--accent)' }}>
               <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--muted)' }}>{s.label}</div>
-              <div style={{ fontSize: i === 0 ? 28 : 19, fontWeight: 700, lineHeight: 1, margin: '6px 0 4px', fontVariantNumeric: 'tabular-nums', color: s.color }}>{s.val}</div>
+              <div style={{ fontSize: i === 0 ? 28 : 19, fontWeight: 700, lineHeight: 1, margin: '6px 0 4px', fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)', color: s.color }}>{s.val}</div>
               {s.sub && <div style={{ fontSize: 11, color: 'var(--muted2)' }}>{s.sub}</div>}
             </div>
           ))}

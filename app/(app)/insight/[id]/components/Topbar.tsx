@@ -170,6 +170,8 @@ type AccountModalProps = {
   saveAccount: () => void
   logout: () => void
   onClose: () => void
+  onAvatarChange: (file: File) => Promise<void>
+  isUploadingAvatar: boolean
 }
 
 function AccountModal({
@@ -188,7 +190,12 @@ function AccountModal({
   saveAccount,
   logout,
   onClose,
+  onAvatarChange,
+  isUploadingAvatar,
 }: AccountModalProps) {
+  const [avatarHovered, setAvatarHovered] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
   return (
     <div style={modalBg} onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div style={modal}>
@@ -228,31 +235,85 @@ function AccountModal({
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
-          <div
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            style={{ display: 'none' }}
+            onChange={(e) => {
+              const file = e.target.files?.[0]
+              if (file) onAvatarChange(file)
+              e.target.value = ''
+            }}
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            onMouseEnter={() => setAvatarHovered(true)}
+            onMouseLeave={() => setAvatarHovered(false)}
+            disabled={isUploadingAvatar}
+            title="Profielfoto wijzigen"
             style={{
-              width: 60,
-              height: 60,
+              position: 'relative',
+              width: 68,
+              height: 68,
               borderRadius: '50%',
+              padding: 0,
+              border: avatarHovered ? '2px solid var(--accent)' : '2px solid transparent',
               background: 'var(--accent)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 20,
-              fontWeight: 700,
-              color: '#0a0a0a',
               overflow: 'hidden',
+              cursor: isUploadingAvatar ? 'wait' : 'pointer',
+              flexShrink: 0,
+              transition: 'border-color .15s',
             }}
           >
             {avatarUrl ? (
               <img
                 src={avatarUrl}
-                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                referrerPolicy="no-referrer"
+                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
                 alt={displayName}
               />
             ) : (
-              initials
+              <div
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 22,
+                  fontWeight: 700,
+                  color: '#0a0a0a',
+                }}
+              >
+                {isUploadingAvatar ? '…' : initials}
+              </div>
             )}
-          </div>
+            {(avatarHovered || isUploadingAvatar) && (
+              <div
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  background: 'rgba(0,0,0,0.45)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: '50%',
+                }}
+              >
+                {isUploadingAvatar ? (
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.9 }}>
+                    <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+                  </svg>
+                ) : (
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                  </svg>
+                )}
+              </div>
+            )}
+          </button>
         </div>
 
         <label style={modalLabel}>Jouw naam</label>
@@ -342,6 +403,7 @@ export default function Topbar({
   const [showSettings, setShowSettings] = useState(false)
   const [isBackHovered, setIsBackHovered] = useState(false)
   const [isSettingsHovered, setIsSettingsHovered] = useState(false)
+  const [isThemeToggleHovered, setIsThemeToggleHovered] = useState(false)
 
   const [accountName, setAccountName] = useState('')
   const [insightName, setInsightName] = useState('')
@@ -360,6 +422,18 @@ export default function Topbar({
   const [isDeletingInsight, setIsDeletingInsight] = useState(false)
   const [deleteInsightError, setDeleteInsightError] = useState('')
   const [confirmDeleteInsight, setConfirmDeleteInsight] = useState(false)
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
+
+  const [isDark, setIsDark] = useState(() => {
+    if (typeof window === 'undefined') return true
+    const stored = localStorage.getItem('se_theme')
+    return stored ? stored === 'dark' : true
+  })
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light')
+    localStorage.setItem('se_theme', isDark ? 'dark' : 'light')
+  }, [isDark])
 
   const [rgbInput, setRgbInput] = useState(() => {
     const rgb = hexToRgb(data?.theme || '#00c2ff')
@@ -580,6 +654,40 @@ export default function Topbar({
       b: String(currentRgb.b),
     })
     setShowSettings(true)
+  }
+
+  async function saveAvatar(file: File) {
+    if (!currentUser?.id) return
+    setIsUploadingAvatar(true)
+    try {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const img = new Image()
+        const objectUrl = URL.createObjectURL(file)
+        img.onload = () => {
+          URL.revokeObjectURL(objectUrl)
+          const size = 256
+          const canvas = document.createElement('canvas')
+          canvas.width = size
+          canvas.height = size
+          const ctx = canvas.getContext('2d')!
+          const scale = Math.max(size / img.width, size / img.height)
+          const w = img.width * scale
+          const h = img.height * scale
+          ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h)
+          resolve(canvas.toDataURL('image/jpeg', 0.85))
+        }
+        img.onerror = reject
+        img.src = objectUrl
+      })
+
+      await supabase
+        .from('profiles')
+        .upsert({ id: currentUser.id, avatar_url: dataUrl }, { onConflict: 'id' })
+
+      updateMyProfile(accountName.trim() || displayName, dataUrl)
+    } finally {
+      setIsUploadingAvatar(false)
+    }
   }
 
   async function saveAccount() {
@@ -856,7 +964,6 @@ export default function Topbar({
               gap: 12,
               minWidth: 0,
               flex: 1,
-              height: 40,
             }}
           >
             <div
@@ -868,7 +975,6 @@ export default function Topbar({
                 lineHeight: 1,
                 display: 'flex',
                 alignItems: 'center',
-                height: 40,
                 fontFamily: 'var(--font-heading)',
               }}
             >
@@ -933,6 +1039,48 @@ export default function Topbar({
           </div>
 
           <button
+            onClick={() => setIsDark((d) => !d)}
+            onMouseEnter={() => setIsThemeToggleHovered(true)}
+            onMouseLeave={() => setIsThemeToggleHovered(false)}
+            style={{
+              width: 40,
+              height: 40,
+              background: isThemeToggleHovered ? 'rgba(var(--accent-rgb), .08)' : 'transparent',
+              border: isThemeToggleHovered ? '1px solid rgba(var(--accent-rgb), .24)' : '1px solid var(--border)',
+              borderRadius: 10,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: isThemeToggleHovered ? 'var(--accent)' : 'var(--muted)',
+              flexShrink: 0,
+              transition: 'background .15s, border-color .15s, color .15s, box-shadow .15s, transform .15s',
+              boxShadow: isThemeToggleHovered ? '0 0 0 1px rgba(var(--accent-rgb), .10)' : 'none',
+              transform: isThemeToggleHovered ? 'translateY(-1px)' : 'none',
+            }}
+            title={isDark ? 'Schakel naar lichte modus' : 'Schakel naar donkere modus'}
+            aria-label={isDark ? 'Lichte modus' : 'Donkere modus'}
+          >
+            {isDark ? (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="5" />
+                <line x1="12" y1="1" x2="12" y2="3" />
+                <line x1="12" y1="21" x2="12" y2="23" />
+                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+                <line x1="1" y1="12" x2="3" y2="12" />
+                <line x1="21" y1="12" x2="23" y2="12" />
+                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+              </svg>
+            ) : (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+              </svg>
+            )}
+          </button>
+
+          <button
             onClick={openSettings}
             onMouseEnter={() => setIsSettingsHovered(true)}
             onMouseLeave={() => setIsSettingsHovered(false)}
@@ -965,6 +1113,7 @@ export default function Topbar({
             {avatarUrl ? (
               <img
                 src={avatarUrl}
+                referrerPolicy="no-referrer"
                 style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
                 alt={displayName}
               />
@@ -1007,6 +1156,8 @@ export default function Topbar({
           saveAccount={saveAccount}
           logout={logout}
           onClose={() => setShowAccount(false)}
+          onAvatarChange={saveAvatar}
+          isUploadingAvatar={isUploadingAvatar}
         />
       )}
 

@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap');
 
 :root {
   --bg: #141414;
@@ -25,6 +25,22 @@
 
   --font-body: 'Inter', sans-serif;
   --font-heading: 'Manrope', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+[data-theme="light"] {
+  --bg: #f5f4f0;
+  --s1: #ffffff;
+  --s2: #f0eeea;
+  --s3: #e8e6e1;
+  --border: #dedad4;
+  --border2: #ccc9c2;
+  --text: #1a1916;
+  --muted: #888;
+  --muted2: #aaa;
+  --del-bg: rgba(200, 60, 60, 0.08);
+  --del-bd: rgba(200, 60, 60, 0.18);
+  --del-fg: #c83030;
 }
 
 *,

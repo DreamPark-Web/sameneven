@@ -1,0 +1,30 @@
+<svg width="100%" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="amberFill" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#E8C49A" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#E8C49A" stop-opacity="0.1"/>
+    </linearGradient>
+  </defs>
+
+  <polygon points="65,18 135,18 192,62 100,175 8,62" fill="url(#amberFill)" style="stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+  <!-- Outer shape as one path for clean joins -->
+  <polyline points="65,18 135,18 192,62 100,175 8,62 65,18" fill="none" stroke="#E8C49A" stroke-width="6" stroke-linejoin="round" stroke-linecap="round" style="fill:none;stroke:rgb(232, 196, 154);color:rgb(255, 255, 255);stroke-width:6px;stroke-linecap:round;stroke-linejoin:round;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+  <!-- Crown inner lijnen -->
+  <line x1="65" y1="18" x2="48" y2="66" fill="none" stroke="#E8C49A" stroke-width="6" stroke-linecap="round" style="fill:none;stroke:rgb(232, 196, 154);color:rgb(255, 255, 255);stroke-width:6px;stroke-linecap:round;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <line x1="135" y1="18" x2="152" y2="66" fill="none" stroke="#E8C49A" stroke-width="6" stroke-linecap="round" style="fill:none;stroke:rgb(232, 196, 154);color:rgb(255, 255, 255);stroke-width:6px;stroke-linecap:round;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <line x1="65" y1="18" x2="100" y2="66" fill="none" stroke="#E8C49A" stroke-width="6" stroke-linecap="round" style="fill:none;stroke:rgb(232, 196, 154);color:rgb(255, 255, 255);stroke-width:6px;stroke-linecap:round;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <line x1="135" y1="18" x2="100" y2="66" fill="none" stroke="#E8C49A" stroke-width="6" stroke-linecap="round" style="fill:none;stroke:rgb(232, 196, 154);color:rgb(255, 255, 255);stroke-width:6px;stroke-linecap:round;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+  <!-- Girdle -->
+  <polyline points="8,62 48,66 100,66 152,66 192,62" fill="none" stroke="#E8C49A" stroke-width="6" stroke-linejoin="round" stroke-linecap="round" style="fill:none;stroke:rgb(232, 196, 154);color:rgb(255, 255, 255);stroke-width:6px;stroke-linecap:round;stroke-linejoin:round;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+  <!-- Pavilion inner -->
+  <line x1="48" y1="66" x2="100" y2="175" fill="none" stroke="#E8C49A" stroke-width="6" stroke-linecap="round" style="fill:none;stroke:rgb(232, 196, 154);color:rgb(255, 255, 255);stroke-width:6px;stroke-linecap:round;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <line x1="152" y1="66" x2="100" y2="175" fill="none" stroke="#E8C49A" stroke-width="6" stroke-linecap="round" style="fill:none;stroke:rgb(232, 196, 154);color:rgb(255, 255, 255);stroke-width:6px;stroke-linecap:round;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+  <line x1="100" y1="66" x2="100" y2="175" fill="none" stroke="#E8C49A" stroke-width="6" stroke-linecap="round" style="fill:none;stroke:rgb(232, 196, 154);color:rgb(255, 255, 255);stroke-width:6px;stroke-linecap:round;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+  <!-- Pavilion waist -->
+  <line x1="8" y1="118" x2="192" y2="118" fill="none" stroke="#E8C49A" stroke-width="6" stroke-linecap="round" style="fill:none;stroke:rgb(232, 196, 154);color:rgb(255, 255, 255);stroke-width:6px;stroke-linecap:round;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+</svg>
