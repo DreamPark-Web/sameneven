@@ -120,7 +120,7 @@ export default function PickerPage() {
         })
       }
 
-      router.push(`/insight/${household.id}`)
+      router.replace(`/insight/${household.id}`)
     }
 
     processInvite()
