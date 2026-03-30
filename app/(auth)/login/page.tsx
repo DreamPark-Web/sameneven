@@ -62,18 +62,31 @@ export default function LoginPage() {
   }, [isDark])
 
   useEffect(() => {
+    const invite = new URLSearchParams(window.location.search).get('invite')
+    if (invite) localStorage.setItem('se_pending_invite', invite)
+
     async function checkAuth() {
       const { data: { user } } = await supabase.auth.getUser()
-      if (user) router.push('/picker')
+      if (user) {
+        const pending = localStorage.getItem('se_pending_invite')
+        router.push(pending ? `/picker?invite=${pending}` : '/picker')
+      }
     }
     checkAuth()
   }, [])
+
+  function getCallbackUrl() {
+    const invite = new URLSearchParams(window.location.search).get('invite')
+      || localStorage.getItem('se_pending_invite')
+    const base = `${window.location.origin}/auth/callback`
+    return invite ? `${base}?invite=${invite}` : base
+  }
 
   async function handleGoogle() {
     setLoading(true)
     await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
+      options: { redirectTo: getCallbackUrl() },
     })
   }
 
@@ -83,7 +96,7 @@ export default function LoginPage() {
     setMagicLoading(true)
     const { error } = await supabase.auth.signInWithOtp({
       email: magicEmail.trim(),
-      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+      options: { emailRedirectTo: getCallbackUrl() },
     })
     if (error) {
       setMagicError(error.message)

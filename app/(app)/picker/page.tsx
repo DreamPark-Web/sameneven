@@ -88,6 +88,46 @@ export default function PickerPage() {
 
   useEffect(() => {
     if (!user?.id) return
+
+    const inviteCode = new URLSearchParams(window.location.search).get('invite')
+      || localStorage.getItem('se_pending_invite')
+
+    if (!inviteCode) return
+
+    localStorage.removeItem('se_pending_invite')
+
+    async function processInvite() {
+      const { data: household } = await supabase
+        .from('households')
+        .select('id')
+        .eq('invite_code', inviteCode)
+        .maybeSingle()
+
+      if (!household) return
+
+      const { data: existing } = await supabase
+        .from('household_members')
+        .select('household_id')
+        .eq('household_id', household.id)
+        .eq('user_id', user.id)
+        .maybeSingle()
+
+      if (!existing) {
+        await supabase.from('household_members').insert({
+          household_id: household.id,
+          user_id: user.id,
+          role: 'editor',
+        })
+      }
+
+      router.push(`/insight/${household.id}`)
+    }
+
+    processInvite()
+  }, [user?.id])
+
+  useEffect(() => {
+    if (!user?.id) return
     async function loadHouseholds() {
       const { data: memberships } = await supabase
         .from('household_members')

@@ -5,6 +5,7 @@ import { NextResponse } from 'next/server'
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
+  const invite = searchParams.get('invite')
 
   if (code) {
     const cookieStore = await cookies()
@@ -25,5 +26,6 @@ export async function GET(request: Request) {
     await supabase.auth.exchangeCodeForSession(code)
   }
 
-  return NextResponse.redirect(`${origin}/picker`)
+  const dest = invite ? `/picker?invite=${invite}` : '/picker'
+  return NextResponse.redirect(`${origin}${dest}`)
 }
