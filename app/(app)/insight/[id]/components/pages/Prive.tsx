@@ -51,28 +51,28 @@ function PersonPanel({ name, items, onAdd, onDelete, onEdit, onReorder, canEdit 
   }
 
   return (
-    <div style={{ background: 'var(--s1)', border: '1px solid var(--border)', borderRadius: 8, padding: '22px 26px', marginBottom: 22 }}>
+    <div style={{ background: 'var(--s3)', border: '1px solid var(--card-border)', borderRadius: 8, padding: '22px 26px', marginBottom: 22, display: 'flex', flexDirection: 'column' }}>
       <div style={{ marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
           <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--accent)', fontFamily: 'var(--font-heading)' }}>{name}</span>
           <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--muted)' }}>Prive vaste lasten</span>
         </div>
         {canEdit && (
-          <button onClick={() => setOpen(!open)} style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '4px 10px', borderRadius: 5, cursor: 'pointer', border: '1px solid var(--border)', background: 'transparent', color: 'var(--muted2)' }}>+ Post</button>
+          <button className="btn-add" onClick={() => setOpen(!open)} style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 500, letterSpacing: '.04em', textTransform: 'uppercase', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', border: '1px solid rgba(var(--accent-rgb), 0.4)', background: '#1A1A1A', color: 'var(--accent)' }}>+ Post</button>
         )}
       </div>
       {open && (
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 14, paddingBottom: 14, borderBottom: '1px solid var(--border)' }}>
-          <input style={{ flex: 1, minWidth: 80, background: 'var(--s2)', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'left' }}
+          <input style={{ flex: 1, minWidth: 80, background: 'var(--s3)', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'left' }}
             placeholder="Omschrijving" value={label} onChange={e => setLabel(e.target.value)} />
-          <input style={{ width: 100, background: 'var(--s2)', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'right' }}
+          <input style={{ width: 100, background: 'var(--s3)', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'right' }}
             type="number" placeholder="Bedrag" value={value} onChange={e => setValue(e.target.value)} />
           <button onClick={() => { if (!label.trim() || !value) return; onAdd(label.trim(), parseFloat(value)); setLabel(''); setValue(''); setOpen(false) }}
             style={{ fontFamily: 'var(--font-body)', fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 5, cursor: 'pointer', border: 'none', background: 'var(--accent)', color: '#0a0a0a' }}>Toevoegen</button>
           <button onClick={() => setOpen(false)} style={{ fontFamily: 'var(--font-body)', fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 5, cursor: 'pointer', background: 'transparent', color: 'var(--muted2)', border: '1px solid var(--border)' }}>Annuleren</button>
         </div>
       )}
-      <div>
+      <div style={{ flex: 1 }}>
         {items.map((item, idx) => (
           <div
             key={item.id}
@@ -96,7 +96,7 @@ function PersonPanel({ name, items, onAdd, onDelete, onEdit, onReorder, canEdit 
                 onChange={e => setEditVal(e.target.value)}
                 onBlur={() => commitLabel(item)}
                 onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); else if (e.key === 'Escape') setEditingId(null) }}
-                style={{ flex: 1, fontSize: 13, background: 'var(--s2)', border: '1px solid var(--accent)', borderRadius: 5, color: 'var(--text)', padding: '3px 7px', outline: 'none', fontFamily: 'var(--font-body)' }}
+                style={{ flex: 1, fontSize: 13, background: 'var(--s3)', border: '1px solid var(--accent)', borderRadius: 5, color: 'var(--text)', padding: '3px 7px', outline: 'none', fontFamily: 'var(--font-body)' }}
               />
             ) : (
               <span
@@ -120,13 +120,9 @@ function PersonPanel({ name, items, onAdd, onDelete, onEdit, onReorder, canEdit 
           </div>
         ))}
       </div>
-      <div style={{ marginTop: 14 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '14px 0 10px' }}>
-          <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.13em', textTransform: 'uppercase', color: 'var(--muted)', whiteSpace: 'nowrap' }}>Totaal</span>
-          <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
-        </div>
-        <div style={{ background: 'var(--s2)', borderRadius: 6, padding: '13px 15px' }}>
-          <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--accent)' }}>Totaal prive {name}</div>
+      <div style={{ marginTop: 'auto', paddingTop: 14 }}>
+        <div style={{ background: 'var(--s2)', border: '1px solid var(--card-border)', borderTop: '1px solid var(--accent)', borderRadius: 8, padding: '15px 17px', marginTop: 14 }}>
+          <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(245,245,245,0.45)' }}>Totaal prive {name}</div>
           <div style={{ fontSize: 22, fontWeight: 700, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)', marginTop: 4, color: 'var(--accent)' }}>{fmt(total, 0)}</div>
         </div>
       </div>
@@ -135,7 +131,7 @@ function PersonPanel({ name, items, onAdd, onDelete, onEdit, onReorder, canEdit 
 }
 
 export default function Prive() {
-  const { data, saveData, canEdit } = useInsight()
+  const { data, saveData, canEdit, isSingleUser } = useInsight()
   const n1 = data.names?.user1 || 'Gebruiker 1'
   const n2 = data.names?.user2 || 'Gebruiker 2'
 
@@ -162,9 +158,9 @@ export default function Prive() {
   }
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, alignItems: 'stretch' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: isSingleUser ? '1fr' : '1fr 1fr', gap: 16, alignItems: 'stretch' }}>
       <PersonPanel name={n1} items={data.user1?.private || []} onAdd={(l, v) => addItem('user1', l, v)} onDelete={id => deleteItem('user1', id)} onEdit={(id, l, v) => editItem('user1', id, l, v)} onReorder={items => reorderItem('user1', items)} canEdit={canEdit('user1')} />
-      <PersonPanel name={n2} items={data.user2?.private || []} onAdd={(l, v) => addItem('user2', l, v)} onDelete={id => deleteItem('user2', id)} onEdit={(id, l, v) => editItem('user2', id, l, v)} onReorder={items => reorderItem('user2', items)} canEdit={canEdit('user2')} />
+      {!isSingleUser && <PersonPanel name={n2} items={data.user2?.private || []} onAdd={(l, v) => addItem('user2', l, v)} onDelete={id => deleteItem('user2', id)} onEdit={(id, l, v) => editItem('user2', id, l, v)} onReorder={items => reorderItem('user2', items)} canEdit={canEdit('user2')} />}
     </div>
   )
 }

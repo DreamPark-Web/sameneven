@@ -8,7 +8,7 @@ type Item = { id: string; label: string; value: number }
 function fmt(n: number, d = 2) { return '€\u00a0' + n.toFixed(d).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.') }
 function sum(arr: Item[]) { return (arr || []).reduce((a, i) => a + i.value, 0) }
 
-const panel: React.CSSProperties = { background: 'var(--s1)', border: '1px solid var(--border)', borderRadius: 8, padding: '22px 26px', marginBottom: 22 }
+const panel: React.CSSProperties = { background: 'var(--s3)', border: '1px solid var(--card-border)', borderRadius: 8, padding: '22px 26px', marginBottom: 22, display: 'flex', flexDirection: 'column' }
 const panelHd: React.CSSProperties = { marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }
 
 function GripIcon() {
@@ -62,7 +62,7 @@ function PersonPanel({ name, items, onAdd, onDelete, onEdit, onReorder, canEdit 
           <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--muted)' }}>Inkomsten</span>
         </div>
         {canEdit && (
-          <button onClick={() => setOpen(!open)} style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '4px 10px', borderRadius: 5, cursor: 'pointer', border: '1px solid var(--border)', background: 'transparent', color: 'var(--muted2)', transition: 'all .15s' }}>
+          <button className="btn-add" onClick={() => setOpen(!open)} style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 500, letterSpacing: '.04em', textTransform: 'uppercase', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', border: '1px solid rgba(var(--accent-rgb), 0.4)', background: '#1A1A1A', color: 'var(--accent)' }}>
             + Post
           </button>
         )}
@@ -71,11 +71,11 @@ function PersonPanel({ name, items, onAdd, onDelete, onEdit, onReorder, canEdit 
       {open && (
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 14, paddingBottom: 14, borderBottom: '1px solid var(--border)' }}>
           <input
-            style={{ flex: 1, minWidth: 80, background: 'var(--s2)', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'left' }}
+            style={{ flex: 1, minWidth: 80, background: 'var(--s3)', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'left' }}
             placeholder="Omschrijving" value={label} onChange={e => setLabel(e.target.value)}
           />
           <input
-            style={{ width: 100, background: 'var(--s2)', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'right' }}
+            style={{ width: 100, background: 'var(--s3)', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'right' }}
             type="number" placeholder="Bedrag" value={value} onChange={e => setValue(e.target.value)}
           />
           <button onClick={() => { if (!label.trim() || !value) return; onAdd(label.trim(), parseFloat(value)); setLabel(''); setValue(''); setOpen(false) }}
@@ -88,7 +88,7 @@ function PersonPanel({ name, items, onAdd, onDelete, onEdit, onReorder, canEdit 
         </div>
       )}
 
-      <div>
+      <div style={{ flex: 1 }}>
         {items.map((item, idx) => (
           <div
             key={item.id}
@@ -112,7 +112,7 @@ function PersonPanel({ name, items, onAdd, onDelete, onEdit, onReorder, canEdit 
                 onChange={e => setEditVal(e.target.value)}
                 onBlur={() => commitLabel(item)}
                 onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); else if (e.key === 'Escape') setEditingId(null) }}
-                style={{ flex: 1, fontSize: 13, background: 'var(--s2)', border: '1px solid var(--accent)', borderRadius: 5, color: 'var(--text)', padding: '3px 7px', outline: 'none', fontFamily: 'var(--font-body)' }}
+                style={{ flex: 1, fontSize: 13, background: 'var(--s3)', border: '1px solid var(--accent)', borderRadius: 5, color: 'var(--text)', padding: '3px 7px', outline: 'none', fontFamily: 'var(--font-body)' }}
               />
             ) : (
               <span
@@ -137,13 +137,9 @@ function PersonPanel({ name, items, onAdd, onDelete, onEdit, onReorder, canEdit 
         ))}
       </div>
 
-      <div style={{ marginTop: 14 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '14px 0 10px' }}>
-          <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.13em', textTransform: 'uppercase', color: 'var(--muted)', whiteSpace: 'nowrap' }}>Totaal</span>
-          <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
-        </div>
-        <div style={{ background: 'var(--s2)', borderRadius: 6, padding: '13px 15px' }}>
-          <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--muted)' }}>Totaal netto per maand</div>
+      <div style={{ marginTop: 'auto', paddingTop: 14 }}>
+        <div style={{ background: 'var(--s2)', border: '1px solid var(--card-border)', borderTop: '1px solid var(--accent)', borderRadius: 8, padding: '15px 17px', marginTop: 14 }}>
+          <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(245,245,245,0.45)' }}>Totaal netto per maand</div>
           <div style={{ fontSize: 22, fontWeight: 700, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)', marginTop: 4, color: 'var(--accent)' }}>{fmt(total, 0)}</div>
         </div>
       </div>
@@ -152,7 +148,7 @@ function PersonPanel({ name, items, onAdd, onDelete, onEdit, onReorder, canEdit 
 }
 
 export default function Inkomsten() {
-  const { data, saveData, canEdit } = useInsight()
+  const { data, saveData, canEdit, isSingleUser } = useInsight()
   const n1 = data.names?.user1 || 'Gebruiker 1'
   const n2 = data.names?.user2 || 'Gebruiker 2'
   const u1: Item[] = data.user1?.income || []
@@ -185,11 +181,11 @@ export default function Inkomsten() {
 
   return (
     <div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, alignItems: 'stretch' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isSingleUser ? '1fr' : '1fr 1fr', gap: 16, alignItems: 'stretch' }}>
         <PersonPanel name={n1} items={u1} onAdd={(l, v) => addIncome('user1', l, v)} onDelete={id => deleteIncome('user1', id)} onEdit={(id, l, v) => editIncome('user1', id, l, v)} onReorder={items => reorderIncome('user1', items)} canEdit={canEdit('user1')} />
-        <PersonPanel name={n2} items={u2} onAdd={(l, v) => addIncome('user2', l, v)} onDelete={id => deleteIncome('user2', id)} onEdit={(id, l, v) => editIncome('user2', id, l, v)} onReorder={items => reorderIncome('user2', items)} canEdit={canEdit('user2')} />
+        {!isSingleUser && <PersonPanel name={n2} items={u2} onAdd={(l, v) => addIncome('user2', l, v)} onDelete={id => deleteIncome('user2', id)} onEdit={(id, l, v) => editIncome('user2', id, l, v)} onReorder={items => reorderIncome('user2', items)} canEdit={canEdit('user2')} />}
       </div>
-      <div style={panel}>
+      {!isSingleUser && <div style={panel}>
         <div style={panelHd}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
             <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--muted)' }}>Overzicht</span>
@@ -202,14 +198,14 @@ export default function Inkomsten() {
             { label: `Aandeel ${n1}`, val: r1, color: 'var(--accent)' },
             { label: `Aandeel ${n2}`, val: r2, color: 'var(--accent)' },
           ].map((s, i) => (
-            <div key={i} style={{ background: 'var(--s1)', border: '1px solid var(--border)', borderRadius: 8, padding: '15px 17px', borderTop: '2px solid var(--accent)' }}>
-              <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--muted)' }}>{s.label}</div>
+            <div key={i} style={{ background: 'var(--s2)', border: '1px solid var(--card-border)', borderRadius: 8, padding: '15px 17px', borderTop: '1px solid var(--accent)' }}>
+              <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(245,245,245,0.45)' }}>{s.label}</div>
               <div style={{ fontSize: i === 0 ? 28 : 19, fontWeight: 700, lineHeight: 1, margin: '6px 0 4px', fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)', color: s.color }}>{s.val}</div>
               {s.sub && <div style={{ fontSize: 11, color: 'var(--muted2)' }}>{s.sub}</div>}
             </div>
           ))}
         </div>
-      </div>
+      </div>}
     </div>
   )
 }

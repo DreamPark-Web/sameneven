@@ -77,7 +77,7 @@ function SubList({ items, editable, onDelete, onEdit, onReorder }: {
             onDragOver={e => { e.preventDefault(); setDragOver(idx) }}
             onDragLeave={() => setDragOver(d => d === idx ? null : d)}
             onDrop={() => handleDrop(idx)}
-            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, padding: '10px 14px', background: 'var(--s2)', border: '1px solid var(--border)', borderRadius: 6, marginBottom: 6, borderTop: dragOver === idx && dragging !== idx ? '2px solid var(--accent)' : undefined, opacity: dragging === idx ? 0.4 : 1, transition: 'opacity .15s' }}
+            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, padding: '10px 14px', background: 'var(--s3)', border: '1px solid var(--border)', borderRadius: 6, marginBottom: 6, borderTop: dragOver === idx && dragging !== idx ? '2px solid var(--accent)' : undefined, opacity: dragging === idx ? 0.4 : 1, transition: 'opacity .15s' }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flex: 1 }}>
               {editable && (
@@ -93,7 +93,7 @@ function SubList({ items, editable, onDelete, onEdit, onReorder }: {
                     onChange={e => setEditVal(e.target.value)}
                     onBlur={() => commitName(sub)}
                     onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); else if (e.key === 'Escape') setEditingId(null) }}
-                    style={{ fontSize: 13, fontWeight: 600, background: 'var(--s1)', border: '1px solid var(--accent)', borderRadius: 5, color: 'var(--text)', padding: '2px 6px', outline: 'none', fontFamily: 'var(--font-body)', width: '100%' }}
+                    style={{ fontSize: 13, fontWeight: 600, background: 'var(--s3)', border: '1px solid var(--accent)', borderRadius: 5, color: 'var(--text)', padding: '2px 6px', outline: 'none', fontFamily: 'var(--font-body)', width: '100%' }}
                   />
                 ) : (
                   <div
@@ -119,20 +119,22 @@ function SubList({ items, editable, onDelete, onEdit, onReorder }: {
 }
 
 export default function Abonnementen() {
-  const { data, saveData, canEdit } = useInsight()
+  const { data, saveData, canEdit, isSingleUser } = useInsight()
   const n1 = data.names?.user1 || 'Gebruiker 1'
   const n2 = data.names?.user2 || 'Gebruiker 2'
   const editable = canEdit('user1') || canEdit('user2')
 
   const subs: Sub[] = data.abonnementen || (data as any).subscriptions || []
 
-  const [form, setForm] = useState({ name: '', date: '', amount: '', freq: 'maandelijks', person: 'gezamenlijk' })
+  const [form, setForm] = useState({ name: '', date: '', amount: '', freq: 'maandelijks', person: isSingleUser ? 'user1' : 'gezamenlijk' })
+  const [openForm, setOpenForm] = useState(false)
 
   function addSub() {
     if (!form.name.trim() || !form.date) return
     const sub: Sub = { id: 'sub' + Date.now(), name: form.name.trim(), date: form.date, amount: parseFloat(form.amount) || 0, freq: form.freq, person: form.person }
     saveData({ ...data, abonnementen: [...subs, sub] })
-    setForm({ name: '', date: '', amount: '', freq: 'maandelijks', person: 'gezamenlijk' })
+    setForm({ name: '', date: '', amount: '', freq: 'maandelijks', person: isSingleUser ? 'user1' : 'gezamenlijk' })
+    setOpenForm(false)
   }
   function deleteSub(id: string) { saveData({ ...data, abonnementen: subs.filter(s => s.id !== id) }) }
   function editSub(id: string, name: string) {
@@ -144,25 +146,28 @@ export default function Abonnementen() {
     saveData({ ...data, abonnementen: result })
   }
 
-  const panel: React.CSSProperties = { background: 'var(--s1)', border: '1px solid var(--border)', borderRadius: 8, padding: '22px 26px', marginBottom: 22 }
+  const panel: React.CSSProperties = { background: 'var(--s3)', border: '1px solid var(--card-border)', borderRadius: 8, padding: '22px 26px', marginBottom: 22 }
   const eyebrow: React.CSSProperties = { fontSize: 10, fontWeight: 600, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--muted)' }
 
-  const groups = [
-    { key: 'gezamenlijk', title: 'Gezamenlijk' },
-    { key: 'user1', title: n1 },
-    { key: 'user2', title: n2 },
-  ]
+  const groups = isSingleUser
+    ? [{ key: 'user1', title: n1 }]
+    : [{ key: 'gezamenlijk', title: 'Gezamenlijk' }, { key: 'user1', title: n1 }, { key: 'user2', title: n2 }]
 
   return (
     <div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, alignItems: 'stretch' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isSingleUser ? '1fr' : '1fr 1fr 1fr', gap: 16, alignItems: 'stretch' }}>
         {groups.map(g => {
           const groupItems = subs.filter(s => s.person === g.key)
           return (
             <div key={g.key} style={panel}>
-              <div style={{ marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid var(--border)' }}>
-                <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--accent)', fontFamily: 'var(--font-heading)', display: 'block' }}>{g.title}</span>
-                <span style={{ ...eyebrow }}>Abonnementen</span>
+              <div style={{ marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: g.key === 'gezamenlijk' ? '#F5F5F5' : 'var(--accent)', fontFamily: 'var(--font-heading)', display: 'block' }}>{g.title}</span>
+                  <span style={{ ...eyebrow }}>Abonnementen</span>
+                </div>
+                {editable && !openForm && (
+                  <button className="btn-add" onClick={() => { setForm({ ...form, person: g.key }); setOpenForm(true) }} style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 500, letterSpacing: '.04em', textTransform: 'uppercase', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', border: '1px solid rgba(var(--accent-rgb), 0.4)', background: '#1A1A1A', color: 'var(--accent)' }}>+ Toevoegen</button>
+                )}
               </div>
               <SubList
                 items={groupItems}
@@ -177,33 +182,38 @@ export default function Abonnementen() {
         })}
       </div>
 
-      {editable && (
+      {editable && openForm && (
         <div style={panel}>
           <div style={{ marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid var(--border)' }}>
             <span style={{ ...eyebrow }}>Toevoegen</span>
             <div style={{ fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-heading)' }}>Nieuw abonnement</div>
           </div>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-            <input style={{ flex: 2, minWidth: 120, background: 'var(--s2)', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'left' }}
-              placeholder="Naam" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
-            <input style={{ width: 160, background: 'var(--s2)', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'left' }}
-              type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} />
-            <input style={{ width: 100, background: 'var(--s2)', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'right' }}
-              type="number" step="0.01" placeholder="Bedrag" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} />
-            <select style={{ background: 'var(--s2)', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--text)', padding: '6px 8px', fontSize: 12, fontFamily: 'var(--font-body)', cursor: 'pointer' }}
-              value={form.freq} onChange={e => setForm({ ...form, freq: e.target.value })}>
-              <option value="maandelijks">Per maand</option>
-              <option value="kwartaal">Per kwartaal</option>
-              <option value="jaarlijks">Per jaar</option>
-            </select>
-            <select style={{ background: 'var(--s2)', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--text)', padding: '6px 8px', fontSize: 12, fontFamily: 'var(--font-body)', cursor: 'pointer' }}
-              value={form.person} onChange={e => setForm({ ...form, person: e.target.value })}>
-              <option value="gezamenlijk">Gezamenlijk</option>
-              <option value="user1">{n1}</option>
-              <option value="user2">{n2}</option>
-            </select>
-            <button onClick={addSub} style={{ fontFamily: 'var(--font-body)', fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 5, cursor: 'pointer', border: 'none', background: 'var(--accent)', color: '#0a0a0a' }}>Toevoegen</button>
-          </div>
+          <div style={{ background: '#141414', borderRadius: 8, padding: '16px 18px' }}>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                <input style={{ flex: 2, minWidth: 120, background: 'var(--s3)', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'left' }}
+                  placeholder="Naam" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
+                <input style={{ width: 160, background: 'var(--s3)', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'left' }}
+                  type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} />
+                <input style={{ width: 100, background: 'var(--s3)', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'right' }}
+                  type="number" step="0.01" placeholder="Bedrag" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} />
+                <select style={{ background: 'var(--s3)', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--text)', padding: '6px 8px', fontSize: 12, fontFamily: 'var(--font-body)', cursor: 'pointer' }}
+                  value={form.freq} onChange={e => setForm({ ...form, freq: e.target.value })}>
+                  <option value="maandelijks">Per maand</option>
+                  <option value="kwartaal">Per kwartaal</option>
+                  <option value="jaarlijks">Per jaar</option>
+                </select>
+                {!isSingleUser && (
+                  <select style={{ background: 'var(--s3)', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--text)', padding: '6px 8px', fontSize: 12, fontFamily: 'var(--font-body)', cursor: 'pointer' }}
+                    value={form.person} onChange={e => setForm({ ...form, person: e.target.value })}>
+                    <option value="gezamenlijk">Gezamenlijk</option>
+                    <option value="user1">{n1}</option>
+                    <option value="user2">{n2}</option>
+                  </select>
+                )}
+                <button onClick={addSub} style={{ fontFamily: 'var(--font-body)', fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 5, cursor: 'pointer', border: 'none', background: 'var(--accent)', color: '#0a0a0a' }}>Toevoegen</button>
+                <button onClick={() => setOpenForm(false)} style={{ fontFamily: 'var(--font-body)', fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 5, cursor: 'pointer', background: 'transparent', color: 'var(--muted2)', border: '1px solid var(--border)' }}>Annuleren</button>
+              </div>
+            </div>
         </div>
       )}
     </div>

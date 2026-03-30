@@ -107,7 +107,7 @@ export default function Advies() {
 
   cards.push(card('ok', `Gezamenlijk sparen: ${fmtK(jSsh + dSsh)}/maand`, `${n1} maakt ${fmtK(jTr)} over, ${n2} ${fmtK(dTr)}. Spaarbijdragen zijn verwerkt in het overboekingsbedrag.`))
 
-  const panel: React.CSSProperties = { background: 'var(--s1)', border: '1px solid var(--border)', borderRadius: 8, padding: '22px 26px', marginBottom: 22 }
+  const panel: React.CSSProperties = { background: 'var(--s3)', border: '1px solid var(--card-border)', borderRadius: 8, padding: '22px 26px', marginBottom: 22 }
 
   return (
     <div style={panel}>

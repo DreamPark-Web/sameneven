@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useInsight } from '@/lib/insight-context'
 
 function getNavPrefsKey() {
   if (typeof window === 'undefined') return 'se_nav_nohousehold'
@@ -109,6 +110,7 @@ export default function Sidebar({
   collapsed: boolean
   setCollapsed: (value: boolean) => void
 }) {
+  const { isSingleUser } = useInsight()
   const [hiddenNavItems, setHiddenNavItems] = useState<string[]>([])
   const [navOrder, setNavOrder] = useState<string[]>(NAV_ITEMS.map((item) => item.id))
   const [draggedNavId, setDraggedNavId] = useState<string | null>(null)
@@ -200,7 +202,7 @@ export default function Sidebar({
     <aside
       style={{
         position: 'fixed',
-        top: 60,
+        top: 56,
         left: 0,
         bottom: 0,
         width: collapsed ? 64 : 240,
@@ -225,6 +227,7 @@ export default function Sidebar({
           .map((id) => NAV_ITEMS.find((item) => item.id === id))
           .filter(Boolean)
           .filter((item) => !hiddenNavItems.includes(item!.id))
+          .filter((item) => !(isSingleUser && item!.id === 'gezamenlijk'))
           .map((item) => {
           const active = activePage === item!.id
 
@@ -265,9 +268,9 @@ export default function Sidebar({
                 fontWeight: 600,
                 fontFamily: 'var(--font-body)',
                 letterSpacing: '.03em',
-                border: active ? '1px solid rgba(var(--accent-rgb),.18)' : '1px solid transparent',
-                background: active ? 'rgba(var(--accent-rgb),.10)' : 'transparent',
-                color: active ? 'var(--accent)' : 'var(--muted)',
+                border: active ? '1px solid transparent' : '1px solid transparent',
+                background: active ? 'var(--accent)' : 'transparent',
+                color: active ? '#0F0F0F' : 'rgba(245,245,245,0.45)',
                 marginBottom: 2,
                 justifyContent: collapsed ? 'center' : 'flex-start',
                 transition: 'background .15s, color .15s, border-color .15s',

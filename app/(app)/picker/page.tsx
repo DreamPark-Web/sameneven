@@ -54,8 +54,24 @@ export default function PickerPage() {
   const [showAccount, setShowAccount] = useState(false)
   const [accountName, setAccountName] = useState('')
   const [isSavingAccount, setIsSavingAccount] = useState(false)
+  const [isDark, setIsDark] = useState(() => {
+    if (typeof window === 'undefined') return true
+    const stored = localStorage.getItem('se_theme')
+    return stored ? stored === 'dark' : true
+  })
+  const [isThemeHovered, setIsThemeHovered] = useState(false)
+  const [ownerOf, setOwnerOf] = useState<Set<string>>(new Set())
+  const [menuOpenId, setMenuOpenId] = useState<string | null>(null)
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
   const supabase = createClient()
   const router = useRouter()
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light')
+    localStorage.setItem('se_theme', isDark ? 'dark' : 'light')
+  }, [isDark])
 
   useEffect(() => {
     async function load() {
@@ -87,6 +103,7 @@ export default function PickerPage() {
         memberships?.map((m: any) => m.households).filter(Boolean) || []
 
       setHouseholds(baseHouseholds)
+      setOwnerOf(new Set(memberships?.filter((m: any) => m.role === 'owner').map((m: any) => m.household_id) || []))
       applyThemeVars(BRAND_THEME)
 
       setLoading(false)
@@ -125,6 +142,20 @@ export default function PickerPage() {
       applyThemeVars(BRAND_THEME)
       router.push(`/insight/${hh.id}`)
     }
+  }
+
+  async function deleteInsight(id: string) {
+    setIsDeleting(true)
+    setDeleteError(null)
+    const { error } = await supabase.from('households').delete().eq('id', id)
+    if (error) {
+      setDeleteError('Verwijderen is niet gelukt. Probeer het opnieuw.')
+      setIsDeleting(false)
+      return
+    }
+    setHouseholds(prev => prev.filter(h => h.id !== id))
+    setDeleteConfirmId(null)
+    setIsDeleting(false)
   }
 
   async function logout() {
@@ -177,13 +208,13 @@ export default function PickerPage() {
       <div
         style={{
           minHeight: '100vh',
-          background: '#0F0F0F',
+          background: 'var(--bg)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
         }}
       >
-        <div style={{ color: '#888888', fontSize: 14 }}>Laden...</div>
+        <div style={{ color: 'var(--muted)', fontSize: 14 }}>Laden...</div>
       </div>
     )
   }
@@ -192,7 +223,7 @@ export default function PickerPage() {
     <div
       style={{
         minHeight: '100vh',
-        background: '#0F0F0F',
+        background: 'var(--bg)',
         display: 'flex',
         flexDirection: 'column',
         position: 'relative',
@@ -266,7 +297,7 @@ export default function PickerPage() {
 
       <header
         style={{
-          background: '#141414',
+          background: 'var(--s1)',
           boxShadow: '0 2px 0 0 rgba(232,196,154,0.35)',
           paddingLeft: 24,
           paddingRight: 24,
@@ -345,12 +376,53 @@ export default function PickerPage() {
               alignItems: 'center',
             }}
           >
-            <span style={{ color: '#F5F5F5' }}>Get&nbsp;</span>
+            <span style={{ color: 'var(--text)' }}>Get&nbsp;</span>
             <span style={{ color: '#E8C49A' }}>Clear</span>
           </div>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 0, paddingTop: 0 }}>
+          <button
+            onClick={() => setIsDark(d => !d)}
+            onMouseEnter={() => setIsThemeHovered(true)}
+            onMouseLeave={() => setIsThemeHovered(false)}
+            type="button"
+            title={isDark ? 'Schakel naar lichte modus' : 'Schakel naar donkere modus'}
+            aria-label={isDark ? 'Lichte modus' : 'Donkere modus'}
+            style={{
+              width: 40,
+              height: 40,
+              background: isThemeHovered ? 'rgba(232,196,154,0.08)' : 'transparent',
+              border: '1px solid rgba(232,196,154,0.2)',
+              borderRadius: 10,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: isThemeHovered ? '#E8C49A' : '#888888',
+              flexShrink: 0,
+              transition: 'background .15s, color .15s',
+            }}
+          >
+            {isDark ? (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="5" />
+                <line x1="12" y1="1" x2="12" y2="3" />
+                <line x1="12" y1="21" x2="12" y2="23" />
+                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+                <line x1="1" y1="12" x2="3" y2="12" />
+                <line x1="21" y1="12" x2="23" y2="12" />
+                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+              </svg>
+            ) : (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+              </svg>
+            )}
+          </button>
+
           <button
             onClick={openAccount}
             type="button"
@@ -427,7 +499,7 @@ export default function PickerPage() {
         >
           <div
             style={{
-              background: '#1A1A1A',
+              background: 'var(--s1)',
               border: '1px solid rgba(232,196,154,0.2)',
               borderRadius: 14,
               padding: 28,
@@ -451,7 +523,7 @@ export default function PickerPage() {
                 background: 'transparent',
                 border: '1px solid rgba(232,196,154,0.2)',
                 borderRadius: 8,
-                color: '#888888',
+                color: 'var(--muted)',
                 fontSize: 18,
                 cursor: 'pointer',
                 lineHeight: 1,
@@ -471,7 +543,7 @@ export default function PickerPage() {
                 fontWeight: 700,
                 marginBottom: 20,
                 fontFamily: 'var(--font-heading)',
-                color: '#F5F5F5',
+                color: 'var(--text)',
               }}
             >
               Mijn account
@@ -483,7 +555,7 @@ export default function PickerPage() {
                 fontWeight: 600,
                 letterSpacing: '.08em',
                 textTransform: 'uppercase',
-                color: '#888888',
+                color: 'var(--muted)',
                 marginBottom: 6,
                 display: 'block',
               }}
@@ -493,10 +565,10 @@ export default function PickerPage() {
             <input
               style={{
                 width: '100%',
-                background: '#141414',
+                background: 'var(--bg)',
                 border: '1px solid rgba(232,196,154,0.2)',
                 borderRadius: 6,
-                color: '#F5F5F5',
+                color: 'var(--text)',
                 padding: '9px 11px',
                 fontSize: 13,
                 fontFamily: 'var(--font-body)',
@@ -513,7 +585,7 @@ export default function PickerPage() {
                 fontWeight: 600,
                 letterSpacing: '.08em',
                 textTransform: 'uppercase',
-                color: '#888888',
+                color: 'var(--muted)',
                 marginBottom: 6,
                 display: 'block',
               }}
@@ -523,10 +595,10 @@ export default function PickerPage() {
             <input
               style={{
                 width: '100%',
-                background: '#141414',
+                background: 'var(--bg)',
                 border: '1px solid rgba(232,196,154,0.2)',
                 borderRadius: 6,
-                color: '#F5F5F5',
+                color: 'var(--text)',
                 padding: '9px 11px',
                 fontSize: 13,
                 fontFamily: 'var(--font-body)',
@@ -586,15 +658,58 @@ export default function PickerPage() {
         </div>
       )}
 
+      {menuOpenId && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 5 }} onClick={() => setMenuOpenId(null)} />
+      )}
+
+      {deleteConfirmId && (
+        <div
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.75)', zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+          onClick={(e) => { if (e.target === e.currentTarget) { setDeleteConfirmId(null); setDeleteError(null) } }}
+        >
+          <div style={{ background: 'var(--s1)', border: '1px solid rgba(232,196,154,0.2)', borderRadius: 14, padding: 28, width: '100%', maxWidth: 400, boxShadow: '0 24px 60px rgba(0,0,0,.42)' }}>
+            <div style={{ fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-heading)', color: 'var(--text)', marginBottom: 10 }}>
+              Insight verwijderen
+            </div>
+            <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 24, lineHeight: 1.6 }}>
+              Weet je zeker dat je <strong style={{ color: 'var(--text)' }}>{households.find(h => h.id === deleteConfirmId)?.name}</strong> wil verwijderen? Dit kan niet ongedaan worden gemaakt.
+            </div>
+            {deleteError && (
+              <div style={{ fontSize: 12, color: 'var(--del-fg)', background: 'var(--del-bg)', border: '1px solid var(--del-bd)', borderRadius: 6, padding: '8px 12px', marginBottom: 14 }}>
+                {deleteError}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => { setDeleteConfirmId(null); setDeleteError(null) }}
+                type="button"
+                style={{ background: 'transparent', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--muted)', padding: '9px 16px', fontSize: 12, fontFamily: 'var(--font-body)', fontWeight: 600, cursor: 'pointer' }}
+              >
+                Annuleren
+              </button>
+              <button
+                onClick={() => void deleteInsight(deleteConfirmId)}
+                type="button"
+                disabled={isDeleting}
+                style={{ background: 'var(--del-bg)', border: '1px solid var(--del-bd)', borderRadius: 6, color: 'var(--del-fg)', padding: '9px 16px', fontSize: 12, fontFamily: 'var(--font-body)', fontWeight: 700, cursor: isDeleting ? 'wait' : 'pointer', opacity: isDeleting ? 0.7 : 1 }}
+              >
+                {isDeleting ? 'Bezig...' : 'Verwijderen'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div style={{ padding: '36px 28px', maxWidth: 1320, margin: '0 auto', width: '100%', position: 'relative', zIndex: 1 }}>
         <div
           style={{
-            fontSize: 36,
+            fontSize: 44,
             fontWeight: 800,
             fontFamily: 'var(--font-heading)',
             lineHeight: 1.15,
             marginBottom: 16,
-            color: '#F5F5F5',
+            color: 'var(--text)',
             marginLeft: 0,
             paddingLeft: 0,
           }}
@@ -602,7 +717,7 @@ export default function PickerPage() {
           {greeting}, {displayName.split(' ')[0]}
         </div>
 
-        <div style={{ fontSize: 12, color: '#888888', marginBottom: 32, textAlign: 'left', marginLeft: 0, paddingLeft: 0 }}>
+        <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 48, textAlign: 'left', marginLeft: 0, paddingLeft: 0 }}>
           Kies een Insight of maak een nieuwe aan.
         </div>
 
@@ -616,56 +731,125 @@ export default function PickerPage() {
           }}
         >
           {households.map((hh) => {
+            const isOwner = ownerOf.has(hh.id)
             return (
-              <button
-                key={hh.id}
-                onClick={() => openInsight(hh)}
-                style={{
-                  background: '#1A1A1A',
-                  border: '2px solid rgba(232,196,154,0.35)',
-                  borderRadius: 10,
-                  padding: 22,
-                  cursor: 'pointer',
-                  minHeight: 170,
-                  height: 170,
-                  width: '100%',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'center',
-                  textAlign: 'left',
-                  transition: 'border-color .2s, transform .18s ease, box-shadow .2s ease',
-                }}
-                onMouseEnter={(e) => {
-                  ;(e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'
-                  ;(e.currentTarget as HTMLElement).style.boxShadow = '0 0 0 1px rgba(232,196,154,0.95)'
-                }}
-                onMouseLeave={(e) => {
-                  ;(e.currentTarget as HTMLElement).style.transform = 'none'
-                  ;(e.currentTarget as HTMLElement).style.boxShadow = 'none'
-                }}
-              >
+              <div key={hh.id} style={{ position: 'relative' }}>
                 <div
+                  onClick={() => { setMenuOpenId(null); openInsight(hh) }}
                   style={{
-                    fontSize: 15,
-                    fontWeight: 700,
-                    fontFamily: 'var(--font-heading)',
-                    marginBottom: 12,
-                    color: '#F5F5F5',
+                    background: 'var(--s1)',
+                    border: '2px solid rgba(232,196,154,0.35)',
+                    borderRadius: 10,
+                    padding: 22,
+                    cursor: 'pointer',
+                    minHeight: 170,
+                    height: 170,
+                    width: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'center',
+                    textAlign: 'left',
+                    transition: 'border-color .2s, transform .18s ease, box-shadow .2s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    ;(e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'
+                    ;(e.currentTarget as HTMLElement).style.boxShadow = '0 0 0 1px rgba(232,196,154,0.95)'
+                  }}
+                  onMouseLeave={(e) => {
+                    ;(e.currentTarget as HTMLElement).style.transform = 'none'
+                    ;(e.currentTarget as HTMLElement).style.boxShadow = 'none'
                   }}
                 >
-                  {hh.name}
+                  <div style={{ fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-heading)', marginBottom: 12, color: 'var(--text)' }}>
+                    {hh.name}
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--muted)' }}>Klik om te openen</div>
                 </div>
 
-                  <div style={{ fontSize: 11, color: '#888888' }}>Klik om te openen</div>
-              </button>
+                {isOwner && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setMenuOpenId(menuOpenId === hh.id ? null : hh.id) }}
+                    style={{
+                      position: 'absolute',
+                      top: 10,
+                      right: 10,
+                      width: 28,
+                      height: 28,
+                      background: menuOpenId === hh.id ? 'rgba(232,196,154,0.12)' : 'transparent',
+                      border: 'none',
+                      borderRadius: 6,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: 'var(--muted)',
+                      fontSize: 16,
+                      lineHeight: 1,
+                      zIndex: 2,
+                      transition: 'background .15s, color .15s',
+                    }}
+                    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = '#E8C49A'; (e.currentTarget as HTMLElement).style.background = 'rgba(232,196,154,0.1)' }}
+                    onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--muted)'; (e.currentTarget as HTMLElement).style.background = menuOpenId === hh.id ? 'rgba(232,196,154,0.12)' : 'transparent' }}
+                    aria-label="Opties"
+                  >
+                    ···
+                  </button>
+                )}
+
+                {menuOpenId === hh.id && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: 42,
+                      right: 10,
+                      background: 'var(--s2)',
+                      border: '1px solid var(--card-border)',
+                      borderRadius: 8,
+                      boxShadow: '0 8px 24px rgba(0,0,0,.35)',
+                      zIndex: 10,
+                      minWidth: 160,
+                      overflow: 'hidden',
+                    }}
+                  >
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setMenuOpenId(null); setDeleteConfirmId(hh.id) }}
+                      style={{
+                        width: '100%',
+                        padding: '10px 14px',
+                        textAlign: 'left',
+                        background: 'transparent',
+                        border: 'none',
+                        color: 'var(--del-fg)',
+                        fontSize: 13,
+                        fontFamily: 'var(--font-body)',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                      }}
+                      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--del-bg)' }}
+                      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="3 6 5 6 21 6" />
+                        <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                        <path d="M10 11v6" />
+                        <path d="M14 11v6" />
+                        <path d="M9 6V4h6v2" />
+                      </svg>
+                      Verwijder Insight
+                    </button>
+                  </div>
+                )}
+              </div>
             )
           })}
 
           <button
             onClick={createInsight}
             style={{
-              border: '2px solid rgba(232,196,154,0.35)',
-              background: '#1A1A1A',
+              border: '2px dashed rgba(232,196,154,0.25)',
+              background: 'var(--s1)',
               borderRadius: 10,
               minHeight: 170,
               height: 170,
@@ -675,23 +859,23 @@ export default function PickerPage() {
               alignItems: 'center',
               justifyContent: 'center',
               gap: 8,
-              color: '#888888',
+              color: 'var(--muted)',
               cursor: 'pointer',
               transition: 'border-color .2s, color .2s',
             }}
             onMouseEnter={(e) => {
               ;(e.currentTarget as HTMLElement).style.color = '#E8C49A'
               ;(e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'
-              ;(e.currentTarget as HTMLElement).style.boxShadow = '0 0 0 1px rgba(232,196,154,0.95)'
+              ;(e.currentTarget as HTMLElement).style.border = '2px dashed rgba(232,196,154,0.95)'
             }}
             onMouseLeave={(e) => {
-              ;(e.currentTarget as HTMLElement).style.color = '#888888'
+              ;(e.currentTarget as HTMLElement).style.color = 'var(--muted)'
               ;(e.currentTarget as HTMLElement).style.transform = 'none'
-              ;(e.currentTarget as HTMLElement).style.boxShadow = 'none'
+              ;(e.currentTarget as HTMLElement).style.border = '2px dashed rgba(232,196,154,0.25)'
             }}
           >
             <span style={{ fontSize: 32, lineHeight: 1, color: '#E8C49A' }}>+</span>
-            <span style={{ fontSize: 13, fontWeight: 600, color: '#F5F5F5' }}>Nieuwe Insight</span>
+            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>Nieuwe Insight</span>
           </button>
         </div>
       </div>

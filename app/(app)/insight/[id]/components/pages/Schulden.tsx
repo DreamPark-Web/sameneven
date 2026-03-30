@@ -47,8 +47,8 @@ export default function Schulden() {
     return a
   }, 0)
 
-  const panel: React.CSSProperties = { background: 'var(--s1)', border: '1px solid var(--border)', borderRadius: 8, padding: '22px 26px', marginBottom: 22 }
-  const inp: React.CSSProperties = { background: 'var(--s2)', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'right', width: '100%', fontVariantNumeric: 'tabular-nums' }
+  const panel: React.CSSProperties = { background: 'var(--s3)', border: '1px solid var(--card-border)', borderRadius: 8, padding: '22px 26px', marginBottom: 22 }
+  const inp: React.CSSProperties = { background: 'var(--s3)', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'right', width: '100%', fontVariantNumeric: 'tabular-nums' }
   const eyebrow: React.CSSProperties = { fontSize: 10, fontWeight: 600, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 5 }
 
   return (
@@ -59,13 +59,13 @@ export default function Schulden() {
             <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--muted)' }}>Overzicht</span>
             <span style={{ fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-heading)' }}>Schulden</span>
           </div>
-          {editable && <button onClick={() => setShowAdd(!showAdd)} style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '4px 10px', borderRadius: 5, cursor: 'pointer', border: '1px solid var(--border)', background: 'transparent', color: 'var(--muted2)' }}>+ Toevoegen</button>}
+          {editable && <button className="btn-add" onClick={() => setShowAdd(!showAdd)} style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 500, letterSpacing: '.04em', textTransform: 'uppercase', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', border: '1px solid rgba(var(--accent-rgb), 0.4)', background: '#1A1A1A', color: 'var(--accent)' }}>+ Toevoegen</button>}
         </div>
 
         <div style={{ fontSize: 12, color: 'var(--muted2)', marginBottom: 14, lineHeight: 1.7 }}>DUO, hypotheek, autolening, etc. Stel rentevaste periode in voor een vervaldatummelding.</div>
 
         {showAdd && (
-          <div style={{ background: 'var(--s2)', border: '1px solid var(--border)', borderRadius: 6, padding: '16px 18px', marginBottom: 20 }}>
+          <div style={{ background: 'var(--s3)', border: '1px solid var(--border)', borderRadius: 6, padding: '16px 18px', marginBottom: 20 }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
               <div style={{ gridColumn: '1 / -1' }}>
                 <div style={eyebrow}>Naam</div>
@@ -131,7 +131,7 @@ export default function Schulden() {
           }
 
           return (
-            <div key={sc.id} style={{ background: 'var(--s2)', border: '1px solid var(--border)', borderRadius: 6, padding: '18px 20px', marginBottom: 16 }}>
+            <div key={sc.id} style={{ background: 'var(--s3)', border: '1px solid var(--border)', borderRadius: 6, padding: '18px 20px', marginBottom: 16 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14, gap: 12 }}>
                 <div style={{ flex: 1 }}>
                   {editable ? (
@@ -141,11 +141,11 @@ export default function Schulden() {
                   <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap', alignItems: 'center' }}>
                     <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.07em', textTransform: 'uppercase', padding: '3px 7px', borderRadius: 4, background: 'rgba(0,194,255,.1)', color: 'var(--accent)', border: '1px solid rgba(0,194,255,.18)' }}>{wieLabel}</span>
                     <select value={sc.type} onChange={e => editSchuld(sc.id, 'type', e.target.value)} disabled={!editable}
-                      style={{ background: 'var(--s2)', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--text)', padding: '3px 6px', fontSize: 11, fontFamily: 'var(--font-body)', cursor: editable ? 'pointer' : 'default' }}>
+                      style={{ background: 'var(--s3)', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--text)', padding: '3px 6px', fontSize: 11, fontFamily: 'var(--font-body)', cursor: editable ? 'pointer' : 'default' }}>
                       {STYPES.map(t => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
                     </select>
                     <select value={sc.wie} onChange={e => editSchuld(sc.id, 'wie', e.target.value)} disabled={!editable}
-                      style={{ background: 'var(--s2)', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--text)', padding: '3px 6px', fontSize: 11, fontFamily: 'var(--font-body)', cursor: editable ? 'pointer' : 'default' }}>
+                      style={{ background: 'var(--s3)', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--text)', padding: '3px 6px', fontSize: 11, fontFamily: 'var(--font-body)', cursor: editable ? 'pointer' : 'default' }}>
                       <option value="user1">{n1}</option><option value="user2">{n2}</option><option value="samen">Samen</option>
                     </select>
                   </div>
@@ -169,7 +169,7 @@ export default function Schulden() {
                 <div>
                   <div style={eyebrow}>Startdatum rente</div>
                   <input type="date" defaultValue={sc.fixedStart} onBlur={e => editSchuld(sc.id, 'fixedStart', e.target.value)} disabled={!editable}
-                    style={{ ...inp, width: '100%', textAlign: 'left', fontSize: 11, background: editable ? 'var(--s2)' : 'transparent', border: editable ? '1px solid var(--border)' : 'none' }} />
+                    style={{ ...inp, width: '100%', textAlign: 'left', fontSize: 11, background: editable ? 'var(--s3)' : 'transparent', border: editable ? '1px solid var(--border)' : 'none' }} />
                 </div>
               </div>
 
@@ -179,16 +179,16 @@ export default function Schulden() {
                 </div>
               )}
 
-              <div style={{ background: 'var(--s3)', borderRadius: 6, padding: '14px 16px', marginTop: 12 }}>
+              <div style={{ background: 'var(--s2)', border: '1px solid var(--card-border)', borderTop: '1px solid var(--accent)', borderRadius: 8, padding: '14px 16px', marginTop: 12 }}>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, alignItems: 'stretch' }}>
                   {[
-                    { label: 'Resterende schuld', val: fmtK(sc.balance), color: 'var(--text)' },
-                    { label: 'Maanden resterend', val: months === Infinity ? '∞' : months ? `${months}` : '—', color: 'var(--text)' },
-                    { label: 'In jaren', val: months && months !== Infinity ? `${yr}j ${rm}m` : '—', color: 'var(--text)' },
+                    { label: 'Resterende schuld', val: fmtK(sc.balance), color: 'var(--accent)' },
+                    { label: 'Maanden resterend', val: months === Infinity ? '∞' : months ? `${months}` : '—', color: 'var(--accent)' },
+                    { label: 'In jaren', val: months && months !== Infinity ? `${yr}j ${rm}m` : '—', color: 'var(--accent)' },
                     { label: 'Totale rente', val: fmtK(totalInterestSc), color: 'var(--danger)' },
                   ].map((s, i) => (
                     <div key={i}>
-                      <div style={eyebrow}>{s.label}</div>
+                      <div style={{ ...eyebrow, color: 'rgba(245,245,245,0.45)' }}>{s.label}</div>
                       <div style={{ fontSize: 24, fontWeight: 700, lineHeight: 1, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)', marginTop: 4, color: s.color }}>{s.val}</div>
                     </div>
                   ))}
@@ -208,12 +208,12 @@ export default function Schulden() {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, alignItems: 'stretch' }}>
           {[
             { label: 'Totale schuld', val: fmtK(totalBalance), borderTop: 'var(--accent)' },
-            { label: 'Totale maandlast', val: fmtK(totalPayment), borderTop: 'var(--border)' },
+            { label: 'Totale maandlast', val: fmtK(totalPayment), borderTop: 'var(--accent)' },
             { label: 'Totale verwachte rente', val: fmtK(totalInterest), color: 'var(--danger)', borderTop: 'var(--danger)' },
           ].map((s, i) => (
-            <div key={i} style={{ background: 'var(--s1)', border: '1px solid var(--border)', borderRadius: 8, padding: '15px 17px', borderTop: `2px solid ${s.borderTop}` }}>
-              <div style={eyebrow}>{s.label}</div>
-              <div style={{ fontSize: 28, fontWeight: 700, lineHeight: 1, margin: '6px 0 4px', fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)', color: s.color || 'var(--text)' }}>{s.val}</div>
+            <div key={i} style={{ background: 'var(--s2)', border: '1px solid var(--card-border)', borderRadius: 8, padding: '15px 17px', borderTop: `1px solid ${s.borderTop}` }}>
+              <div style={{ ...eyebrow, color: 'rgba(245,245,245,0.45)' }}>{s.label}</div>
+              <div style={{ fontSize: 28, fontWeight: 700, lineHeight: 1, margin: '6px 0 4px', fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)', color: s.color || 'var(--accent)' }}>{s.val}</div>
             </div>
           ))}
         </div>

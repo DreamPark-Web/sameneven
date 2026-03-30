@@ -1,13 +1,14 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
 :root {
-  --bg: #141414;
-  --s1: #1a1a1a;
-  --s2: #222222;
-  --s3: #2a2a2a;
+  --bg: #0F0F0F;
+  --s1: #141414;
+  --s2: #1a1a1a;
+  --s3: #222222;
   --border: #2e2e2e;
   --border2: #3a3a3a;
-  --text: #f0eee8;
+  --text: #F5F5F5;
+  --card-border: rgba(232, 196, 154, 0.12);
   --muted: #666;
   --muted2: #999;
   --accent: #00dcc8;
@@ -24,8 +25,8 @@
   --sidebar-w-collapsed: 64px;
 
   --font-body: 'Inter', sans-serif;
-  --font-heading: 'Manrope', sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
+  --font-heading: 'Inter', sans-serif;
+  --font-mono: 'Inter', sans-serif;
 }
 
 [data-theme="light"] {
@@ -38,6 +39,7 @@
   --text: #1a1916;
   --muted: #888;
   --muted2: #aaa;
+  --card-border: var(--border);
   --del-bg: rgba(200, 60, 60, 0.08);
   --del-bd: rgba(200, 60, 60, 0.18);
   --del-fg: #c83030;
@@ -159,6 +161,14 @@ svg {
 .ui-accent-ring:hover {
   border-color: rgba(var(--accent-rgb), 0.45) !important;
   box-shadow: 0 0 0 1px rgba(var(--accent-rgb), 0.12) !important;
+}
+
+.btn-add {
+  transition: border-color .15s, background .15s;
+}
+.btn-add:hover {
+  border-color: rgba(var(--accent-rgb), 0.8) !important;
+  background: rgba(var(--accent-rgb), 0.08) !important;
 }
 
 ::-webkit-scrollbar {

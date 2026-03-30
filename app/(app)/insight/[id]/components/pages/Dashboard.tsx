@@ -67,7 +67,7 @@ function darken(hex: string, factor = 0.45) {
 }
 
 export default function Dashboard() {
-  const { data } = useInsight()
+  const { data, isSingleUser } = useInsight()
   const [previewTheme, setPreviewTheme] = useState(data.theme || '#00c2ff')
 
   const n1 = data.names?.user1 || 'Gebruiker 1'
@@ -165,8 +165,8 @@ export default function Dashboard() {
   }
 
   const panel: React.CSSProperties = {
-    background: 'var(--s1)',
-    border: '1px solid var(--border)',
+    background: 'var(--s3)',
+    border: '1px solid var(--card-border)',
     borderRadius: 8,
     padding: '22px 26px',
     marginBottom: 0,
@@ -229,23 +229,23 @@ export default function Dashboard() {
             </span>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 12, alignItems: 'stretch' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isSingleUser ? 'repeat(3, 1fr)' : 'repeat(6, 1fr)', gap: 12, alignItems: 'stretch' }}>
             {[
-              { label: `Inkomen ${n1}`, val: fmtK(jI), cls: 'ac', color: 'var(--accent)', sub: 'per maand' },
-              { label: `Inkomen ${n2}`, val: fmtK(dI), cls: 'ac', color: 'var(--accent)', sub: 'per maand' },
-              { label: `Lasten ${n1}`, val: fmtK(jSh + jPr), cls: 'ng', color: 'var(--danger)', sub: 'gezamenlijk + prive' },
-              { label: `Lasten ${n2}`, val: fmtK(dSh + dPr), cls: 'ng', color: 'var(--danger)', sub: 'gezamenlijk + prive' },
-              { label: `Restant ${n1}`, val: fmtK(jR), cls: jR >= 0 ? 'ok' : 'ng', color: jR >= 0 ? 'var(--ok)' : 'var(--danger)', sub: 'na lasten & sparen' },
-              { label: `Restant ${n2}`, val: fmtK(dR), cls: dR >= 0 ? 'ok' : 'ng', color: dR >= 0 ? 'var(--ok)' : 'var(--danger)', sub: 'na lasten & sparen' },
+              { label: `Inkomen ${n1}`, val: fmtK(jI), cls: 'ac', color: 'var(--ok)', border: 'var(--ok)', sub: 'per maand' },
+              ...(!isSingleUser ? [{ label: `Inkomen ${n2}`, val: fmtK(dI), cls: 'ac', color: 'var(--ok)', border: 'var(--ok)', sub: 'per maand' }] : []),
+              { label: `Lasten ${n1}`, val: fmtK(jSh + jPr), cls: 'ng', color: 'var(--danger)', border: 'var(--danger)', sub: 'gezamenlijk + prive' },
+              ...(!isSingleUser ? [{ label: `Lasten ${n2}`, val: fmtK(dSh + dPr), cls: 'ng', color: 'var(--danger)', border: 'var(--danger)', sub: 'gezamenlijk + prive' }] : []),
+              { label: `Restant ${n1}`, val: fmtK(jR), cls: jR >= 0 ? 'ok' : 'ng', color: 'var(--accent)', border: 'var(--accent)', sub: 'na lasten & sparen' },
+              ...(!isSingleUser ? [{ label: `Restant ${n2}`, val: fmtK(dR), cls: dR >= 0 ? 'ok' : 'ng', color: 'var(--accent)', border: 'var(--accent)', sub: 'na lasten & sparen' }] : []),
             ].map((s, i) => (
               <div
                 key={i}
                 style={{
-                  background: 'var(--s1)',
-                  border: '1px solid var(--border)',
+                  background: 'var(--s2)',
+                  border: '1px solid var(--card-border)',
                   borderRadius: 8,
                   padding: '15px 17px',
-                  borderTop: `2px solid ${s.cls === 'ac' ? 'var(--accent)' : s.cls === 'ok' ? 'var(--ok)' : 'var(--danger)'}`,
+                  borderTop: `1px solid ${s.border}`,
                 }}
               >
                 <div
@@ -254,7 +254,7 @@ export default function Dashboard() {
                     fontWeight: 600,
                     letterSpacing: '.14em',
                     textTransform: 'uppercase',
-                    color: s.cls === 'ac' ? 'var(--accent)' : s.cls === 'ng' ? 'var(--danger)' : 'var(--muted)',
+                    color: 'rgba(245,245,245,0.45)',
                   }}
                 >
                   {s.label}
@@ -276,46 +276,49 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div style={panel}>
-          <div style={panelHd}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-              <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--muted)' }}>
-                Maandelijks
-              </span>
-              <span style={{ fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-heading)' }}>
-                Over te maken
-              </span>
+        {!isSingleUser && (
+          <div style={panel}>
+            <div style={panelHd}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--muted)' }}>
+                  Maandelijks
+                </span>
+                <span style={{ fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-heading)' }}>
+                  Over te maken naar gezamenlijke rekening
+                </span>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: 12 }}>
+              {[{ name: n1, val: jTr }, { name: n2, val: dTr }].map(({ name, val }) => (
+                <div
+                  key={name}
+                  style={{
+                    background: 'var(--s2)',
+                    border: '1px solid var(--card-border)',
+                    borderTop: '1px solid var(--accent)',
+                    borderRadius: 8,
+                    padding: '16px 20px',
+                    textAlign: 'center',
+                    flex: 1,
+                  }}
+                >
+                  <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.14em', textTransform: 'uppercase', color: 'rgba(245,245,245,0.45)' }}>
+                    {name}
+                  </div>
+                  <div style={{ fontSize: 34, fontWeight: 700, lineHeight: 1, margin: '6px 0 4px', color: 'var(--accent)' }}>
+                    <Num v={fmtK(val)} />
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--muted2)' }}>per maand</div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ fontSize: 11, color: 'var(--muted2)', marginTop: 10, lineHeight: 1.6 }}>
+              Lasten + gezamenlijke spaarbijdrage.
             </div>
           </div>
-
-          <div style={{ display: 'flex', gap: 12 }}>
-            {[{ name: n1, val: jTr }, { name: n2, val: dTr }].map(({ name, val }) => (
-              <div
-                key={name}
-                style={{
-                  background: 'var(--s2)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 7,
-                  padding: '16px 20px',
-                  textAlign: 'center',
-                  flex: 1,
-                }}
-              >
-                <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--accent)' }}>
-                  {name}
-                </div>
-                <div style={{ fontSize: 34, fontWeight: 700, lineHeight: 1, margin: '6px 0 4px', color: 'var(--accent)' }}>
-                  <Num v={fmtK(val)} />
-                </div>
-                <div style={{ fontSize: 11, color: 'var(--muted2)' }}>per maand</div>
-              </div>
-            ))}
-          </div>
-
-          <div style={{ fontSize: 11, color: 'var(--muted2)', marginTop: 10, lineHeight: 1.6 }}>
-            Lasten + gezamenlijke spaarbijdrage.
-          </div>
-        </div>
+        )}
 
         <div style={panel}>
           <div style={panelHd}>
@@ -345,7 +348,7 @@ export default function Dashboard() {
                   position: 'absolute',
                   inset: 25,
                   borderRadius: '50%',
-                  background: 'var(--s1)',
+                  background: 'var(--s3)',
                 }}
               />
             </div>
@@ -399,40 +402,42 @@ export default function Dashboard() {
           ))}
         </div>
 
-        <div style={panel}>
-          <div style={panelHd}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-              <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--accent)', fontFamily: 'var(--font-heading)' }}>
-                {n2}
-              </span>
-              <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--muted)' }}>
-                Verdeling inkomen
-              </span>
-            </div>
-          </div>
-
-          {renderPerc(dI, dSh, dPr, dSv).map((x, i) => (
-            <div key={i} style={{ marginBottom: 12 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5, fontSize: 12.5 }}>
-                <span>{x.label}</span>
-                <span style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>
-                  {(x.pct * 100).toFixed(1)}%
+        {!isSingleUser && (
+          <div style={panel}>
+            <div style={panelHd}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--accent)', fontFamily: 'var(--font-heading)' }}>
+                  {n2}
+                </span>
+                <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--muted)' }}>
+                  Verdeling inkomen
                 </span>
               </div>
-              <div style={{ height: 5, background: 'var(--s3)', borderRadius: 3, overflow: 'hidden' }}>
-                <div
-                  style={{
-                    height: '100%',
-                    borderRadius: 3,
-                    width: `${(Math.max(0, x.pct) * 100).toFixed(2)}%`,
-                    background: x.c,
-                    transition: 'width .5s ease',
-                  }}
-                />
-              </div>
             </div>
-          ))}
-        </div>
+
+            {renderPerc(dI, dSh, dPr, dSv).map((x, i) => (
+              <div key={i} style={{ marginBottom: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5, fontSize: 12.5 }}>
+                  <span>{x.label}</span>
+                  <span style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>
+                    {(x.pct * 100).toFixed(1)}%
+                  </span>
+                </div>
+                <div style={{ height: 5, background: 'var(--s3)', borderRadius: 3, overflow: 'hidden' }}>
+                  <div
+                    style={{
+                      height: '100%',
+                      borderRadius: 3,
+                      width: `${(Math.max(0, x.pct) * 100).toFixed(2)}%`,
+                      background: x.c,
+                      transition: 'width .5s ease',
+                    }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
         <div style={{ gridColumn: '1 / -1', ...panel }}>
           <div style={panelHd}>
@@ -470,7 +475,7 @@ export default function Dashboard() {
                     alignItems: 'center',
                     gap: 10,
                     padding: '10px 14px',
-                    background: 'var(--s2)',
+                    background: 'var(--s3)',
                     border: '1px solid var(--border)',
                     borderRadius: 6,
                     marginBottom: 6,

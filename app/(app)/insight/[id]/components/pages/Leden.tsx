@@ -5,7 +5,7 @@ import { useInsight } from '@/lib/insight-context'
 import { createClient } from '@/lib/supabase'
 
 export default function Leden() {
-  const { members, household, currentUser, myRole, data, updateMemberRole, updateMemberSlot } = useInsight()
+  const { members, household, currentUser, myRole, data, isSingleUser, updateMemberRole, updateMemberSlot } = useInsight()
   const [copied, setCopied] = useState(false)
   const [changingRole, setChangingRole] = useState<string | null>(null)
   const [changingSlot, setChangingSlot] = useState<string | null>(null)
@@ -68,7 +68,7 @@ export default function Leden() {
     }
   }
 
-  const panel: React.CSSProperties = { background: 'var(--s1)', border: '1px solid var(--border)', borderRadius: 8, padding: '22px 26px', marginBottom: 22 }
+  const panel: React.CSSProperties = { background: 'var(--s3)', border: '1px solid var(--card-border)', borderRadius: 8, padding: '22px 26px', marginBottom: 22 }
 
   return (
     <div style={panel}>
@@ -77,6 +77,21 @@ export default function Leden() {
         <div style={{ fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-heading)' }}>Leden</div>
       </div>
       <div style={{ fontSize: 12, color: 'var(--muted2)', marginBottom: 14, lineHeight: 1.7 }}>Alle genodigde en gekoppelde leden van deze Insight blijven hier zichtbaar, ook wanneer ze offline zijn.</div>
+
+      {isSingleUser && (
+        <div style={{ marginBottom: 22, padding: '18px 20px', background: 'rgba(var(--accent-rgb), 0.06)', border: '1px solid rgba(var(--accent-rgb), 0.3)', borderRadius: 8 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent)', marginBottom: 4, fontFamily: 'var(--font-heading)' }}>Nodig een partner uit</div>
+          <div style={{ fontSize: 12, color: 'var(--muted2)', lineHeight: 1.6, marginBottom: 12 }}>Je gebruikt deze insight alleen. Deel de uitnodigingslink om samen te beginnen.</div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <div style={{ flex: 1, background: '#141414', borderRadius: 5, padding: '8px 10px', fontSize: 11, color: 'var(--accent)', letterSpacing: '.04em', fontFamily: 'var(--font-body)', wordBreak: 'break-all' }}>
+              {inviteUrl || 'Geen uitnodigingslink beschikbaar'}
+            </div>
+            <button onClick={copyInvite} style={{ fontFamily: 'var(--font-body)', fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', border: 'none', background: 'var(--accent)', color: '#0a0a0a', whiteSpace: 'nowrap' }}>
+              {copied ? 'Gekopieerd!' : 'Uitnodigen'}
+            </button>
+          </div>
+        </div>
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 16, alignItems: 'stretch' }}>
         {members.map(member => {
@@ -88,7 +103,7 @@ export default function Leden() {
           const isViewer = member.role === 'viewer'
 
           return (
-            <div key={member.user_id} style={{ background: 'var(--s2)', border: '1px solid var(--border)', borderRadius: 14, padding: 18, display: 'grid', gridTemplateColumns: '72px 1fr', gap: 14, alignItems: 'start' }}>
+            <div key={member.user_id} style={{ background: '#141414', border: '1px solid var(--card-border)', borderRadius: 14, padding: 18, display: 'grid', gridTemplateColumns: '72px 1fr', gap: 14, alignItems: 'start' }}>
               <div style={{ width: 64, height: 64, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 700, color: '#0a0a0a', background: 'var(--accent)', overflow: 'hidden', flexShrink: 0, marginTop: 2 }}>
                 {member.avatar_url ? <img src={member.avatar_url} referrerPolicy="no-referrer" style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt={displayName} /> : initials}
               </div>
@@ -159,7 +174,7 @@ export default function Leden() {
               const assignedName = assigned?.display_name || 'Onbekend'
               const assignedInitials = assignedName.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase()
               return (
-                <div key={slot} style={{ background: 'var(--s2)', border: '1px solid var(--border)', borderRadius: 10, padding: 16 }}>
+                <div key={slot} style={{ background: '#141414', border: '1px solid var(--card-border)', borderRadius: 10, padding: 16 }}>
                   <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 10 }}>
                     {slotLabel[slot] || slot}
                   </div>
@@ -204,7 +219,7 @@ export default function Leden() {
         <div style={{ paddingTop: 22, borderTop: '1px solid var(--border)' }}>
           <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 8 }}>Uitnodigingslink</div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <div style={{ flex: 1, background: 'var(--s3)', borderRadius: 5, padding: '8px 10px', fontSize: 11, color: 'var(--accent)', letterSpacing: '.04em', fontFamily: 'var(--font-body)', wordBreak: 'break-all' }}>
+            <div style={{ flex: 1, background: '#141414', borderRadius: 5, padding: '8px 10px', fontSize: 11, color: 'var(--accent)', letterSpacing: '.04em', fontFamily: 'var(--font-body)', wordBreak: 'break-all' }}>
               {inviteUrl || 'Geen uitnodigingslink beschikbaar'}
             </div>
             <button onClick={copyInvite} style={{ fontFamily: 'var(--font-body)', fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 5, cursor: 'pointer', border: 'none', background: 'var(--accent)', color: '#0a0a0a', whiteSpace: 'nowrap' }}>

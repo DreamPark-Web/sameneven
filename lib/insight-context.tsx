@@ -43,6 +43,7 @@ type InsightContextType = {
   currentUser: any
   mySlot: string | null
   myRole: string | null
+  isSingleUser: boolean
   syncState: 'ok' | 'saving' | 'error' | 'live'
   saveData: (newData: InsightData) => void
   canEdit: (slot: string) => boolean
@@ -235,8 +236,26 @@ export function InsightProvider({ children, householdId }: { children: React.Rea
   }, [householdId])
 
   useEffect(() => {
-  applyThemeVars(data.theme || DEFAULTS.theme)
-}, [data.theme])
+    applyThemeVars(data.theme || DEFAULTS.theme)
+  }, [data.theme])
+
+  useEffect(() => {
+    if (!ready) return
+    setData(prev => {
+      const names = { ...prev.names }
+      let changed = false
+      for (const member of members) {
+        if ((member.slot === 'user1' || member.slot === 'user2') && member.display_name) {
+          const slot = member.slot as 'user1' | 'user2'
+          if (names[slot] !== member.display_name) {
+            names[slot] = member.display_name
+            changed = true
+          }
+        }
+      }
+      return changed ? { ...prev, names } : prev
+    })
+  }, [members, ready])
 
   const saveData = useCallback((newData: InsightData) => {
     const updated = { ...newData, lastUpdated: new Date().toISOString() }
@@ -295,6 +314,8 @@ export function InsightProvider({ children, householdId }: { children: React.Rea
     </div>
   )
 
+  const isSingleUser = members.length <= 1
+
   return (
     <InsightContext.Provider
       value={{
@@ -304,6 +325,7 @@ export function InsightProvider({ children, householdId }: { children: React.Rea
         currentUser,
         mySlot,
         myRole,
+        isSingleUser,
         syncState,
         saveData,
         canEdit,

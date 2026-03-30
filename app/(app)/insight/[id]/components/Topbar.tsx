@@ -448,6 +448,7 @@ export default function Topbar({
   const hueRef = useRef<HTMLDivElement | null>(null)
 
   const myMember = members.find((m: any) => m.user_id === currentUser?.id)
+  const mySlot = myMember?.slot
   const displayName =
     myMember?.display_name || currentUser?.user_metadata?.full_name || 'Gebruiker'
   const avatarUrl = myMember?.avatar_url || currentUser?.user_metadata?.avatar_url
@@ -700,6 +701,11 @@ export default function Topbar({
       .upsert({ id: currentUser.id, display_name: nextName }, { onConflict: 'id' })
 
     updateMyProfile(nextName)
+
+    if (mySlot === 'user1' || mySlot === 'user2') {
+      saveData({ ...data, names: { ...data.names, [mySlot]: nextName } })
+    }
+
     setShowAccount(false)
   }
 
@@ -909,8 +915,8 @@ export default function Topbar({
       <header
         style={{
           background: 'var(--s1)',
-          borderBottom: '1px solid var(--border)',
-          height: 60,
+          boxShadow: '0 1px 0 0 rgba(232,196,154,0.35)',
+          height: 56,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -949,6 +955,7 @@ export default function Topbar({
               border: 'none',
               background: 'transparent',
               padding: 0,
+              marginLeft: 8,
               flexShrink: 0,
               transition: 'color .15s, transform .15s',
               transform: isBackHovered ? 'translateX(-1px) scale(1.08)' : 'none',
@@ -968,19 +975,27 @@ export default function Topbar({
           >
             <div
               style={{
-                fontSize: 19,
-                fontWeight: 700,
-                letterSpacing: '-.3px',
-                whiteSpace: 'nowrap',
-                lineHeight: 1,
                 display: 'flex',
                 alignItems: 'center',
-                fontFamily: 'var(--font-heading)',
+                gap: 8,
+                whiteSpace: 'nowrap',
+                lineHeight: 1,
               }}
             >
-              <span className="brand-wordmark">
-                <span className="brand-samen">Samen</span>&nbsp;
-                <span className="brand-even">Even</span>
+              <svg width="38" height="38" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" style={{ color: 'var(--accent)', flexShrink: 0, display: 'block' }}>
+                <polyline points="65,18 135,18 192,62 100,175 8,62 65,18" fill="none" stroke="currentColor" strokeWidth="6" strokeLinejoin="round" strokeLinecap="round" />
+                <line x1="65" y1="18" x2="48" y2="66" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="miter" />
+                <line x1="135" y1="18" x2="152" y2="66" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="miter" />
+                <line x1="65" y1="18" x2="100" y2="66" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="miter" />
+                <line x1="135" y1="18" x2="100" y2="66" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="miter" />
+                <polyline points="8,62 48,66 100,66 152,66 192,62" fill="none" stroke="currentColor" strokeWidth="6" strokeLinejoin="round" strokeLinecap="round" />
+                <line x1="48" y1="66" x2="100" y2="175" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="miter" />
+                <line x1="152" y1="66" x2="100" y2="175" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="miter" />
+                <line x1="100" y1="66" x2="100" y2="175" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="miter" />
+                <line x1="8" y1="118" x2="192" y2="118" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="miter" />
+              </svg>
+              <span style={{ fontSize: 30, fontWeight: 700, fontFamily: 'var(--font-heading)', letterSpacing: '-0.3px', lineHeight: 1 }}>
+                <span style={{ color: 'var(--text)' }}>Get&nbsp;</span><span style={{ color: 'var(--accent)' }}>Clear</span>
               </span>
             </div>
 
@@ -1401,6 +1416,19 @@ export default function Topbar({
                     pointerEvents: 'none',
                   }}
                 />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10 }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setThemeFromHex('#E8C49A')
+                    setRgbInput({ r: '232', g: '196', b: '154' })
+                  }}
+                  style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '4px 10px', borderRadius: 5, cursor: 'pointer', border: '1px solid rgba(232,196,154,0.3)', background: 'rgba(232,196,154,0.06)', color: '#E8C49A', fontFamily: 'var(--font-body)' }}
+                >
+                  Standaard
+                </button>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
