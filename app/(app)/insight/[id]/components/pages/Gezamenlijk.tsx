@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useInsight } from '@/lib/insight-context'
 
-type CostItem = { id: string; label: string; value: number; split: string }
+type CostItem = { id: string; label: string; value: number; split: string; p1?: number; p2?: number }
 function fmt(n: number, d = 2) { return '€\u00a0' + n.toFixed(d).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.') }
 function sum(arr: any[]) { return (arr || []).reduce((a: number, i: any) => a + (i.value || 0), 0) }
 
@@ -20,7 +20,7 @@ function GripIcon() {
 export default function Gezamenlijk() {
   const { data, saveData, canEdit, isSingleUser } = useInsight()
   const [open, setOpen] = useState(false)
-  const [form, setForm] = useState({ label: '', value: '', split: 'ratio' })
+  const [form, setForm] = useState({ label: '', value: '', split: 'ratio', p1: '50', p2: '50' })
   const [dragging, setDragging] = useState<number | null>(null)
   const [dragOver, setDragOver] = useState<number | null>(null)
 
@@ -38,6 +38,11 @@ export default function Gezamenlijk() {
     if (item.split === '5050') return { u1: item.value / 2, u2: item.value / 2 }
     if (item.split === 'user1') return { u1: item.value, u2: 0 }
     if (item.split === 'user2') return { u1: 0, u2: item.value }
+    if (item.split === 'percent') {
+      const pct1 = item.p1 ?? 50
+      const pct2 = item.p2 ?? 50
+      return { u1: item.value * pct1 / 100, u2: item.value * pct2 / 100 }
+    }
     return { u1: item.value * r1, u2: item.value * r2 }
   }
 
@@ -48,19 +53,37 @@ export default function Gezamenlijk() {
   const jTr = totU1 + u1Sh, dTr = totU2 + u2Sh
 
   const editable = canEdit('user1') || canEdit('user2')
-  const SPLITS: Record<string, string> = { ratio: 'Naar rato', '5050': '50/50', user1: n1, user2: n2 }
+  const SPLITS: Record<string, string> = { ratio: 'Naar rato', '5050': '50/50', user1: n1, user2: n2, percent: 'Percentage' }
 
   function addItem() {
     if (!form.label.trim() || !form.value) return
-    const item: CostItem = { id: 'sh' + Date.now(), label: form.label.trim(), value: parseFloat(form.value), split: form.split }
+    const item: CostItem = {
+      id: 'sh' + Date.now(),
+      label: form.label.trim(),
+      value: parseFloat(form.value),
+      split: form.split,
+      ...(form.split === 'percent' ? { p1: parseFloat(form.p1) || 50, p2: parseFloat(form.p2) || 50 } : {}),
+    }
     saveData({ ...data, shared: [...items, item] })
-    setForm({ label: '', value: '', split: 'ratio' })
+    setForm({ label: '', value: '', split: 'ratio', p1: '50', p2: '50' })
     setOpen(false)
   }
+
   function deleteItem(id: string) { saveData({ ...data, shared: items.filter(i => i.id !== id) }) }
+
   function editItem(id: string, field: 'label' | 'value' | 'split', val: string) {
     saveData({ ...data, shared: items.map(i => i.id === id ? { ...i, [field]: field === 'value' ? parseFloat(val) || 0 : val } : i) })
   }
+
+  function editPercent(id: string, field: 'p1' | 'p2', val: string) {
+    const raw = Math.max(0, Math.min(100, parseFloat(val) || 0))
+    const item = items.find(i => i.id === id)
+    if (!item) return
+    const other = field === 'p1' ? (item.p2 ?? 50) : (item.p1 ?? 50)
+    const clamped = raw + other > 100 ? 100 - other : raw
+    saveData({ ...data, shared: items.map(i => i.id === id ? { ...i, [field]: clamped } : i) })
+  }
+
   function reorderItems(newItems: CostItem[]) {
     saveData({ ...data, shared: newItems })
   }
@@ -75,6 +98,9 @@ export default function Gezamenlijk() {
   }
 
   const panel: React.CSSProperties = { background: 'var(--s3)', border: '1px solid var(--card-border)', borderRadius: 8, padding: '22px 26px', marginBottom: 22 }
+  const inputBase: React.CSSProperties = { background: 'var(--s2)', border: '1px solid var(--input-border)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none' }
+  const selectBase: React.CSSProperties = { ...inputBase, cursor: 'pointer', padding: '6px 8px' }
+  const pctInput: React.CSSProperties = { ...inputBase, width: 52, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }
 
   return (
     <div style={panel}>
@@ -91,17 +117,36 @@ export default function Gezamenlijk() {
 
       {open && (
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 14, paddingBottom: 14, borderBottom: '1px solid var(--border)' }}>
-          <input autoFocus style={{ flex: 2, minWidth: 120, background: 'var(--s3)', border: '1px solid var(--input-border)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'left' }}
+          <input autoFocus style={{ flex: 2, minWidth: 120, ...inputBase, background: 'var(--s3)', textAlign: 'left' }}
             placeholder="Omschrijving" value={form.label} onChange={e => setForm({ ...form, label: e.target.value })} />
-          <input style={{ width: 100, background: 'var(--s3)', border: '1px solid var(--input-border)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'right' }}
+          <input style={{ width: 100, ...inputBase, background: 'var(--s3)', textAlign: 'right' }}
             type="number" placeholder="Bedrag" value={form.value} onChange={e => setForm({ ...form, value: e.target.value })} />
-          <select style={{ background: 'var(--s3)', border: '1px solid var(--input-border)', borderRadius: 5, color: 'var(--text)', padding: '6px 8px', fontSize: 12, fontFamily: 'var(--font-body)', cursor: 'pointer' }}
+          <select style={{ ...selectBase, background: 'var(--s3)', fontSize: 12 }}
             value={form.split} onChange={e => setForm({ ...form, split: e.target.value })}>
             <option value="ratio">Naar rato</option>
             <option value="5050">50/50</option>
+            <option value="percent">Percentage</option>
             <option value="user1">{n1}</option>
             <option value="user2">{n2}</option>
           </select>
+          {form.split === 'percent' && (
+            <>
+              <input type="number" min={0} max={100} style={{ ...pctInput, background: 'var(--s3)' }}
+                placeholder={n1} value={form.p1}
+                onChange={e => {
+                  const v = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0))
+                  const p2 = v + parseFloat(form.p2) > 100 ? String(100 - v) : form.p2
+                  setForm({ ...form, p1: String(v), p2 })
+                }} />
+              <input type="number" min={0} max={100} style={{ ...pctInput, background: 'var(--s3)' }}
+                placeholder={n2} value={form.p2}
+                onChange={e => {
+                  const v = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0))
+                  const p1 = v + parseFloat(form.p1) > 100 ? String(100 - v) : form.p1
+                  setForm({ ...form, p2: String(v), p1 })
+                }} />
+            </>
+          )}
           <button onClick={addItem} style={{ fontFamily: 'var(--font-body)', fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 5, cursor: 'pointer', border: 'none', background: 'var(--accent)', color: 'var(--accent-fg)' }}>Toevoegen</button>
           <button onClick={() => setOpen(false)} style={{ fontFamily: 'var(--font-body)', fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 5, cursor: 'pointer', background: 'transparent', color: 'var(--cancel-fg)', border: '1px solid var(--cancel-border)' }}>Annuleren</button>
         </div>
@@ -149,21 +194,44 @@ export default function Gezamenlijk() {
                   <td style={{ padding: '7px 8px', fontSize: 13, verticalAlign: 'middle', borderBottom: '1px solid rgba(255,255,255,.04)', textAlign: 'right' }}>
                     {editable ? (
                       <input type="number" defaultValue={item.value} onBlur={e => editItem(item.id, 'value', e.target.value)}
-                        style={{ width: 100, background: 'var(--s2)', border: '1px solid var(--input-border)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}
+                        style={{ width: 100, ...inputBase, background: 'var(--s2)', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}
                       />
                     ) : fmt(item.value)}
                   </td>
                   {!isSingleUser && (
                     <td style={{ padding: '7px 8px', fontSize: 13, verticalAlign: 'middle', borderBottom: '1px solid rgba(255,255,255,.04)' }}>
                       {editable ? (
-                        <select value={item.split} onChange={e => editItem(item.id, 'split', e.target.value)}
-                          style={{ background: 'var(--s3)', border: '1px solid var(--input-border)', borderRadius: 5, color: 'var(--text)', padding: '4px 6px', fontSize: 11, fontFamily: 'var(--font-body)', cursor: 'pointer' }}>
-                          <option value="ratio">Naar rato</option>
-                          <option value="5050">50/50</option>
-                          <option value="user1">{n1}</option>
-                          <option value="user2">{n2}</option>
-                        </select>
-                      ) : SPLITS[item.split]}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <select value={item.split} onChange={e => editItem(item.id, 'split', e.target.value)}
+                            style={{ ...selectBase, background: 'var(--s3)', fontSize: 12 }}>
+                            <option value="ratio">Naar rato</option>
+                            <option value="5050">50/50</option>
+                            <option value="percent">Percentage</option>
+                            <option value="user1">{n1}</option>
+                            <option value="user2">{n2}</option>
+                          </select>
+                          {item.split === 'percent' && (
+                            <>
+                              <input
+                                key={item.id + '-p1-' + (item.p1 ?? 50)}
+                                type="number" min={0} max={100}
+                                defaultValue={item.p1 ?? 50}
+                                onBlur={e => editPercent(item.id, 'p1', e.target.value)}
+                                style={{ ...pctInput, background: 'var(--s2)' }}
+                                title={n1 + ' %'}
+                              />
+                              <input
+                                key={item.id + '-p2-' + (item.p2 ?? 50)}
+                                type="number" min={0} max={100}
+                                defaultValue={item.p2 ?? 50}
+                                onBlur={e => editPercent(item.id, 'p2', e.target.value)}
+                                style={{ ...pctInput, background: 'var(--s2)' }}
+                                title={n2 + ' %'}
+                              />
+                            </>
+                          )}
+                        </div>
+                      ) : SPLITS[item.split] || item.split}
                     </td>
                   )}
                   {!isSingleUser && <td style={{ padding: '7px 8px', fontSize: 13, verticalAlign: 'middle', borderBottom: '1px solid rgba(255,255,255,.04)', textAlign: 'right', color: 'var(--accent)', fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>{fmt(u1)}</td>}

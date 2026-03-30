@@ -189,8 +189,7 @@ export default function Inkomsten() {
       {!isSingleUser && <div style={panel}>
         <div style={panelHd}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-            <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>Overzicht</span>
-            <span style={{ fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-heading)' }}>Gecombineerd inkomen</span>
+            <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>Gecombineerd inkomen</span>
           </div>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, alignItems: 'stretch' }}>
