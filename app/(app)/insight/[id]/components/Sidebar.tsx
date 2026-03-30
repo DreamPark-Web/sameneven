@@ -227,7 +227,6 @@ export default function Sidebar({
           .map((id) => NAV_ITEMS.find((item) => item.id === id))
           .filter(Boolean)
           .filter((item) => !hiddenNavItems.includes(item!.id))
-          .filter((item) => !(isSingleUser && item!.id === 'gezamenlijk'))
           .map((item) => {
           const active = activePage === item!.id
 
@@ -270,7 +269,7 @@ export default function Sidebar({
                 letterSpacing: '.03em',
                 border: active ? '1px solid transparent' : '1px solid transparent',
                 background: active ? 'var(--accent)' : 'transparent',
-                color: active ? '#0F0F0F' : 'rgba(245,245,245,0.45)',
+                color: active ? 'var(--accent-fg)' : 'var(--muted)',
                 marginBottom: 2,
                 justifyContent: collapsed ? 'center' : 'flex-start',
                 transition: 'background .15s, color .15s, border-color .15s',

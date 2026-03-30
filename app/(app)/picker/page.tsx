@@ -1,7 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import LoadingScreen from '@/components/LoadingScreen'
 import { createClient } from '@/lib/supabase'
+import { useUser } from '@/lib/user-context'
 import { useRouter } from 'next/navigation'
 
 const BRAND_THEME = '#E8C49A'
@@ -31,7 +33,10 @@ function hexToRgb(hex: string) {
 function applyThemeVars(color: string) {
   if (typeof document === 'undefined') return
 
-  const hex = (color || BRAND_THEME).toLowerCase()
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light'
+  let hex = (color || BRAND_THEME).toLowerCase()
+  if (isLight && hex === '#e8c49a') hex = '#a0622a'
+
   const light = lightenColor(hex, 0.15)
   const { r, g, b } = hexToRgb(hex)
 
@@ -41,16 +46,10 @@ function applyThemeVars(color: string) {
   root.style.setProperty('--accent-rgb', `${r}, ${g}, ${b}`)
 }
 
-type Profile = {
-  display_name?: string | null
-  avatar_url?: string | null
-}
-
 export default function PickerPage() {
+  const { currentUser: user, profile, userLoading, updateProfile, saveDisplayName } = useUser()
   const [households, setHouseholds] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [user, setUser] = useState<any>(null)
-  const [profile, setProfile] = useState<any>(null)
+  const [householdsReady, setHouseholdsReady] = useState(false)
   const [showAccount, setShowAccount] = useState(false)
   const [accountName, setAccountName] = useState('')
   const [isSavingAccount, setIsSavingAccount] = useState(false)
@@ -65,35 +64,30 @@ export default function PickerPage() {
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [showCreate, setShowCreate] = useState(false)
+  const [createName, setCreateName] = useState('')
+  const [isCreating, setIsCreating] = useState(false)
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
+  const [avatarHovered, setAvatarHovered] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const supabase = createClient()
   const router = useRouter()
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light')
     localStorage.setItem('se_theme', isDark ? 'dark' : 'light')
+    applyThemeVars(BRAND_THEME)
   }, [isDark])
 
   useEffect(() => {
-    async function load() {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
+    if (!userLoading && !user) {
+      router.push('/login')
+    }
+  }, [userLoading, user, router])
 
-      if (!user) {
-        router.push('/login')
-        return
-      }
-
-      setUser(user)
-
-      const { data: prof } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .maybeSingle()
-
-      setProfile(prof)
-
+  useEffect(() => {
+    if (!user?.id) return
+    async function loadHouseholds() {
       const { data: memberships } = await supabase
         .from('household_members')
         .select('*, households(*)')
@@ -105,20 +99,18 @@ export default function PickerPage() {
       setHouseholds(baseHouseholds)
       setOwnerOf(new Set(memberships?.filter((m: any) => m.role === 'owner').map((m: any) => m.household_id) || []))
       applyThemeVars(BRAND_THEME)
-
-      setLoading(false)
+      setHouseholdsReady(true)
     }
-
-    load()
-  }, [router, supabase])
+    loadHouseholds()
+  }, [user?.id])
 
   async function createInsight() {
-    const name = prompt('Naam van je nieuwe Insight:')
-    if (!name?.trim() || !user?.id) return
+    if (!createName.trim() || !user?.id) return
+    setIsCreating(true)
 
     const { data: hh } = await supabase
       .from('households')
-      .insert({ name, created_by: user.id })
+      .insert({ name: createName.trim(), created_by: user.id })
       .select()
       .single()
 
@@ -136,19 +128,26 @@ export default function PickerPage() {
         .from('household_data')
         .insert({
           household_id: hh.id,
-          data: { theme: '#00dcc8' },
+          data: { theme: '#E8C49A' },
         })
 
       applyThemeVars(BRAND_THEME)
       router.push(`/insight/${hh.id}`)
     }
+
+    setIsCreating(false)
   }
 
   async function deleteInsight(id: string) {
     setIsDeleting(true)
     setDeleteError(null)
-    const { error } = await supabase.from('households').delete().eq('id', id)
-    if (error) {
+    const [r1, r2, r3] = await Promise.all([
+      supabase.from('household_data').delete().eq('household_id', id),
+      supabase.from('household_members').delete().eq('household_id', id),
+      supabase.from('households').delete().eq('id', id),
+    ])
+    const err = r1.error || r2.error || r3.error
+    if (err) {
       setDeleteError('Verwijderen is niet gelukt. Probeer het opnieuw.')
       setIsDeleting(false)
       return
@@ -189,35 +188,49 @@ export default function PickerPage() {
     setIsSavingAccount(true)
 
     try {
-      await supabase
-        .from('profiles')
-        .upsert({ id: user.id, display_name: nextName }, { onConflict: 'id' })
-
-      setProfile((prev: Profile | null) => (prev ? { ...prev, display_name: nextName } : prev))
+      await saveDisplayName(nextName)
       setShowAccount(false)
     } finally {
       setIsSavingAccount(false)
     }
   }
 
+  async function saveAvatar(file: File) {
+    if (!user?.id) return
+    setIsUploadingAvatar(true)
+    try {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const img = new Image()
+        const objectUrl = URL.createObjectURL(file)
+        img.onload = () => {
+          URL.revokeObjectURL(objectUrl)
+          const size = 256
+          const canvas = document.createElement('canvas')
+          canvas.width = size
+          canvas.height = size
+          const ctx = canvas.getContext('2d')!
+          const scale = Math.max(size / img.width, size / img.height)
+          const w = img.width * scale
+          const h = img.height * scale
+          ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h)
+          resolve(canvas.toDataURL('image/jpeg', 0.85))
+        }
+        img.onerror = reject
+        img.src = objectUrl
+      })
+      await supabase
+        .from('profiles')
+        .upsert({ id: user.id, avatar_url: dataUrl }, { onConflict: 'id' })
+      updateProfile(displayName, dataUrl)
+    } finally {
+      setIsUploadingAvatar(false)
+    }
+  }
+
   const hour = new Date().getHours()
   const greeting = hour < 12 ? 'Goedemorgen' : hour < 18 ? 'Goedemiddag' : 'Goedenavond'
 
-  if (loading) {
-    return (
-      <div
-        style={{
-          minHeight: '100vh',
-          background: 'var(--bg)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <div style={{ color: 'var(--muted)', fontSize: 14 }}>Laden...</div>
-      </div>
-    )
-  }
+  if (userLoading || !householdsReady) return <LoadingScreen />
 
   return (
     <div
@@ -247,8 +260,8 @@ export default function PickerPage() {
       >
         <defs>
           <linearGradient id="amberFillBg" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#E8C49A" stopOpacity="0.3" />
-            <stop offset="100%" stopColor="#E8C49A" stopOpacity="0.1" />
+            <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.3" />
+            <stop offset="100%" stopColor="var(--accent)" stopOpacity="0.1" />
           </linearGradient>
         </defs>
 
@@ -268,37 +281,37 @@ export default function PickerPage() {
         <polyline
           points="65,18 135,18 192,62 100,175 8,62 65,18"
           fill="none"
-          stroke="#E8C49A"
+          stroke="var(--accent)"
           strokeWidth="6"
           strokeLinejoin="round"
           strokeLinecap="round"
         />
 
-        <line x1="65" y1="18" x2="48" y2="66" fill="none" stroke="#E8C49A" strokeWidth="6" strokeLinecap="round" strokeLinejoin="miter" />
-        <line x1="135" y1="18" x2="152" y2="66" fill="none" stroke="#E8C49A" strokeWidth="6" strokeLinecap="round" strokeLinejoin="miter" />
-        <line x1="65" y1="18" x2="100" y2="66" fill="none" stroke="#E8C49A" strokeWidth="6" strokeLinecap="round" strokeLinejoin="miter" />
-        <line x1="135" y1="18" x2="100" y2="66" fill="none" stroke="#E8C49A" strokeWidth="6" strokeLinecap="round" strokeLinejoin="miter" />
+        <line x1="65" y1="18" x2="48" y2="66" fill="none" stroke="var(--accent)" strokeWidth="6" strokeLinecap="round" strokeLinejoin="miter" />
+        <line x1="135" y1="18" x2="152" y2="66" fill="none" stroke="var(--accent)" strokeWidth="6" strokeLinecap="round" strokeLinejoin="miter" />
+        <line x1="65" y1="18" x2="100" y2="66" fill="none" stroke="var(--accent)" strokeWidth="6" strokeLinecap="round" strokeLinejoin="miter" />
+        <line x1="135" y1="18" x2="100" y2="66" fill="none" stroke="var(--accent)" strokeWidth="6" strokeLinecap="round" strokeLinejoin="miter" />
 
         <polyline
           points="8,62 48,66 100,66 152,66 192,62"
           fill="none"
-          stroke="#E8C49A"
+          stroke="var(--accent)"
           strokeWidth="6"
           strokeLinejoin="round"
           strokeLinecap="round"
         />
 
-        <line x1="48" y1="66" x2="100" y2="175" fill="none" stroke="#E8C49A" strokeWidth="6" strokeLinecap="round" strokeLinejoin="miter" />
-        <line x1="152" y1="66" x2="100" y2="175" fill="none" stroke="#E8C49A" strokeWidth="6" strokeLinecap="round" strokeLinejoin="miter" />
-        <line x1="100" y1="66" x2="100" y2="175" fill="none" stroke="#E8C49A" strokeWidth="6" strokeLinecap="round" strokeLinejoin="miter" />
+        <line x1="48" y1="66" x2="100" y2="175" fill="none" stroke="var(--accent)" strokeWidth="6" strokeLinecap="round" strokeLinejoin="miter" />
+        <line x1="152" y1="66" x2="100" y2="175" fill="none" stroke="var(--accent)" strokeWidth="6" strokeLinecap="round" strokeLinejoin="miter" />
+        <line x1="100" y1="66" x2="100" y2="175" fill="none" stroke="var(--accent)" strokeWidth="6" strokeLinecap="round" strokeLinejoin="miter" />
 
-        <line x1="8" y1="118" x2="192" y2="118" fill="none" stroke="#E8C49A" strokeWidth="6" strokeLinecap="round" strokeLinejoin="miter" />
+        <line x1="8" y1="118" x2="192" y2="118" fill="none" stroke="var(--accent)" strokeWidth="6" strokeLinecap="round" strokeLinejoin="miter" />
       </svg>
 
       <header
         style={{
           background: 'var(--s1)',
-          boxShadow: '0 2px 0 0 rgba(232,196,154,0.35)',
+          boxShadow: '0 2px 0 0 rgba(var(--accent-rgb), 0.35)',
           paddingLeft: 24,
           paddingRight: 24,
           paddingTop: 0,
@@ -324,8 +337,8 @@ export default function PickerPage() {
           >
             <defs>
               <linearGradient id="amberFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#E8C49A" stopOpacity="0.3" />
-                <stop offset="100%" stopColor="#E8C49A" stopOpacity="0.1" />
+                <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.3" />
+                <stop offset="100%" stopColor="var(--accent)" stopOpacity="0.1" />
               </linearGradient>
             </defs>
 
@@ -338,31 +351,31 @@ export default function PickerPage() {
             <polyline
               points="65,18 135,18 192,62 100,175 8,62 65,18"
               fill="none"
-              stroke="#E8C49A"
+              stroke="var(--accent)"
               strokeWidth="6"
               strokeLinejoin="round"
               strokeLinecap="round"
             />
 
-            <line x1="65" y1="18" x2="48" y2="66" fill="none" stroke="#E8C49A" strokeWidth="6" strokeLinecap="round" strokeLinejoin="miter" />
-            <line x1="135" y1="18" x2="152" y2="66" fill="none" stroke="#E8C49A" strokeWidth="6" strokeLinecap="round" strokeLinejoin="miter" />
-            <line x1="65" y1="18" x2="100" y2="66" fill="none" stroke="#E8C49A" strokeWidth="6" strokeLinecap="round" strokeLinejoin="miter" />
-            <line x1="135" y1="18" x2="100" y2="66" fill="none" stroke="#E8C49A" strokeWidth="6" strokeLinecap="round" strokeLinejoin="miter" />
+            <line x1="65" y1="18" x2="48" y2="66" fill="none" stroke="var(--accent)" strokeWidth="6" strokeLinecap="round" strokeLinejoin="miter" />
+            <line x1="135" y1="18" x2="152" y2="66" fill="none" stroke="var(--accent)" strokeWidth="6" strokeLinecap="round" strokeLinejoin="miter" />
+            <line x1="65" y1="18" x2="100" y2="66" fill="none" stroke="var(--accent)" strokeWidth="6" strokeLinecap="round" strokeLinejoin="miter" />
+            <line x1="135" y1="18" x2="100" y2="66" fill="none" stroke="var(--accent)" strokeWidth="6" strokeLinecap="round" strokeLinejoin="miter" />
 
             <polyline
               points="8,62 48,66 100,66 152,66 192,62"
               fill="none"
-              stroke="#E8C49A"
+              stroke="var(--accent)"
               strokeWidth="6"
               strokeLinejoin="round"
               strokeLinecap="round"
             />
 
-            <line x1="48" y1="66" x2="100" y2="175" fill="none" stroke="#E8C49A" strokeWidth="6" strokeLinecap="round" strokeLinejoin="miter" />
-            <line x1="152" y1="66" x2="100" y2="175" fill="none" stroke="#E8C49A" strokeWidth="6" strokeLinecap="round" strokeLinejoin="miter" />
-            <line x1="100" y1="66" x2="100" y2="175" fill="none" stroke="#E8C49A" strokeWidth="6" strokeLinecap="round" strokeLinejoin="miter" />
+            <line x1="48" y1="66" x2="100" y2="175" fill="none" stroke="var(--accent)" strokeWidth="6" strokeLinecap="round" strokeLinejoin="miter" />
+            <line x1="152" y1="66" x2="100" y2="175" fill="none" stroke="var(--accent)" strokeWidth="6" strokeLinecap="round" strokeLinejoin="miter" />
+            <line x1="100" y1="66" x2="100" y2="175" fill="none" stroke="var(--accent)" strokeWidth="6" strokeLinecap="round" strokeLinejoin="miter" />
 
-            <line x1="8" y1="118" x2="192" y2="118" fill="none" stroke="#E8C49A" strokeWidth="6" strokeLinecap="round" strokeLinejoin="miter" />
+            <line x1="8" y1="118" x2="192" y2="118" fill="none" stroke="var(--accent)" strokeWidth="6" strokeLinecap="round" strokeLinejoin="miter" />
           </svg>
 
           <div
@@ -377,7 +390,7 @@ export default function PickerPage() {
             }}
           >
             <span style={{ color: 'var(--text)' }}>Get&nbsp;</span>
-            <span style={{ color: '#E8C49A' }}>Clear</span>
+            <span style={{ color: 'var(--accent)' }}>Clear</span>
           </div>
         </div>
 
@@ -392,14 +405,14 @@ export default function PickerPage() {
             style={{
               width: 40,
               height: 40,
-              background: isThemeHovered ? 'rgba(232,196,154,0.08)' : 'transparent',
-              border: '1px solid rgba(232,196,154,0.2)',
+              background: isThemeHovered ? 'rgba(var(--accent-rgb), 0.08)' : 'transparent',
+              border: '1px solid rgba(var(--accent-rgb), 0.2)',
               borderRadius: 10,
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: isThemeHovered ? '#E8C49A' : '#888888',
+              color: isThemeHovered ? 'var(--accent)' : 'var(--muted)',
               flexShrink: 0,
               transition: 'background .15s, color .15s',
             }}
@@ -430,7 +443,7 @@ export default function PickerPage() {
               width: 40,
               height: 40,
               borderRadius: 999,
-              border: '1px solid rgba(232,196,154,0.2)',
+              border: '1px solid rgba(var(--accent-rgb), 0.2)',
               background: 'transparent',
               display: 'flex',
               alignItems: 'center',
@@ -464,14 +477,14 @@ export default function PickerPage() {
                   width: '100%',
                   height: '100%',
                   borderRadius: '50%',
-                  background: '#E8C49A',
+                  background: 'var(--accent)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   lineHeight: 1,
                   fontSize: 11,
                   fontWeight: 700,
-                  color: '#0F0F0F',
+                  color: 'var(--accent-fg)',
                 }}
               >
                 {initials}
@@ -483,183 +496,121 @@ export default function PickerPage() {
 
       {showAccount && (
         <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0,0,0,.75)',
-            zIndex: 500,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: 20,
-          }}
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setShowAccount(false)
-          }}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.75)', zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowAccount(false) }}
         >
-          <div
-            style={{
-              background: 'var(--s1)',
-              border: '1px solid rgba(232,196,154,0.2)',
-              borderRadius: 14,
-              padding: 28,
-              width: '100%',
-              maxWidth: 520,
-              position: 'relative',
-              maxHeight: '90vh',
-              overflowY: 'auto',
-              boxShadow: '0 24px 60px rgba(0,0,0,.42)',
-            }}
-          >
+          <div style={{ background: 'var(--s1)', border: '1px solid var(--border)', borderRadius: 14, padding: 28, width: '100%', maxWidth: 520, position: 'relative', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 24px 60px rgba(0,0,0,.42)' }}>
             <button
               onClick={() => setShowAccount(false)}
               type="button"
-              style={{
-                position: 'absolute',
-                top: 14,
-                right: 14,
-                width: 32,
-                height: 32,
-                background: 'transparent',
-                border: '1px solid rgba(232,196,154,0.2)',
-                borderRadius: 8,
-                color: 'var(--muted)',
-                fontSize: 18,
-                cursor: 'pointer',
-                lineHeight: 1,
-                padding: 0,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-              aria-label="Sluiten"
-            >
-              ×
-            </button>
+              style={{ position: 'absolute', top: 14, right: 14, width: 32, height: 32, background: 'transparent', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--muted)', fontSize: 18, cursor: 'pointer', lineHeight: 1, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            >×</button>
 
-            <div
-              style={{
-                fontSize: 16,
-                fontWeight: 700,
-                marginBottom: 20,
-                fontFamily: 'var(--font-heading)',
-                color: 'var(--text)',
-              }}
-            >
-              Mijn account
+            <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 20, fontFamily: 'var(--font-heading)' }}>Mijn account</div>
+
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
+              <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => { const f = e.target.files?.[0]; if (f) void saveAvatar(f); e.target.value = '' }} />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                onMouseEnter={() => setAvatarHovered(true)}
+                onMouseLeave={() => setAvatarHovered(false)}
+                disabled={isUploadingAvatar}
+                title="Profielfoto wijzigen"
+                style={{ position: 'relative', width: 68, height: 68, borderRadius: '50%', padding: 0, border: avatarHovered ? '2px solid var(--accent)' : '2px solid transparent', background: 'var(--accent)', overflow: 'hidden', cursor: isUploadingAvatar ? 'wait' : 'pointer', flexShrink: 0, transition: 'border-color .15s' }}
+              >
+                {avatarUrl ? (
+                  <img src={avatarUrl} referrerPolicy="no-referrer" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} alt={displayName} />
+                ) : (
+                  <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 700, color: 'var(--accent-fg)' }}>
+                    {isUploadingAvatar ? '…' : initials}
+                  </div>
+                )}
+                {(avatarHovered || isUploadingAvatar) && (
+                  <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%' }}>
+                    {isUploadingAvatar ? (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.9 }}><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" /></svg>
+                    ) : (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                    )}
+                  </div>
+                )}
+              </button>
             </div>
 
-            <label
-              style={{
-                fontSize: 11,
-                fontWeight: 600,
-                letterSpacing: '.08em',
-                textTransform: 'uppercase',
-                color: 'var(--muted)',
-                marginBottom: 6,
-                display: 'block',
-              }}
-            >
-              Jouw naam
-            </label>
+            <label style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 6, display: 'block' }}>Jouw naam</label>
             <input
-              style={{
-                width: '100%',
-                background: 'var(--bg)',
-                border: '1px solid rgba(232,196,154,0.2)',
-                borderRadius: 6,
-                color: 'var(--text)',
-                padding: '9px 11px',
-                fontSize: 13,
-                fontFamily: 'var(--font-body)',
-                marginBottom: 14,
-              }}
+              style={{ width: '100%', background: 'var(--s2)', border: '1px solid var(--input-border)', borderRadius: 6, color: 'var(--text)', padding: '9px 11px', fontSize: 13, fontFamily: 'var(--font-body)', marginBottom: 14 }}
               type="text"
               value={accountName}
               onChange={(e) => setAccountName(e.target.value)}
             />
 
-            <label
-              style={{
-                fontSize: 11,
-                fontWeight: 600,
-                letterSpacing: '.08em',
-                textTransform: 'uppercase',
-                color: 'var(--muted)',
-                marginBottom: 6,
-                display: 'block',
-              }}
-            >
-              E-mailadres
-            </label>
+            <label style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 6, display: 'block' }}>E-mailadres</label>
             <input
-              style={{
-                width: '100%',
-                background: 'var(--bg)',
-                border: '1px solid rgba(232,196,154,0.2)',
-                borderRadius: 6,
-                color: 'var(--text)',
-                padding: '9px 11px',
-                fontSize: 13,
-                fontFamily: 'var(--font-body)',
-                marginBottom: 22,
-                opacity: 0.8,
-              }}
+              style={{ width: '100%', background: 'var(--s2)', border: '1px solid var(--input-border)', borderRadius: 6, color: 'var(--text)', padding: '9px 11px', fontSize: 13, fontFamily: 'var(--font-body)', marginBottom: 14, opacity: 0.6 }}
               type="email"
               value={user?.email || ''}
               disabled
             />
 
+            <div style={{ background: 'var(--s2)', border: '1px solid var(--border)', borderRadius: 10, padding: '16px 16px', marginBottom: 14 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 10 }}>Persoonlijk</div>
+              <div style={{ fontSize: 11, color: 'var(--muted2)', lineHeight: 1.6 }}>Je Google-naam wordt als eerste gebruikt. Hier kun je die naam altijd aanpassen voor Get Clear.</div>
+            </div>
+
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <button
-                onClick={() => {
-                  setShowAccount(false)
-                  void logout()
-                }}
+                onClick={() => { setShowAccount(false); void logout() }}
                 type="button"
-                style={{
-                  background: 'rgba(232,196,154,.06)',
-                  color: '#E8C49A',
-                  border: '1px solid rgba(232,196,154,0.2)',
-                  borderRadius: 5,
-                  padding: '11px 16px',
-                  fontSize: 11,
-                  fontFamily: 'var(--font-body)',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                }}
-              >
-                Uitloggen
-              </button>
-
+                style={{ background: 'rgba(200,60,60,.1)', color: 'var(--danger)', border: '1px solid rgba(200,60,60,.2)', borderRadius: 5, padding: '11px 16px', fontSize: 11, fontFamily: 'var(--font-body)', fontWeight: 600, cursor: 'pointer' }}
+              >Uitloggen</button>
               <button
                 onClick={() => void saveAccount()}
                 type="button"
                 disabled={isSavingAccount}
-                style={{
-                  background: '#E8C49A',
-                  color: '#0F0F0F',
-                  border: 'none',
-                  borderRadius: 6,
-                  padding: '9px 16px',
-                  fontSize: 12,
-                  fontFamily: 'var(--font-body)',
-                  fontWeight: 700,
-                  cursor: isSavingAccount ? 'wait' : 'pointer',
-                  letterSpacing: '.04em',
-                  textTransform: 'uppercase',
-                  opacity: isSavingAccount ? 0.75 : 1,
-                }}
-              >
-                {isSavingAccount ? 'Bezig...' : 'Opslaan'}
-              </button>
+                style={{ background: 'var(--accent)', color: 'var(--accent-fg)', border: 'none', borderRadius: 6, padding: '9px 16px', fontSize: 12, fontFamily: 'var(--font-body)', fontWeight: 700, cursor: isSavingAccount ? 'wait' : 'pointer', letterSpacing: '.04em', textTransform: 'uppercase', opacity: isSavingAccount ? 0.75 : 1, width: '100%' }}
+              >{isSavingAccount ? 'Bezig...' : 'Opslaan'}</button>
             </div>
           </div>
         </div>
       )}
 
-      {menuOpenId && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 5 }} onClick={() => setMenuOpenId(null)} />
+      {showCreate && (
+        <div
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.75)', zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+          onClick={(e) => { if (e.target === e.currentTarget) { setShowCreate(false); setCreateName('') } }}
+        >
+          <div style={{ background: 'var(--s1)', border: '1px solid rgba(var(--accent-rgb), 0.2)', borderRadius: 14, padding: 28, width: '100%', maxWidth: 400, boxShadow: '0 24px 60px rgba(0,0,0,.42)' }}>
+            <div style={{ fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-heading)', color: 'var(--text)', marginBottom: 18 }}>
+              Nieuwe Insight
+            </div>
+            <input
+              autoFocus
+              value={createName}
+              onChange={e => setCreateName(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') void createInsight(); else if (e.key === 'Escape') { setShowCreate(false); setCreateName('') } }}
+              placeholder="Naam van je Insight"
+              style={{ width: '100%', background: 'var(--s2)', border: '1px solid var(--input-border)', borderRadius: 8, color: 'var(--text)', padding: '10px 12px', fontSize: 14, fontFamily: 'var(--font-body)', outline: 'none', boxSizing: 'border-box', marginBottom: 20 }}
+            />
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => { setShowCreate(false); setCreateName('') }}
+                type="button"
+                style={{ background: 'transparent', border: '1px solid var(--cancel-border)', borderRadius: 6, color: 'var(--cancel-fg)', padding: '9px 16px', fontSize: 12, fontFamily: 'var(--font-body)', fontWeight: 600, cursor: 'pointer' }}
+              >
+                Annuleren
+              </button>
+              <button
+                onClick={() => void createInsight()}
+                type="button"
+                disabled={isCreating || !createName.trim()}
+                style={{ background: 'var(--accent)', border: 'none', borderRadius: 6, color: 'var(--accent-fg)', padding: '9px 16px', fontSize: 12, fontFamily: 'var(--font-body)', fontWeight: 700, cursor: isCreating || !createName.trim() ? 'not-allowed' : 'pointer', opacity: isCreating || !createName.trim() ? 0.6 : 1 }}
+              >
+                {isCreating ? 'Bezig...' : 'Aanmaken'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {deleteConfirmId && (
@@ -667,7 +618,7 @@ export default function PickerPage() {
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.75)', zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
           onClick={(e) => { if (e.target === e.currentTarget) { setDeleteConfirmId(null); setDeleteError(null) } }}
         >
-          <div style={{ background: 'var(--s1)', border: '1px solid rgba(232,196,154,0.2)', borderRadius: 14, padding: 28, width: '100%', maxWidth: 400, boxShadow: '0 24px 60px rgba(0,0,0,.42)' }}>
+          <div style={{ background: 'var(--s1)', border: '1px solid rgba(var(--accent-rgb), 0.2)', borderRadius: 14, padding: 28, width: '100%', maxWidth: 400, boxShadow: '0 24px 60px rgba(0,0,0,.42)' }}>
             <div style={{ fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-heading)', color: 'var(--text)', marginBottom: 10 }}>
               Insight verwijderen
             </div>
@@ -684,7 +635,7 @@ export default function PickerPage() {
               <button
                 onClick={() => { setDeleteConfirmId(null); setDeleteError(null) }}
                 type="button"
-                style={{ background: 'transparent', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--muted)', padding: '9px 16px', fontSize: 12, fontFamily: 'var(--font-body)', fontWeight: 600, cursor: 'pointer' }}
+                style={{ background: 'transparent', border: '1px solid var(--cancel-border)', borderRadius: 6, color: 'var(--cancel-fg)', padding: '9px 16px', fontSize: 12, fontFamily: 'var(--font-body)', fontWeight: 600, cursor: 'pointer' }}
               >
                 Annuleren
               </button>
@@ -721,6 +672,10 @@ export default function PickerPage() {
           Kies een Insight of maak een nieuwe aan.
         </div>
 
+        {menuOpenId && (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 5 }} onClick={() => setMenuOpenId(null)} />
+        )}
+
         <div
           style={{
             marginTop: 20,
@@ -738,7 +693,7 @@ export default function PickerPage() {
                   onClick={() => { setMenuOpenId(null); openInsight(hh) }}
                   style={{
                     background: 'var(--s1)',
-                    border: '2px solid rgba(232,196,154,0.35)',
+                    border: '2px solid rgba(var(--accent-rgb), 0.35)',
                     borderRadius: 10,
                     padding: 22,
                     cursor: 'pointer',
@@ -753,7 +708,7 @@ export default function PickerPage() {
                   }}
                   onMouseEnter={(e) => {
                     ;(e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'
-                    ;(e.currentTarget as HTMLElement).style.boxShadow = '0 0 0 1px rgba(232,196,154,0.95)'
+                    ;(e.currentTarget as HTMLElement).style.boxShadow = '0 0 0 1px rgba(var(--accent-rgb), 0.95)'
                   }}
                   onMouseLeave={(e) => {
                     ;(e.currentTarget as HTMLElement).style.transform = 'none'
@@ -775,7 +730,7 @@ export default function PickerPage() {
                       right: 10,
                       width: 28,
                       height: 28,
-                      background: menuOpenId === hh.id ? 'rgba(232,196,154,0.12)' : 'transparent',
+                      background: menuOpenId === hh.id ? 'rgba(var(--accent-rgb), 0.12)' : 'transparent',
                       border: 'none',
                       borderRadius: 6,
                       cursor: 'pointer',
@@ -788,8 +743,8 @@ export default function PickerPage() {
                       zIndex: 2,
                       transition: 'background .15s, color .15s',
                     }}
-                    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = '#E8C49A'; (e.currentTarget as HTMLElement).style.background = 'rgba(232,196,154,0.1)' }}
-                    onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--muted)'; (e.currentTarget as HTMLElement).style.background = menuOpenId === hh.id ? 'rgba(232,196,154,0.12)' : 'transparent' }}
+                    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--accent)'; (e.currentTarget as HTMLElement).style.background = 'rgba(var(--accent-rgb), 0.1)' }}
+                    onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--muted)'; (e.currentTarget as HTMLElement).style.background = menuOpenId === hh.id ? 'rgba(var(--accent-rgb), 0.12)' : 'transparent' }}
                     aria-label="Opties"
                   >
                     ···
@@ -846,9 +801,9 @@ export default function PickerPage() {
           })}
 
           <button
-            onClick={createInsight}
+            onClick={() => setShowCreate(true)}
             style={{
-              border: '2px dashed rgba(232,196,154,0.25)',
+              border: '2px dashed rgba(var(--accent-rgb), 0.25)',
               background: 'var(--s1)',
               borderRadius: 10,
               minHeight: 170,
@@ -864,17 +819,17 @@ export default function PickerPage() {
               transition: 'border-color .2s, color .2s',
             }}
             onMouseEnter={(e) => {
-              ;(e.currentTarget as HTMLElement).style.color = '#E8C49A'
+              ;(e.currentTarget as HTMLElement).style.color = 'var(--accent)'
               ;(e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'
-              ;(e.currentTarget as HTMLElement).style.border = '2px dashed rgba(232,196,154,0.95)'
+              ;(e.currentTarget as HTMLElement).style.border = '2px dashed rgba(var(--accent-rgb), 0.95)'
             }}
             onMouseLeave={(e) => {
               ;(e.currentTarget as HTMLElement).style.color = 'var(--muted)'
               ;(e.currentTarget as HTMLElement).style.transform = 'none'
-              ;(e.currentTarget as HTMLElement).style.border = '2px dashed rgba(232,196,154,0.25)'
+              ;(e.currentTarget as HTMLElement).style.border = '2px dashed rgba(var(--accent-rgb), 0.25)'
             }}
           >
-            <span style={{ fontSize: 32, lineHeight: 1, color: '#E8C49A' }}>+</span>
+            <span style={{ fontSize: 32, lineHeight: 1, color: 'var(--accent)' }}>+</span>
             <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>Nieuwe Insight</span>
           </button>
         </div>

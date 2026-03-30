@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, useCallback } from 'react'
 import { createClient } from './supabase'
+import LoadingScreen from '@/components/LoadingScreen'
 
 export type Member = {
   user_id: string
@@ -26,7 +27,7 @@ export type InsightData = {
 
 const DEFAULTS: InsightData = {
   names: { user1: 'Gebruiker 1', user2: 'Gebruiker 2' },
-  theme: '#00c2ff',
+  theme: '#E8C49A',
   user1: { income: [], private: [], savings: { shared: [], private: [] } },
   user2: { income: [], private: [], savings: { shared: [], private: [] } },
   shared: [],
@@ -109,7 +110,7 @@ function lightenColor(hex: string, factor = 0.15) {
 }
 
 function hexToRgb(hex: string) {
-  const clean = (hex || '#00c2ff').replace('#', '')
+  const clean = (hex || '#E8C49A').replace('#', '')
   return {
     r: parseInt(clean.slice(0, 2), 16) || 0,
     g: parseInt(clean.slice(2, 4), 16) || 0,
@@ -120,7 +121,10 @@ function hexToRgb(hex: string) {
 function applyThemeVars(color: string) {
   if (typeof document === 'undefined') return
 
-  const hex = (color || '#00c2ff').toLowerCase()
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light'
+  let hex = (color || '#E8C49A').toLowerCase()
+  if (isLight && hex === '#e8c49a') hex = '#a0622a'
+
   const light = lightenColor(hex, 0.15)
   const { r, g, b } = hexToRgb(hex)
 
@@ -240,7 +244,17 @@ export function InsightProvider({ children, householdId }: { children: React.Rea
   }, [data.theme])
 
   useEffect(() => {
+    if (typeof document === 'undefined') return
+    const observer = new MutationObserver(() => {
+      applyThemeVars(data.theme || DEFAULTS.theme)
+    })
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
+    return () => observer.disconnect()
+  }, [data.theme])
+
+  useEffect(() => {
     if (!ready) return
+    console.log('[6] members-effect: members veranderd, slots/namen:', members.map(m => ({ slot: m.slot, name: m.display_name })))
     setData(prev => {
       const names = { ...prev.names }
       let changed = false
@@ -253,12 +267,14 @@ export function InsightProvider({ children, householdId }: { children: React.Rea
           }
         }
       }
+      console.log('[7] members-effect setData: changed=', changed, '→ names:', names)
       return changed ? { ...prev, names } : prev
     })
   }, [members, ready])
 
   const saveData = useCallback((newData: InsightData) => {
     const updated = { ...newData, lastUpdated: new Date().toISOString() }
+    console.log('[8] saveData: setData met names:', updated.names)
     setData(updated)
     setSyncState('saving')
     if (saveTimeout) clearTimeout(saveTimeout)
@@ -308,11 +324,7 @@ export function InsightProvider({ children, householdId }: { children: React.Rea
     )
   }, [])
 
-  if (!ready) return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ color: 'var(--muted)', fontSize: 14 }}>Laden...</div>
-    </div>
-  )
+  if (!ready) return <LoadingScreen />
 
   const isSingleUser = members.length <= 1
 

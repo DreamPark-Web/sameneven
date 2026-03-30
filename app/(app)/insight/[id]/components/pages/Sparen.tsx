@@ -91,7 +91,7 @@ function SavList({ items, can, openSav, setOpenSav, savForm, setSavForm, onAdd, 
             </span>
           )}
           <input type="number" defaultValue={item.value} onBlur={e => onEditValue(item.id, parseFloat(e.target.value) || 0)} disabled={!can}
-            style={{ width: 100, background: can ? 'var(--s2)' : 'transparent', border: can ? '1px solid var(--border)' : 'none', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}
+            style={{ width: 100, background: can ? 'var(--s2)' : 'transparent', border: can ? '1px solid var(--input-border)' : 'none', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}
           />
           {can && <button onClick={() => onDelete(item.id)} style={{ width: 22, height: 22, background: 'rgba(200,60,60,.1)', color: 'var(--danger)', border: '1px solid rgba(200,60,60,.2)', borderRadius: 4, cursor: 'pointer', fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>×</button>}
         </div>
@@ -99,12 +99,12 @@ function SavList({ items, can, openSav, setOpenSav, savForm, setSavForm, onAdd, 
       {can && (
         openSav === listKey && (
           <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
-            <input style={{ flex: 1, background: 'var(--s3)', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--text)', padding: '5px 7px', fontSize: 12, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'left' }}
+            <input autoFocus style={{ flex: 1, background: 'var(--s3)', border: '1px solid var(--input-border)', borderRadius: 5, color: 'var(--text)', padding: '5px 7px', fontSize: 12, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'left' }}
               placeholder="Omschrijving" value={savForm.label} onChange={e => setSavForm({ ...savForm, label: e.target.value })} />
-            <input style={{ width: 80, background: 'var(--s3)', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--text)', padding: '5px 7px', fontSize: 12, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'right' }}
+            <input style={{ width: 80, background: 'var(--s3)', border: '1px solid var(--input-border)', borderRadius: 5, color: 'var(--text)', padding: '5px 7px', fontSize: 12, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'right' }}
               type="number" placeholder="€" value={savForm.value} onChange={e => setSavForm({ ...savForm, value: e.target.value })} />
             <button onClick={() => { if (!savForm.label.trim() || !savForm.value) return; onAdd(savForm.label.trim(), parseFloat(savForm.value)); setSavForm({ label: '', value: '' }); setOpenSav(null) }}
-              style={{ fontFamily: 'var(--font-body)', fontSize: 10, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '4px 8px', borderRadius: 5, cursor: 'pointer', border: 'none', background: 'var(--accent)', color: '#0a0a0a' }}>OK</button>
+              style={{ fontFamily: 'var(--font-body)', fontSize: 10, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '4px 8px', borderRadius: 5, cursor: 'pointer', border: 'none', background: 'var(--accent)', color: 'var(--accent-fg)' }}>OK</button>
             <button onClick={() => { setSavForm({ label: '', value: '' }); setOpenSav(null) }}
               style={{ width: 26, height: 26, background: 'rgba(200,60,60,.1)', color: 'var(--danger)', border: '1px solid rgba(200,60,60,.2)', borderRadius: 4, cursor: 'pointer', fontSize: 14, fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>×</button>
           </div>
@@ -194,20 +194,20 @@ export default function Sparen() {
         {[{ name: n1, slot: 'user1' as const, sh: u1sh, pr: u1pr, can: canEdit('user1') }, ...(!isSingleUser ? [{ name: n2, slot: 'user2' as const, sh: u2sh, pr: u2pr, can: canEdit('user2') }] : [])].map(({ name, slot, sh, pr, can }) => (
           <div key={slot} style={panel}>
             <div style={{ marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--accent)', fontFamily: 'var(--font-heading)' }}>{name}</span>
-                <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--muted)' }}>Maandelijkse spaarbedragen</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--accent)', fontFamily: 'var(--font-heading)' }}>{name}</span>
+                <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>Maandelijkse spaarbedragen</span>
               </div>
               {can && (
                 openSav === `${slot}-shared` || openSav === `${slot}-private` ? null : (
-                  <button className="btn-add" onClick={() => { setOpenSav(`${slot}-private`); setSavForm({ label: '', value: '' }) }} style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 500, letterSpacing: '.04em', textTransform: 'uppercase', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', border: '1px solid rgba(var(--accent-rgb), 0.4)', background: '#1A1A1A', color: 'var(--accent)' }}>+ Toevoegen</button>
+                  <button className="btn-add" onClick={() => { setOpenSav(`${slot}-private`); setSavForm({ label: '', value: '' }) }} style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 500, letterSpacing: '.04em', textTransform: 'uppercase', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', border: '1px solid rgba(var(--accent-rgb), 0.4)', background: 'var(--s2)', color: 'var(--accent)' }}>+ Toevoegen</button>
                 )
               )}
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: isSingleUser ? '1fr' : '1fr 1fr', gap: 16, flex: 1, alignItems: 'stretch' }}>
               {!isSingleUser && (
                 <div>
-                  <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', marginBottom: 8, paddingBottom: 7, borderBottom: '1px solid var(--border)', color: '#F5F5F5', fontFamily: 'var(--font-heading)' }}>Gezamenlijk</div>
+                  <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', marginBottom: 8, paddingBottom: 7, borderBottom: '1px solid var(--border)', color: 'var(--text)', fontFamily: 'var(--font-heading)' }}>Gezamenlijk</div>
                   <SavList
                     items={sh} can={can} listKey={`${slot}-shared`}
                     openSav={openSav} setOpenSav={setOpenSav}
@@ -235,12 +235,12 @@ export default function Sparen() {
               </div>
             </div>
             {isSingleUser ? (
-              <div style={{ ...totalBox, marginTop: 14 }}><div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(245,245,245,0.45)' }}>Totaal</div><div style={{ fontSize: 14, fontWeight: 700, marginTop: 3, color: 'var(--accent)', fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>{fmt(sum(sh) + sum(pr), 0)}</div></div>
+              <div style={{ ...totalBox, marginTop: 14 }}><div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--muted)' }}>Totaal</div><div style={{ fontSize: 14, fontWeight: 700, marginTop: 3, color: 'var(--accent)', fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>{fmt(sum(sh) + sum(pr), 0)}</div></div>
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginTop: 14 }}>
-                <div style={totalBox}><div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(245,245,245,0.45)' }}>Gezamenlijk</div><div style={{ fontSize: 14, fontWeight: 700, marginTop: 3, color: 'var(--accent)', fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>{fmt(sum(sh), 0)}</div></div>
-                <div style={totalBox}><div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(245,245,245,0.45)' }}>Prive</div><div style={{ fontSize: 14, fontWeight: 700, marginTop: 3, color: 'var(--accent)', fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>{fmt(sum(pr), 0)}</div></div>
-                <div style={totalBox}><div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(245,245,245,0.45)' }}>Totaal</div><div style={{ fontSize: 14, fontWeight: 700, marginTop: 3, color: 'var(--accent)', fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>{fmt(sum(sh) + sum(pr), 0)}</div></div>
+                <div style={totalBox}><div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--muted)' }}>Gezamenlijk</div><div style={{ fontSize: 14, fontWeight: 700, marginTop: 3, color: 'var(--accent)', fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>{fmt(sum(sh), 0)}</div></div>
+                <div style={totalBox}><div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--muted)' }}>Prive</div><div style={{ fontSize: 14, fontWeight: 700, marginTop: 3, color: 'var(--accent)', fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>{fmt(sum(pr), 0)}</div></div>
+                <div style={totalBox}><div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--muted)' }}>Totaal</div><div style={{ fontSize: 14, fontWeight: 700, marginTop: 3, color: 'var(--accent)', fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>{fmt(sum(sh) + sum(pr), 0)}</div></div>
               </div>
             )}
           </div>
@@ -250,10 +250,10 @@ export default function Sparen() {
       <div style={panel}>
         <div style={{ marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
-            <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--muted)' }}>Spaardoelen</span>
+            <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>Spaardoelen</span>
           </div>
           {editable && !openPotForm && (
-            <button className="btn-add" onClick={() => setOpenPotForm(true)} style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 500, letterSpacing: '.04em', textTransform: 'uppercase', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', border: '1px solid rgba(var(--accent-rgb), 0.4)', background: '#1A1A1A', color: 'var(--accent)' }}>+ Spaarpot</button>
+            <button className="btn-add" onClick={() => setOpenPotForm(true)} style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 500, letterSpacing: '.04em', textTransform: 'uppercase', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', border: '1px solid rgba(var(--accent-rgb), 0.4)', background: 'var(--s2)', color: 'var(--accent)' }}>+ Spaarpot</button>
           )}
         </div>
         {potten.map((pot, idx) => {
@@ -310,9 +310,9 @@ export default function Sparen() {
               {editable && (
                 <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
                   <input type="number" defaultValue={pot.current} onBlur={e => editPot(pot.id, 'current', e.target.value)}
-                    style={{ flex: 1, background: 'var(--s3)', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--text)', padding: '5px 8px', fontSize: 12, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'right' }} placeholder="Huidig €" />
+                    style={{ flex: 1, background: 'var(--s3)', border: '1px solid var(--input-border)', borderRadius: 5, color: 'var(--text)', padding: '5px 8px', fontSize: 12, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'right' }} placeholder="Huidig €" />
                   <input type="number" defaultValue={pot.goal} onBlur={e => editPot(pot.id, 'goal', e.target.value)}
-                    style={{ flex: 1, background: 'var(--s3)', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--text)', padding: '5px 8px', fontSize: 12, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'right' }} placeholder="Doel €" />
+                    style={{ flex: 1, background: 'var(--s3)', border: '1px solid var(--input-border)', borderRadius: 5, color: 'var(--text)', padding: '5px 8px', fontSize: 12, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'right' }} placeholder="Doel €" />
                 </div>
               )}
             </div>
@@ -320,24 +320,24 @@ export default function Sparen() {
         })}
         {editable && openPotForm && (
           <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--border)' }}>
-            <div style={{ background: '#141414', borderRadius: 8, padding: '16px 18px' }}>
+            <div style={{ background: 'var(--s1)', borderRadius: 8, padding: '16px 18px' }}>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                <input style={{ flex: 2, minWidth: 120, background: 'var(--s3)', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'left' }}
+                <input style={{ flex: 2, minWidth: 120, background: 'var(--s3)', border: '1px solid var(--input-border)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'left' }}
                   placeholder="Naam spaarpot" value={potForm.label} onChange={e => setPotForm({ ...potForm, label: e.target.value })} />
-                <input style={{ width: 100, background: 'var(--s3)', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'right' }}
+                <input style={{ width: 100, background: 'var(--s3)', border: '1px solid var(--input-border)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'right' }}
                   type="number" placeholder="Huidig €" value={potForm.current} onChange={e => setPotForm({ ...potForm, current: e.target.value })} />
-                <input style={{ width: 100, background: 'var(--s3)', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'right' }}
+                <input style={{ width: 100, background: 'var(--s3)', border: '1px solid var(--input-border)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'right' }}
                   type="number" placeholder="Doel €" value={potForm.goal} onChange={e => setPotForm({ ...potForm, goal: e.target.value })} />
                 {!isSingleUser && (
-                  <select style={{ background: 'var(--s3)', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--text)', padding: '6px 8px', fontSize: 12, fontFamily: 'var(--font-body)', cursor: 'pointer' }}
+                  <select style={{ background: 'var(--s3)', border: '1px solid var(--input-border)', borderRadius: 5, color: 'var(--text)', padding: '6px 8px', fontSize: 12, fontFamily: 'var(--font-body)', cursor: 'pointer' }}
                     value={potForm.owner} onChange={e => setPotForm({ ...potForm, owner: e.target.value })}>
                     <option value="gezamenlijk">Gezamenlijk</option>
                     <option value="user1">{n1}</option>
                     <option value="user2">{n2}</option>
                   </select>
                 )}
-                <button onClick={addPot} style={{ fontFamily: 'var(--font-body)', fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 5, cursor: 'pointer', border: 'none', background: 'var(--accent)', color: '#0a0a0a' }}>Toevoegen</button>
-                <button onClick={() => { setPotForm({ label: '', current: '', goal: '', owner: 'gezamenlijk' }); setOpenPotForm(false) }} style={{ fontFamily: 'var(--font-body)', fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 5, cursor: 'pointer', background: 'transparent', color: 'var(--muted2)', border: '1px solid var(--border)' }}>Annuleren</button>
+                <button onClick={addPot} style={{ fontFamily: 'var(--font-body)', fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 5, cursor: 'pointer', border: 'none', background: 'var(--accent)', color: 'var(--accent-fg)' }}>Toevoegen</button>
+                <button onClick={() => { setPotForm({ label: '', current: '', goal: '', owner: 'gezamenlijk' }); setOpenPotForm(false) }} style={{ fontFamily: 'var(--font-body)', fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 5, cursor: 'pointer', background: 'transparent', color: 'var(--cancel-fg)', border: '1px solid var(--cancel-border)' }}>Annuleren</button>
               </div>
             </div>
           </div>

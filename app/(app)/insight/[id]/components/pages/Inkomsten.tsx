@@ -57,12 +57,12 @@ function PersonPanel({ name, items, onAdd, onDelete, onEdit, onReorder, canEdit 
   return (
     <div style={panel}>
       <div style={panelHd}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-          <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--accent)', fontFamily: 'var(--font-heading)' }}>{name}</span>
-          <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--muted)' }}>Inkomsten</span>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--accent)', fontFamily: 'var(--font-heading)' }}>{name}</span>
+          <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>Inkomsten</span>
         </div>
         {canEdit && (
-          <button className="btn-add" onClick={() => setOpen(!open)} style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 500, letterSpacing: '.04em', textTransform: 'uppercase', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', border: '1px solid rgba(var(--accent-rgb), 0.4)', background: '#1A1A1A', color: 'var(--accent)' }}>
+          <button className="btn-add" onClick={() => setOpen(!open)} style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 500, letterSpacing: '.04em', textTransform: 'uppercase', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', border: '1px solid rgba(var(--accent-rgb), 0.4)', background: 'var(--s2)', color: 'var(--accent)' }}>
             + Post
           </button>
         )}
@@ -71,18 +71,19 @@ function PersonPanel({ name, items, onAdd, onDelete, onEdit, onReorder, canEdit 
       {open && (
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 14, paddingBottom: 14, borderBottom: '1px solid var(--border)' }}>
           <input
-            style={{ flex: 1, minWidth: 80, background: 'var(--s3)', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'left' }}
+            autoFocus
+            style={{ flex: 1, minWidth: 80, background: 'var(--s3)', border: '1px solid var(--input-border)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'left' }}
             placeholder="Omschrijving" value={label} onChange={e => setLabel(e.target.value)}
           />
           <input
-            style={{ width: 100, background: 'var(--s3)', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'right' }}
+            style={{ width: 100, background: 'var(--s3)', border: '1px solid var(--input-border)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'right' }}
             type="number" placeholder="Bedrag" value={value} onChange={e => setValue(e.target.value)}
           />
           <button onClick={() => { if (!label.trim() || !value) return; onAdd(label.trim(), parseFloat(value)); setLabel(''); setValue(''); setOpen(false) }}
-            style={{ fontFamily: 'var(--font-body)', fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 5, cursor: 'pointer', border: 'none', background: 'var(--accent)', color: '#0a0a0a' }}>
+            style={{ fontFamily: 'var(--font-body)', fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 5, cursor: 'pointer', border: 'none', background: 'var(--accent)', color: 'var(--accent-fg)' }}>
             Toevoegen
           </button>
-          <button onClick={() => setOpen(false)} style={{ fontFamily: 'var(--font-body)', fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 5, cursor: 'pointer', background: 'transparent', color: 'var(--muted2)', border: '1px solid var(--border)' }}>
+          <button onClick={() => setOpen(false)} style={{ fontFamily: 'var(--font-body)', fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 5, cursor: 'pointer', background: 'transparent', color: 'var(--cancel-fg)', border: '1px solid var(--cancel-border)' }}>
             Annuleren
           </button>
         </div>
@@ -128,7 +129,7 @@ function PersonPanel({ name, items, onAdd, onDelete, onEdit, onReorder, canEdit 
               defaultValue={item.value}
               onBlur={e => onEdit(item.id, editingId === item.id ? editVal.trim() || item.label : item.label, parseFloat(e.target.value) || 0)}
               disabled={!canEdit}
-              style={{ width: 100, background: canEdit ? 'var(--s2)' : 'transparent', border: canEdit ? '1px solid var(--border)' : 'none', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}
+              style={{ width: 100, background: canEdit ? 'var(--s2)' : 'transparent', border: canEdit ? '1px solid var(--input-border)' : 'none', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}
             />
             {canEdit && (
               <button onClick={() => onDelete(item.id)} style={{ width: 26, height: 26, background: 'rgba(200,60,60,.1)', color: 'var(--danger)', border: '1px solid rgba(200,60,60,.2)', borderRadius: 4, cursor: 'pointer', fontSize: 14, fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>×</button>
@@ -139,7 +140,7 @@ function PersonPanel({ name, items, onAdd, onDelete, onEdit, onReorder, canEdit 
 
       <div style={{ marginTop: 'auto', paddingTop: 14 }}>
         <div style={{ background: 'var(--s2)', border: '1px solid var(--card-border)', borderTop: '1px solid var(--accent)', borderRadius: 8, padding: '15px 17px', marginTop: 14 }}>
-          <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(245,245,245,0.45)' }}>Totaal netto per maand</div>
+          <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--muted)' }}>Totaal netto per maand</div>
           <div style={{ fontSize: 22, fontWeight: 700, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)', marginTop: 4, color: 'var(--accent)' }}>{fmt(total, 0)}</div>
         </div>
       </div>
@@ -188,7 +189,7 @@ export default function Inkomsten() {
       {!isSingleUser && <div style={panel}>
         <div style={panelHd}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-            <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--muted)' }}>Overzicht</span>
+            <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>Overzicht</span>
             <span style={{ fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-heading)' }}>Gecombineerd inkomen</span>
           </div>
         </div>
@@ -199,7 +200,7 @@ export default function Inkomsten() {
             { label: `Aandeel ${n2}`, val: r2, color: 'var(--accent)' },
           ].map((s, i) => (
             <div key={i} style={{ background: 'var(--s2)', border: '1px solid var(--card-border)', borderRadius: 8, padding: '15px 17px', borderTop: '1px solid var(--accent)' }}>
-              <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(245,245,245,0.45)' }}>{s.label}</div>
+              <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--muted)' }}>{s.label}</div>
               <div style={{ fontSize: i === 0 ? 28 : 19, fontWeight: 700, lineHeight: 1, margin: '6px 0 4px', fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)', color: s.color }}>{s.val}</div>
               {s.sub && <div style={{ fontSize: 11, color: 'var(--muted2)' }}>{s.sub}</div>}
             </div>

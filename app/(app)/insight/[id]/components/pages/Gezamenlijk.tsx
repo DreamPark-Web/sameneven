@@ -80,11 +80,10 @@ export default function Gezamenlijk() {
     <div style={panel}>
       <div style={{ marginBottom: 12, paddingBottom: 0, borderBottom: 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-          <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--muted)' }}>Maandelijks</span>
-          <span style={{ fontSize: 13, fontWeight: 700, color: '#F5F5F5', fontFamily: 'var(--font-heading)' }}>Gezamenlijke vaste lasten</span>
+          <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>Gezamenlijke vaste lasten</span>
         </div>
         {editable && (
-          <button className="btn-add" onClick={() => setOpen(!open)} style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 500, letterSpacing: '.04em', textTransform: 'uppercase', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', border: '1px solid rgba(var(--accent-rgb), 0.4)', background: '#1A1A1A', color: 'var(--accent)' }}>
+          <button className="btn-add" onClick={() => setOpen(!open)} style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 500, letterSpacing: '.04em', textTransform: 'uppercase', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', border: '1px solid rgba(var(--accent-rgb), 0.4)', background: 'var(--s2)', color: 'var(--accent)' }}>
             + Post
           </button>
         )}
@@ -92,19 +91,19 @@ export default function Gezamenlijk() {
 
       {open && (
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 14, paddingBottom: 14, borderBottom: '1px solid var(--border)' }}>
-          <input style={{ flex: 2, minWidth: 120, background: 'var(--s3)', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'left' }}
+          <input autoFocus style={{ flex: 2, minWidth: 120, background: 'var(--s3)', border: '1px solid var(--input-border)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'left' }}
             placeholder="Omschrijving" value={form.label} onChange={e => setForm({ ...form, label: e.target.value })} />
-          <input style={{ width: 100, background: 'var(--s3)', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'right' }}
+          <input style={{ width: 100, background: 'var(--s3)', border: '1px solid var(--input-border)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'right' }}
             type="number" placeholder="Bedrag" value={form.value} onChange={e => setForm({ ...form, value: e.target.value })} />
-          <select style={{ background: 'var(--s3)', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--text)', padding: '6px 8px', fontSize: 12, fontFamily: 'var(--font-body)', cursor: 'pointer' }}
+          <select style={{ background: 'var(--s3)', border: '1px solid var(--input-border)', borderRadius: 5, color: 'var(--text)', padding: '6px 8px', fontSize: 12, fontFamily: 'var(--font-body)', cursor: 'pointer' }}
             value={form.split} onChange={e => setForm({ ...form, split: e.target.value })}>
             <option value="ratio">Naar rato</option>
             <option value="5050">50/50</option>
             <option value="user1">{n1}</option>
             <option value="user2">{n2}</option>
           </select>
-          <button onClick={addItem} style={{ fontFamily: 'var(--font-body)', fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 5, cursor: 'pointer', border: 'none', background: 'var(--accent)', color: '#0a0a0a' }}>Toevoegen</button>
-          <button onClick={() => setOpen(false)} style={{ fontFamily: 'var(--font-body)', fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 5, cursor: 'pointer', background: 'transparent', color: 'var(--muted2)', border: '1px solid var(--border)' }}>Annuleren</button>
+          <button onClick={addItem} style={{ fontFamily: 'var(--font-body)', fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 5, cursor: 'pointer', border: 'none', background: 'var(--accent)', color: 'var(--accent-fg)' }}>Toevoegen</button>
+          <button onClick={() => setOpen(false)} style={{ fontFamily: 'var(--font-body)', fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 5, cursor: 'pointer', background: 'transparent', color: 'var(--cancel-fg)', border: '1px solid var(--cancel-border)' }}>Annuleren</button>
         </div>
       )}
 
@@ -112,13 +111,13 @@ export default function Gezamenlijk() {
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr>
-              {editable && <th style={{ width: 20, borderBottom: '1px solid var(--border)', padding: '6px 4px 8px' }}></th>}
-              <th style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--muted)', padding: '6px 8px 8px', textAlign: 'left', borderBottom: '1px solid var(--border)', minWidth: 180 }}>Omschrijving</th>
-              <th style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--muted)', padding: '6px 8px 8px', textAlign: 'right', borderBottom: '1px solid var(--border)' }}>Bedrag</th>
-              {!isSingleUser && <th style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--muted)', padding: '6px 8px 8px', textAlign: 'left', borderBottom: '1px solid var(--border)' }}>Verdeling</th>}
-              {!isSingleUser && <th style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--accent)', padding: '6px 8px 8px', textAlign: 'right', borderBottom: '1px solid var(--border)' }}>{n1}</th>}
-              {!isSingleUser && <th style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--accent)', padding: '6px 8px 8px', textAlign: 'right', borderBottom: '1px solid var(--border)' }}>{n2}</th>}
-              <th style={{ borderBottom: '1px solid var(--border)' }}></th>
+              {editable && <th style={{ width: 20, padding: '6px 4px 8px' }}></th>}
+              <th style={{ padding: '6px 8px 8px', minWidth: 180 }}></th>
+              <th style={{ padding: '6px 8px 8px' }}></th>
+              {!isSingleUser && <th style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--muted)', padding: '6px 8px 8px', textAlign: 'left' }}>Verdeling</th>}
+              {!isSingleUser && <th style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--accent)', padding: '6px 8px 8px', textAlign: 'right' }}>{n1}</th>}
+              {!isSingleUser && <th style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--accent)', padding: '6px 8px 8px', textAlign: 'right' }}>{n2}</th>}
+              <th></th>
             </tr>
           </thead>
           <tbody>
@@ -150,7 +149,7 @@ export default function Gezamenlijk() {
                   <td style={{ padding: '7px 8px', fontSize: 13, verticalAlign: 'middle', borderBottom: '1px solid rgba(255,255,255,.04)', textAlign: 'right' }}>
                     {editable ? (
                       <input type="number" defaultValue={item.value} onBlur={e => editItem(item.id, 'value', e.target.value)}
-                        style={{ width: 100, background: 'var(--s2)', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}
+                        style={{ width: 100, background: 'var(--s2)', border: '1px solid var(--input-border)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}
                       />
                     ) : fmt(item.value)}
                   </td>
@@ -158,7 +157,7 @@ export default function Gezamenlijk() {
                     <td style={{ padding: '7px 8px', fontSize: 13, verticalAlign: 'middle', borderBottom: '1px solid rgba(255,255,255,.04)' }}>
                       {editable ? (
                         <select value={item.split} onChange={e => editItem(item.id, 'split', e.target.value)}
-                          style={{ background: 'var(--s3)', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--text)', padding: '4px 6px', fontSize: 11, fontFamily: 'var(--font-body)', cursor: 'pointer' }}>
+                          style={{ background: 'var(--s3)', border: '1px solid var(--input-border)', borderRadius: 5, color: 'var(--text)', padding: '4px 6px', fontSize: 11, fontFamily: 'var(--font-body)', cursor: 'pointer' }}>
                           <option value="ratio">Naar rato</option>
                           <option value="5050">50/50</option>
                           <option value="user1">{n1}</option>
@@ -182,7 +181,7 @@ export default function Gezamenlijk() {
       <div style={{ display: 'grid', gridTemplateColumns: isSingleUser ? '1fr' : '1fr 1fr', gap: 12, marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--border)', alignItems: 'stretch' }}>
         {isSingleUser ? (
           <div style={{ background: 'var(--s2)', border: '1px solid var(--card-border)', borderTop: '1px solid var(--accent)', borderRadius: 8, padding: '15px 17px' }}>
-            <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(245,245,245,0.45)' }}>Totaal gezamenlijke lasten</div>
+            <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--muted)' }}>Totaal gezamenlijke lasten</div>
             <div style={{ fontSize: 22, fontWeight: 700, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)', marginTop: 4, color: 'var(--accent)' }}>{fmt(totU1 + totU2, 0)}</div>
           </div>
         ) : (

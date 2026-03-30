@@ -2,7 +2,7 @@
 
 import { useParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { InsightProvider, useInsight } from '@/lib/insight-context'
+import { InsightProvider } from '@/lib/insight-context'
 import Topbar from './components/Topbar'
 import Sidebar from './components/Sidebar'
 import Dashboard from './components/pages/Dashboard'
@@ -36,7 +36,6 @@ function InsightPageInner({
   activePage: string
   setActivePage: (p: string) => void
 }) {
-  const { isSingleUser } = useInsight()
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
   useEffect(() => {
@@ -55,12 +54,6 @@ function InsightPageInner({
       window.removeEventListener('se-nav-prefs-changed', readCollapsed)
     }
   }, [id])
-
-  useEffect(() => {
-    if (isSingleUser && activePage === 'gezamenlijk') {
-      setActivePage('prive')
-    }
-  }, [isSingleUser, activePage, setActivePage])
 
   const ActiveComponent = PAGES[activePage] ?? Dashboard
 

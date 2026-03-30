@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useInsight } from '@/lib/insight-context'
+import { useUser } from '@/lib/user-context'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 
@@ -283,7 +284,7 @@ function AccountModal({
                   justifyContent: 'center',
                   fontSize: 22,
                   fontWeight: 700,
-                  color: '#0a0a0a',
+                  color: 'var(--accent-fg)',
                 }}
               >
                 {isUploadingAvatar ? '…' : initials}
@@ -395,7 +396,9 @@ export default function Topbar({
     myRole,
     updateHouseholdName,
     updateMyProfile,
+    isSingleUser,
   } = useInsight()
+  const { updateProfile, saveDisplayName } = useUser()
   const router = useRouter()
   const supabase = createClient()
 
@@ -555,7 +558,7 @@ export default function Topbar({
 
   const btnPrimary: CSSProperties = {
     background: 'var(--accent)',
-    color: '#0a0a0a',
+    color: 'var(--accent-fg)',
     border: 'none',
     borderRadius: 6,
     padding: '9px 16px',
@@ -588,7 +591,7 @@ export default function Topbar({
     const defaultOrder = NAV_ITEMS.map((item) => item.id)
 
     if (!raw) {
-      setHiddenNavItems([])
+      setHiddenNavItems(isSingleUser ? ['gezamenlijk'] : [])
       setNavOrder(defaultOrder)
       setNavPrefsLoaded(true)
       return
@@ -610,6 +613,15 @@ export default function Topbar({
 
     setNavPrefsLoaded(true)
   }, [household?.id])
+
+  const prevIsSingleUser = useRef<boolean | null>(null)
+  useEffect(() => {
+    if (!navPrefsLoaded) return
+    if (prevIsSingleUser.current === false && isSingleUser === true) {
+      setHiddenNavItems(prev => prev.includes('gezamenlijk') ? prev : [...prev, 'gezamenlijk'])
+    }
+    prevIsSingleUser.current = isSingleUser
+  }, [isSingleUser, navPrefsLoaded])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -686,6 +698,7 @@ export default function Topbar({
         .upsert({ id: currentUser.id, avatar_url: dataUrl }, { onConflict: 'id' })
 
       updateMyProfile(accountName.trim() || displayName, dataUrl)
+      updateProfile(accountName.trim() || displayName, dataUrl)
     } finally {
       setIsUploadingAvatar(false)
     }
@@ -696,15 +709,8 @@ export default function Topbar({
 
     const nextName = accountName.trim()
 
-    await supabase
-      .from('profiles')
-      .upsert({ id: currentUser.id, display_name: nextName }, { onConflict: 'id' })
-
+    await saveDisplayName(nextName)
     updateMyProfile(nextName)
-
-    if (mySlot === 'user1' || mySlot === 'user2') {
-      saveData({ ...data, names: { ...data.names, [mySlot]: nextName } })
-    }
 
     setShowAccount(false)
   }
@@ -767,13 +773,17 @@ export default function Topbar({
   }
 
   function applyPreviewTheme(color: string) {
-    const light = lightenColor(color, 0.15)
-    const rgb = hexToRgb(color)
+    const isLight = document.documentElement.getAttribute('data-theme') === 'light'
+    let effectiveColor = color.toLowerCase()
+    if (isLight && effectiveColor === '#e8c49a') effectiveColor = '#a0622a'
 
-    document.documentElement.style.setProperty('--accent', color)
+    const light = lightenColor(effectiveColor, 0.15)
+    const rgb = hexToRgb(effectiveColor)
+
+    document.documentElement.style.setProperty('--accent', effectiveColor)
     document.documentElement.style.setProperty('--accent2', light)
     document.documentElement.style.setProperty('--accent-rgb', `${rgb.r}, ${rgb.g}, ${rgb.b}`)
-    window.dispatchEvent(new CustomEvent('se-theme-preview', { detail: { color } }))
+    window.dispatchEvent(new CustomEvent('se-theme-preview', { detail: { color: effectiveColor } }))
   }
 
   function setThemeFromHex(nextColor: string) {
@@ -1144,7 +1154,7 @@ export default function Topbar({
                   justifyContent: 'center',
                   fontSize: 11,
                   fontWeight: 700,
-                  color: '#0a0a0a',
+                  color: 'var(--accent-fg)',
                 }}
               >
                 {initials}

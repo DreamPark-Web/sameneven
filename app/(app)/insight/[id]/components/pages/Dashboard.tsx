@@ -186,47 +186,8 @@ export default function Dashboard() {
     <div style={{ overflowX: 'hidden' }}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, alignItems: 'stretch' }}>
         <div style={{ gridColumn: '1 / -1', ...panel }}>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              marginBottom: 14,
-              paddingBottom: 12,
-              borderBottom: '1px solid var(--border)',
-            }}
-          >
-            <div
-              style={{
-                width: 30,
-                height: 30,
-                background: 'rgba(var(--accent-rgb), .10)',
-                border: '1px solid rgba(var(--accent-rgb), .20)',
-                borderRadius: 7,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
-              }}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2.5" strokeLinecap="round">
-                <rect x="3" y="3" width="7" height="7" />
-                <rect x="14" y="3" width="7" height="7" />
-                <rect x="14" y="14" width="7" height="7" />
-                <rect x="3" y="14" width="7" height="7" />
-              </svg>
-            </div>
-            <span
-              style={{
-                fontSize: 10,
-                fontWeight: 700,
-                letterSpacing: '.12em',
-                textTransform: 'uppercase',
-                color: 'var(--muted)',
-              }}
-            >
-              Dashboard overzicht
-            </span>
+          <div style={{ marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid var(--border)' }}>
+            <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', fontFamily: 'var(--font-heading)' }}>Dashboard overzicht</span>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: isSingleUser ? 'repeat(3, 1fr)' : 'repeat(6, 1fr)', gap: 12, alignItems: 'stretch' }}>
@@ -279,8 +240,8 @@ export default function Dashboard() {
         {!isSingleUser && (
           <div style={panel}>
             <div style={panelHd}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--muted)' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>
                   Maandelijks
                 </span>
                 <span style={{ fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-heading)' }}>
@@ -320,60 +281,14 @@ export default function Dashboard() {
           </div>
         )}
 
-        <div style={panel}>
-          <div style={panelHd}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-              <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--muted)' }}>
-                Verdeling
-              </span>
-              <span style={{ fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-heading)' }}>
-                Maandelijkse uitgaven
-              </span>
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
-            <div
-              style={{
-                position: 'relative',
-                flexShrink: 0,
-                width: 110,
-                height: 110,
-                borderRadius: '50%',
-                background: donutBackground,
-              }}
-            >
-              <div
-                style={{
-                  position: 'absolute',
-                  inset: 25,
-                  borderRadius: '50%',
-                  background: 'var(--s3)',
-                }}
-              />
-            </div>
-            <div style={{ fontSize: 12.5, display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {[
-                { c: accentDark, l: 'Gezamenlijke lasten', v: totalShared },
-                { c: accent, l: 'Sparen', v: totalSparen },
-                { c: accentLight, l: 'Prive kosten', v: totalPrive },
-              ].map((s, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                  <div style={{ width: 9, height: 9, borderRadius: 2, background: s.c, flexShrink: 0 }} />
-                  <span>{s.l}: <Num v={fmtK(s.v)} /></span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
 
         <div style={panel}>
           <div style={panelHd}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-              <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--accent)', fontFamily: 'var(--font-heading)' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--accent)', fontFamily: 'var(--font-heading)' }}>
                 {n1}
               </span>
-              <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--muted)' }}>
+              <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>
                 Verdeling inkomen
               </span>
             </div>
@@ -405,11 +320,11 @@ export default function Dashboard() {
         {!isSingleUser && (
           <div style={panel}>
             <div style={panelHd}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--accent)', fontFamily: 'var(--font-heading)' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--accent)', fontFamily: 'var(--font-heading)' }}>
                   {n2}
                 </span>
-                <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--muted)' }}>
+                <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>
                   Verdeling inkomen
                 </span>
               </div>
@@ -441,11 +356,8 @@ export default function Dashboard() {
 
         <div style={{ gridColumn: '1 / -1', ...panel }}>
           <div style={panelHd}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-              <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--muted)' }}>
-                Komende 60 dagen
-              </span>
-              <span style={{ fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-heading)' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>
                 Vervaldagen abonnementen
               </span>
             </div>

@@ -67,7 +67,7 @@ export default function Advies() {
     return { t, title, body, ...s }
   }
 
-  const cards = []
+  const cards: ReturnType<typeof card>[] = []
 
   if (total >= 500) cards.push(card('ok', `Overschot: ${fmtK(total)}/maand`, `${n1} houdt ${fmtK(jR)} over, ${n2} houdt ${fmtK(dR)} over. Gebruik dit om de buffer aan te vullen richting €15.000.`))
   else if (total >= 0) cards.push(card('tip', `Beperkt restant: ${fmtK(total)}/maand`, `${n1} ${fmtK(jR)}, ${n2} ${fmtK(dR)}. Verlaag tijdelijk prive spaardoelen tot de buffer op orde is.`))
@@ -112,8 +112,7 @@ export default function Advies() {
   return (
     <div style={panel}>
       <div style={{ marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid var(--border)' }}>
-        <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--muted)' }}>Op maat</span>
-        <div style={{ fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-heading)' }}>Financieel advies</div>
+        <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>Financieel advies op maat</span>
       </div>
       {cards.map((c, i) => (
         <div key={i} style={{ borderRadius: 7, padding: '16px 18px', marginBottom: 10, border: `1px solid ${c.bd}`, background: c.bg }}>

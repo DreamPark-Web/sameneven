@@ -48,18 +48,17 @@ export default function Schulden() {
   }, 0)
 
   const panel: React.CSSProperties = { background: 'var(--s3)', border: '1px solid var(--card-border)', borderRadius: 8, padding: '22px 26px', marginBottom: 22 }
-  const inp: React.CSSProperties = { background: 'var(--s3)', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'right', width: '100%', fontVariantNumeric: 'tabular-nums' }
-  const eyebrow: React.CSSProperties = { fontSize: 10, fontWeight: 600, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 5 }
+  const inp: React.CSSProperties = { background: 'var(--s3)', border: '1px solid var(--input-border)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'right', width: '100%', fontVariantNumeric: 'tabular-nums' }
+  const eyebrow: React.CSSProperties = { fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 5 }
 
   return (
     <div>
       <div style={panel}>
         <div style={{ marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-            <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--muted)' }}>Overzicht</span>
-            <span style={{ fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-heading)' }}>Schulden</span>
+            <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>Overzicht</span>
           </div>
-          {editable && <button className="btn-add" onClick={() => setShowAdd(!showAdd)} style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 500, letterSpacing: '.04em', textTransform: 'uppercase', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', border: '1px solid rgba(var(--accent-rgb), 0.4)', background: '#1A1A1A', color: 'var(--accent)' }}>+ Toevoegen</button>}
+          {editable && <button className="btn-add" onClick={() => setShowAdd(!showAdd)} style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 500, letterSpacing: '.04em', textTransform: 'uppercase', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', border: '1px solid rgba(var(--accent-rgb), 0.4)', background: 'var(--s2)', color: 'var(--accent)' }}>+ Toevoegen</button>}
         </div>
 
         <div style={{ fontSize: 12, color: 'var(--muted2)', marginBottom: 14, lineHeight: 1.7 }}>DUO, hypotheek, autolening, etc. Stel rentevaste periode in voor een vervaldatummelding.</div>
@@ -69,7 +68,7 @@ export default function Schulden() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
               <div style={{ gridColumn: '1 / -1' }}>
                 <div style={eyebrow}>Naam</div>
-                <input style={{ ...inp, textAlign: 'left' }} placeholder="Naam schuld" value={form.naam} onChange={e => setForm({ ...form, naam: e.target.value })} />
+                <input autoFocus style={{ ...inp, textAlign: 'left' }} placeholder="Naam schuld" value={form.naam} onChange={e => setForm({ ...form, naam: e.target.value })} />
               </div>
               <div>
                 <div style={eyebrow}>Type</div>
@@ -107,8 +106,8 @@ export default function Schulden() {
               </div>
             </div>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button onClick={() => setShowAdd(false)} style={{ fontFamily: 'var(--font-body)', fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 5, cursor: 'pointer', background: 'transparent', color: 'var(--muted2)', border: '1px solid var(--border)' }}>Annuleren</button>
-              <button onClick={addSchuld} style={{ fontFamily: 'var(--font-body)', fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 5, cursor: 'pointer', border: 'none', background: 'var(--accent)', color: '#0a0a0a' }}>Toevoegen</button>
+              <button onClick={() => setShowAdd(false)} style={{ fontFamily: 'var(--font-body)', fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 5, cursor: 'pointer', background: 'transparent', color: 'var(--cancel-fg)', border: '1px solid var(--cancel-border)' }}>Annuleren</button>
+              <button onClick={addSchuld} style={{ fontFamily: 'var(--font-body)', fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 5, cursor: 'pointer', border: 'none', background: 'var(--accent)', color: 'var(--accent-fg)' }}>Toevoegen</button>
             </div>
           </div>
         )}
@@ -163,13 +162,13 @@ export default function Schulden() {
                   <div key={f.field}>
                     <div style={eyebrow}>{f.label}</div>
                     <input type="number" step={f.step} defaultValue={f.val} onBlur={e => editSchuld(sc.id, f.field, e.target.value)} disabled={!editable}
-                      style={{ ...inp, width: '100%', background: editable ? 'var(--s2)' : 'transparent', border: editable ? '1px solid var(--border)' : 'none' }} />
+                      style={{ ...inp, width: '100%', background: editable ? 'var(--s2)' : 'transparent', border: editable ? '1px solid var(--input-border)' : 'none' }} />
                   </div>
                 ))}
                 <div>
                   <div style={eyebrow}>Startdatum rente</div>
                   <input type="date" defaultValue={sc.fixedStart} onBlur={e => editSchuld(sc.id, 'fixedStart', e.target.value)} disabled={!editable}
-                    style={{ ...inp, width: '100%', textAlign: 'left', fontSize: 11, background: editable ? 'var(--s3)' : 'transparent', border: editable ? '1px solid var(--border)' : 'none' }} />
+                    style={{ ...inp, width: '100%', textAlign: 'left', fontSize: 11, background: editable ? 'var(--s3)' : 'transparent', border: editable ? '1px solid var(--input-border)' : 'none' }} />
                 </div>
               </div>
 
@@ -188,7 +187,7 @@ export default function Schulden() {
                     { label: 'Totale rente', val: fmtK(totalInterestSc), color: 'var(--danger)' },
                   ].map((s, i) => (
                     <div key={i}>
-                      <div style={{ ...eyebrow, color: 'rgba(245,245,245,0.45)' }}>{s.label}</div>
+                      <div style={{ ...eyebrow, color: 'var(--muted)' }}>{s.label}</div>
                       <div style={{ fontSize: 24, fontWeight: 700, lineHeight: 1, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)', marginTop: 4, color: s.color }}>{s.val}</div>
                     </div>
                   ))}
@@ -202,8 +201,7 @@ export default function Schulden() {
 
       <div style={panel}>
         <div style={{ marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid var(--border)' }}>
-          <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--muted)' }}>Gecombineerd</span>
-          <div style={{ fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-heading)' }}>Totaaloverzicht</div>
+          <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>Gecombineerd</span>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, alignItems: 'stretch' }}>
           {[
@@ -212,7 +210,7 @@ export default function Schulden() {
             { label: 'Totale verwachte rente', val: fmtK(totalInterest), color: 'var(--danger)', borderTop: 'var(--danger)' },
           ].map((s, i) => (
             <div key={i} style={{ background: 'var(--s2)', border: '1px solid var(--card-border)', borderRadius: 8, padding: '15px 17px', borderTop: `1px solid ${s.borderTop}` }}>
-              <div style={{ ...eyebrow, color: 'rgba(245,245,245,0.45)' }}>{s.label}</div>
+              <div style={{ ...eyebrow, color: 'var(--muted)' }}>{s.label}</div>
               <div style={{ fontSize: 28, fontWeight: 700, lineHeight: 1, margin: '6px 0 4px', fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)', color: s.color || 'var(--accent)' }}>{s.val}</div>
             </div>
           ))}

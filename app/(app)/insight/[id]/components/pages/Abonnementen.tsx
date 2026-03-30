@@ -147,7 +147,7 @@ export default function Abonnementen() {
   }
 
   const panel: React.CSSProperties = { background: 'var(--s3)', border: '1px solid var(--card-border)', borderRadius: 8, padding: '22px 26px', marginBottom: 22 }
-  const eyebrow: React.CSSProperties = { fontSize: 10, fontWeight: 600, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--muted)' }
+  const eyebrow: React.CSSProperties = { fontSize: 15, fontWeight: 700, color: 'var(--text)' }
 
   const groups = isSingleUser
     ? [{ key: 'user1', title: n1 }]
@@ -161,12 +161,12 @@ export default function Abonnementen() {
           return (
             <div key={g.key} style={panel}>
               <div style={{ marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div>
-                  <span style={{ fontSize: 14, fontWeight: 700, color: g.key === 'gezamenlijk' ? '#F5F5F5' : 'var(--accent)', fontFamily: 'var(--font-heading)', display: 'block' }}>{g.title}</span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <span style={{ fontSize: 18, fontWeight: 700, color: g.key === 'gezamenlijk' ? '#F5F5F5' : 'var(--accent)', fontFamily: 'var(--font-heading)', display: 'block' }}>{g.title}</span>
                   <span style={{ ...eyebrow }}>Abonnementen</span>
                 </div>
                 {editable && !openForm && (
-                  <button className="btn-add" onClick={() => { setForm({ ...form, person: g.key }); setOpenForm(true) }} style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 500, letterSpacing: '.04em', textTransform: 'uppercase', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', border: '1px solid rgba(var(--accent-rgb), 0.4)', background: '#1A1A1A', color: 'var(--accent)' }}>+ Toevoegen</button>
+                  <button className="btn-add" onClick={() => { setForm({ ...form, person: g.key }); setOpenForm(true) }} style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 500, letterSpacing: '.04em', textTransform: 'uppercase', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', border: '1px solid rgba(var(--accent-rgb), 0.4)', background: 'var(--s2)', color: 'var(--accent)' }}>+ Toevoegen</button>
                 )}
               </div>
               <SubList
@@ -188,30 +188,30 @@ export default function Abonnementen() {
             <span style={{ ...eyebrow }}>Toevoegen</span>
             <div style={{ fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-heading)' }}>Nieuw abonnement</div>
           </div>
-          <div style={{ background: '#141414', borderRadius: 8, padding: '16px 18px' }}>
+          <div style={{ background: 'var(--s1)', borderRadius: 8, padding: '16px 18px' }}>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                <input style={{ flex: 2, minWidth: 120, background: 'var(--s3)', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'left' }}
+                <input autoFocus style={{ flex: 2, minWidth: 120, background: 'var(--s3)', border: '1px solid var(--input-border)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'left' }}
                   placeholder="Naam" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
-                <input style={{ width: 160, background: 'var(--s3)', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'left' }}
+                <input style={{ width: 160, background: 'var(--s3)', border: '1px solid var(--input-border)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'left' }}
                   type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} />
-                <input style={{ width: 100, background: 'var(--s3)', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'right' }}
+                <input style={{ width: 100, background: 'var(--s3)', border: '1px solid var(--input-border)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'right' }}
                   type="number" step="0.01" placeholder="Bedrag" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} />
-                <select style={{ background: 'var(--s3)', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--text)', padding: '6px 8px', fontSize: 12, fontFamily: 'var(--font-body)', cursor: 'pointer' }}
+                <select style={{ background: 'var(--s3)', border: '1px solid var(--input-border)', borderRadius: 5, color: 'var(--text)', padding: '6px 8px', fontSize: 12, fontFamily: 'var(--font-body)', cursor: 'pointer' }}
                   value={form.freq} onChange={e => setForm({ ...form, freq: e.target.value })}>
                   <option value="maandelijks">Per maand</option>
                   <option value="kwartaal">Per kwartaal</option>
                   <option value="jaarlijks">Per jaar</option>
                 </select>
                 {!isSingleUser && (
-                  <select style={{ background: 'var(--s3)', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--text)', padding: '6px 8px', fontSize: 12, fontFamily: 'var(--font-body)', cursor: 'pointer' }}
+                  <select style={{ background: 'var(--s3)', border: '1px solid var(--input-border)', borderRadius: 5, color: 'var(--text)', padding: '6px 8px', fontSize: 12, fontFamily: 'var(--font-body)', cursor: 'pointer' }}
                     value={form.person} onChange={e => setForm({ ...form, person: e.target.value })}>
                     <option value="gezamenlijk">Gezamenlijk</option>
                     <option value="user1">{n1}</option>
                     <option value="user2">{n2}</option>
                   </select>
                 )}
-                <button onClick={addSub} style={{ fontFamily: 'var(--font-body)', fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 5, cursor: 'pointer', border: 'none', background: 'var(--accent)', color: '#0a0a0a' }}>Toevoegen</button>
-                <button onClick={() => setOpenForm(false)} style={{ fontFamily: 'var(--font-body)', fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 5, cursor: 'pointer', background: 'transparent', color: 'var(--muted2)', border: '1px solid var(--border)' }}>Annuleren</button>
+                <button onClick={addSub} style={{ fontFamily: 'var(--font-body)', fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 5, cursor: 'pointer', border: 'none', background: 'var(--accent)', color: 'var(--accent-fg)' }}>Toevoegen</button>
+                <button onClick={() => setOpenForm(false)} style={{ fontFamily: 'var(--font-body)', fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 5, cursor: 'pointer', background: 'transparent', color: 'var(--cancel-fg)', border: '1px solid var(--cancel-border)' }}>Annuleren</button>
               </div>
             </div>
         </div>
