@@ -70,6 +70,7 @@ export default function PickerPage() {
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
   const [avatarHovered, setAvatarHovered] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const backdropRef = useRef(false)
   const supabase = createClient()
   const router = useRouter()
 
@@ -326,7 +327,7 @@ export default function PickerPage() {
           gap: 16,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 0, paddingTop: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 27, marginTop: 0, paddingTop: 0 }}>
           <svg
             width="38"
             height="38"
@@ -497,7 +498,8 @@ export default function PickerPage() {
       {showAccount && (
         <div
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.75)', zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
-          onClick={(e) => { if (e.target === e.currentTarget) setShowAccount(false) }}
+          onMouseDown={(e) => { backdropRef.current = e.target === e.currentTarget }}
+          onClick={(e) => { if (e.target === e.currentTarget && backdropRef.current) setShowAccount(false) }}
         >
           <div style={{ background: 'var(--s1)', border: '1px solid var(--border)', borderRadius: 14, padding: 28, width: '100%', maxWidth: 520, position: 'relative', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 24px 60px rgba(0,0,0,.42)' }}>
             <button
@@ -543,6 +545,10 @@ export default function PickerPage() {
               type="text"
               value={accountName}
               onChange={(e) => setAccountName(e.target.value)}
+              autoComplete="off"
+              data-1p-ignore="true"
+              data-lpignore="true"
+              data-bwignore="true"
             />
 
             <label style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 6, display: 'block' }}>E-mailadres</label>
@@ -578,7 +584,8 @@ export default function PickerPage() {
       {showCreate && (
         <div
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.75)', zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
-          onClick={(e) => { if (e.target === e.currentTarget) { setShowCreate(false); setCreateName('') } }}
+          onMouseDown={(e) => { backdropRef.current = e.target === e.currentTarget }}
+          onClick={(e) => { if (e.target === e.currentTarget && backdropRef.current) { setShowCreate(false); setCreateName('') } }}
         >
           <div style={{ background: 'var(--s1)', border: '1px solid rgba(var(--accent-rgb), 0.2)', borderRadius: 14, padding: 28, width: '100%', maxWidth: 400, boxShadow: '0 24px 60px rgba(0,0,0,.42)' }}>
             <div style={{ fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-heading)', color: 'var(--text)', marginBottom: 18 }}>
@@ -591,6 +598,10 @@ export default function PickerPage() {
               onKeyDown={e => { if (e.key === 'Enter') void createInsight(); else if (e.key === 'Escape') { setShowCreate(false); setCreateName('') } }}
               placeholder="Naam van je Insight"
               style={{ width: '100%', background: 'var(--s2)', border: '1px solid var(--input-border)', borderRadius: 8, color: 'var(--text)', padding: '10px 12px', fontSize: 14, fontFamily: 'var(--font-body)', outline: 'none', boxSizing: 'border-box', marginBottom: 20 }}
+              autoComplete="off"
+              data-1p-ignore="true"
+              data-lpignore="true"
+              data-bwignore="true"
             />
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
               <button
@@ -616,7 +627,8 @@ export default function PickerPage() {
       {deleteConfirmId && (
         <div
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.75)', zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
-          onClick={(e) => { if (e.target === e.currentTarget) { setDeleteConfirmId(null); setDeleteError(null) } }}
+          onMouseDown={(e) => { backdropRef.current = e.target === e.currentTarget }}
+          onClick={(e) => { if (e.target === e.currentTarget && backdropRef.current) { setDeleteConfirmId(null); setDeleteError(null) } }}
         >
           <div style={{ background: 'var(--s1)', border: '1px solid rgba(var(--accent-rgb), 0.2)', borderRadius: 14, padding: 28, width: '100%', maxWidth: 400, boxShadow: '0 24px 60px rgba(0,0,0,.42)' }}>
             <div style={{ fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-heading)', color: 'var(--text)', marginBottom: 10 }}>

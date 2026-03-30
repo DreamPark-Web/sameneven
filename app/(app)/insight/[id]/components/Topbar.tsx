@@ -196,9 +196,14 @@ function AccountModal({
 }: AccountModalProps) {
   const [avatarHovered, setAvatarHovered] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const backdropRef = useRef(false)
 
   return (
-    <div style={modalBg} onClick={(e) => e.target === e.currentTarget && onClose()}>
+    <div
+      style={modalBg}
+      onMouseDown={(e) => { backdropRef.current = e.target === e.currentTarget }}
+      onClick={(e) => { e.target === e.currentTarget && backdropRef.current && onClose() }}
+    >
       <div style={modal}>
         <button
           onClick={onClose}
@@ -323,6 +328,10 @@ function AccountModal({
           type="text"
           value={accountName}
           onChange={(e) => setAccountName(e.target.value)}
+          autoComplete="off"
+          data-1p-ignore="true"
+          data-lpignore="true"
+          data-bwignore="true"
         />
 
         <label style={modalLabel}>E-mailadres</label>
@@ -394,6 +403,7 @@ export default function Topbar({
     data,
     saveData,
     myRole,
+    isOwner,
     updateHouseholdName,
     updateMyProfile,
     isSingleUser,
@@ -404,6 +414,7 @@ export default function Topbar({
 
   const [showAccount, setShowAccount] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const settingsBackdropRef = useRef(false)
   const [isBackHovered, setIsBackHovered] = useState(false)
   const [isSettingsHovered, setIsSettingsHovered] = useState(false)
   const [isThemeToggleHovered, setIsThemeToggleHovered] = useState(false)
@@ -478,7 +489,7 @@ export default function Topbar({
         ? 'Fout bij opslaan'
         : syncState === 'live'
           ? 'Live bijgewerkt'
-          : 'Gesynchroniseerd'
+          : ''
 
   const inviteUrl = useMemo(() => {
     if (typeof window === 'undefined') return ''
@@ -716,6 +727,10 @@ export default function Topbar({
   }
 
   async function saveInsightSettings() {
+    if (!isOwner) {
+      setDeleteInsightError('Je hebt geen rechten om dit te doen.')
+      return
+    }
     if (!household?.id || !insightName.trim()) return
 
     const nextInsightName = insightName.trim()
@@ -755,6 +770,10 @@ export default function Topbar({
   }
 
   async function handleDeleteInsight() {
+    if (!isOwner) {
+      setDeleteInsightError('Je hebt geen rechten om dit te doen.')
+      return
+    }
     if (!household?.id || isDeletingInsight) return
 
     setDeleteInsightError('')
@@ -987,7 +1006,7 @@ export default function Topbar({
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: 8,
+                gap: 25,
                 whiteSpace: 'nowrap',
                 lineHeight: 1,
               }}
@@ -1009,23 +1028,28 @@ export default function Topbar({
               </span>
             </div>
 
-            {household && (
-              <span
-                style={{
-                  fontSize: 12,
-                  color: 'var(--muted)',
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  maxWidth: 240,
-                  lineHeight: 1,
-                }}
-              >
-                {household.name}
-              </span>
-            )}
           </div>
         </div>
+
+        {household && (
+          <span
+            style={{
+              position: 'absolute',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              fontSize: 16,
+              color: 'var(--muted)',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              maxWidth: 300,
+              lineHeight: 1.4,
+              pointerEvents: 'none',
+            }}
+          >
+            {household.name}
+          </span>
+        )}
 
         <div
           style={{
@@ -1189,8 +1213,9 @@ export default function Topbar({
       {showSettings && (
         <div
           style={modalBg}
+          onMouseDown={(e) => { settingsBackdropRef.current = e.target === e.currentTarget }}
           onClick={(e) => {
-            if (e.target === e.currentTarget) {
+            if (e.target === e.currentTarget && settingsBackdropRef.current) {
               applyPreviewTheme(settingsStartTheme)
               setShowSettings(false)
             }
@@ -1229,30 +1254,37 @@ export default function Topbar({
               Insight-instellingen
             </div>
 
-            <div style={modalSection}>
-              <div
-                style={{
-                  fontSize: 10,
-                  fontWeight: 700,
-                  letterSpacing: '.1em',
-                  textTransform: 'uppercase',
-                  color: 'var(--muted)',
-                  marginBottom: 10,
-                }}
-              >
-                Insight
+            {isOwner && (
+              <div style={modalSection}>
+                <div
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 700,
+                    letterSpacing: '.1em',
+                    textTransform: 'uppercase',
+                    color: 'var(--muted)',
+                    marginBottom: 10,
+                  }}
+                >
+                  Insight
+                </div>
+
+                <label style={modalLabel}>Naam van de Insight</label>
+                <input
+                  style={modalInp}
+                  type="text"
+                  value={insightName}
+                  onChange={(e) => setInsightName(e.target.value)}
+                  autoComplete="off"
+                  data-1p-ignore="true"
+                  data-lpignore="true"
+                  data-bwignore="true"
+                />
               </div>
+            )}
 
-              <label style={modalLabel}>Naam van de Insight</label>
-              <input
-                style={modalInp}
-                type="text"
-                value={insightName}
-                onChange={(e) => setInsightName(e.target.value)}
-              />
-            </div>
-
-            <div style={modalSection}>
+            {isOwner && (
+              <div style={modalSection}>
               <div
                 style={{
                   fontSize: 10,
@@ -1317,9 +1349,11 @@ export default function Topbar({
               <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 10 }}>
                 Stuur deze link om iemand toegang te geven.
               </div>
-            </div>
+              </div>
+            )}
 
-            <div style={modalSection}>
+            {isOwner && (
+              <div style={modalSection}>
               <div
                 style={{
                   fontSize: 10,
@@ -1505,7 +1539,8 @@ export default function Topbar({
                   />
                 </div>
               </div>
-            </div>
+              </div>
+            )}
 
             <div style={modalSection}>
               <div
@@ -1713,18 +1748,20 @@ export default function Topbar({
               </div>
             )}
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginTop: 6 }}>
-              <button
-                onClick={saveInsightSettings}
-                style={{
-                  ...btnPrimary,
-                  width: 'auto',
-                  padding: '9px 20px',
-                }}
-              >
-                Opslaan
-              </button>
-            </div>
+            {isOwner && (
+              <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginTop: 6 }}>
+                <button
+                  onClick={saveInsightSettings}
+                  style={{
+                    ...btnPrimary,
+                    width: 'auto',
+                    padding: '9px 20px',
+                  }}
+                >
+                  Opslaan
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

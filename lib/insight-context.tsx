@@ -44,6 +44,7 @@ type InsightContextType = {
   currentUser: any
   mySlot: string | null
   myRole: string | null
+  isOwner: boolean
   isSingleUser: boolean
   syncState: 'ok' | 'saving' | 'error' | 'live'
   saveData: (newData: InsightData) => void
@@ -326,6 +327,7 @@ export function InsightProvider({ children, householdId }: { children: React.Rea
 
   if (!ready) return <LoadingScreen />
 
+  const isOwner = myRole === 'owner' || myRole === 'admin'
   const isSingleUser = members.length <= 1
 
   return (
@@ -337,6 +339,7 @@ export function InsightProvider({ children, householdId }: { children: React.Rea
         currentUser,
         mySlot,
         myRole,
+        isOwner,
         isSingleUser,
         syncState,
         saveData,
