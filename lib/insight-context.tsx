@@ -175,7 +175,7 @@ export function InsightProvider({ children, householdId }: { children: React.Rea
       .in('id', ids)
     const merged = (mData as MemberRow[]).map((m) => {
       const profile = (profiles as ProfileRow[] | null)?.find((p) => p.id === m.user_id)
-      return { ...m, display_name: profile?.display_name, avatar_url: profile?.avatar_url }
+      return { ...m, display_name: profile?.display_name ?? undefined, avatar_url: profile?.avatar_url ?? undefined }
     })
     setMembers(merged)
   }, [householdId])
@@ -233,7 +233,7 @@ export function InsightProvider({ children, householdId }: { children: React.Rea
           event: 'UPDATE', schema: 'public',
           table: 'household_data',
           filter: `household_id=eq.${householdId}`
-        }, async (payload: { new: { updated_by: string; data: unknown } }) => {
+        }, async (payload: { new: { updated_by: string; data: LegacyData } }) => {
           if (payload.new?.updated_by === user.id) return
           setData({ ...DEFAULTS, ...migrateData(payload.new.data) })
           setSyncState('live')

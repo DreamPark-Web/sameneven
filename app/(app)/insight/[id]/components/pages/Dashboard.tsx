@@ -364,12 +364,13 @@ export default function Dashboard() {
             </div>
           ) : (
             upcoming.map((s) => {
+              const days = s.days ?? 0
               const bcStyle =
-                s.days <= 0
+                days <= 0
                   ? { background: 'rgba(224,80,80,.12)', color: 'var(--danger)' }
-                  : s.days <= 14
+                  : days <= 14
                     ? { background: 'rgba(224,80,80,.12)', color: 'var(--danger)' }
-                    : s.days <= 30
+                    : days <= 30
                       ? { background: 'rgba(212,160,23,.12)', color: 'var(--warn)' }
                       : { background: 'rgba(76,175,130,.12)', color: 'var(--ok)' }
 
@@ -409,7 +410,7 @@ export default function Dashboard() {
                       ...bcStyle,
                     }}
                   >
-                    {s.days <= 0 ? 'Verlopen' : `${s.days} dgn`}
+                    {days <= 0 ? 'Verlopen' : `${days} dgn`}
                   </span>
                 </div>
               )

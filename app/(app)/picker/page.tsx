@@ -88,6 +88,7 @@ export default function PickerPage() {
 
   useEffect(() => {
     if (!user?.id) return
+    const userId = user.id
 
     const inviteCode = new URLSearchParams(window.location.search).get('invite')
       || localStorage.getItem('se_pending_invite')
@@ -109,13 +110,13 @@ export default function PickerPage() {
         .from('household_members')
         .select('household_id')
         .eq('household_id', household.id)
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .maybeSingle()
 
       if (!existing) {
         await supabase.from('household_members').insert({
           household_id: household.id,
-          user_id: user.id,
+          user_id: userId,
           role: 'editor',
         })
       }
@@ -128,11 +129,12 @@ export default function PickerPage() {
 
   useEffect(() => {
     if (!user?.id) return
+    const userId = user.id
     async function loadHouseholds() {
       const { data: memberships } = await supabase
         .from('household_members')
         .select('*, households(*)')
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
 
       const baseHouseholds =
         memberships?.map((m: any) => m.households).filter(Boolean) || []
