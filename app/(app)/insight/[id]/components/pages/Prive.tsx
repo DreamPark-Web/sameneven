@@ -49,6 +49,14 @@ function PersonPanel({ name, items, onAdd, onDelete, onEdit, onReorder, canEdit 
     setDragOver(null)
   }
 
+  function submit() {
+    if (!label.trim() || !value) return
+    onAdd(label.trim(), parseFloat(value))
+    setLabel('')
+    setValue('')
+    setOpen(false)
+  }
+
   return (
     <div style={{ background: 'var(--s3)', border: '1px solid var(--card-border)', borderRadius: 8, padding: '22px 26px', marginBottom: 22, display: 'flex', flexDirection: 'column' }}>
       <div style={{ marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
@@ -63,10 +71,12 @@ function PersonPanel({ name, items, onAdd, onDelete, onEdit, onReorder, canEdit 
       {open && (
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 14, paddingBottom: 14, borderBottom: '1px solid var(--border)' }}>
           <input autoFocus style={{ flex: 1, minWidth: 80, background: 'var(--s3)', border: '1px solid var(--input-border)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'left' }}
-            placeholder="Omschrijving" value={label} onChange={e => setLabel(e.target.value)} />
+            placeholder="Omschrijving" value={label} onChange={e => setLabel(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') submit(); else if (e.key === 'Escape') setOpen(false) }} />
           <input style={{ width: 100, background: 'var(--s3)', border: '1px solid var(--input-border)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'right' }}
-            type="number" placeholder="Bedrag" value={value} onChange={e => setValue(e.target.value)} />
-          <button onClick={() => { if (!label.trim() || !value) return; onAdd(label.trim(), parseFloat(value)); setLabel(''); setValue(''); setOpen(false) }}
+            type="number" placeholder="Bedrag" value={value} onChange={e => setValue(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') submit(); else if (e.key === 'Escape') setOpen(false) }} />
+          <button onClick={submit}
             style={{ fontFamily: 'var(--font-body)', fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 5, cursor: 'pointer', border: 'none', background: 'var(--accent)', color: 'var(--accent-fg)' }}>Toevoegen</button>
           <button onClick={() => setOpen(false)} style={{ fontFamily: 'var(--font-body)', fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 5, cursor: 'pointer', background: 'transparent', color: 'var(--cancel-fg)', border: '1px solid var(--cancel-border)' }}>Annuleren</button>
         </div>

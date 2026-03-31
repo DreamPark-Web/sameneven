@@ -117,9 +117,11 @@ export default function Gezamenlijk() {
       {open && (
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 14, paddingBottom: 14, borderBottom: '1px solid var(--border)' }}>
           <input autoFocus style={{ flex: 2, minWidth: 120, ...inputBase, background: 'var(--s3)', textAlign: 'left' }}
-            placeholder="Omschrijving" value={form.label} onChange={e => setForm({ ...form, label: e.target.value })} />
+            placeholder="Omschrijving" value={form.label} onChange={e => setForm({ ...form, label: e.target.value })}
+            onKeyDown={e => { if (e.key === 'Enter') addItem(); else if (e.key === 'Escape') setOpen(false) }} />
           <input style={{ width: 100, ...inputBase, background: 'var(--s3)', textAlign: 'right' }}
-            type="number" placeholder="Bedrag" value={form.value} onChange={e => setForm({ ...form, value: e.target.value })} />
+            type="number" placeholder="Bedrag" value={form.value} onChange={e => setForm({ ...form, value: e.target.value })}
+            onKeyDown={e => { if (e.key === 'Enter') addItem(); else if (e.key === 'Escape') setOpen(false) }} />
           <select style={{ ...selectBase, background: 'var(--s3)', fontSize: 12 }}
             value={form.split} onChange={e => setForm({ ...form, split: e.target.value })}>
             <option value="ratio">Naar rato</option>
@@ -136,14 +138,16 @@ export default function Gezamenlijk() {
                   const v = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0))
                   const p2 = v + parseFloat(form.p2) > 100 ? String(100 - v) : form.p2
                   setForm({ ...form, p1: String(v), p2 })
-                }} />
+                }}
+                onKeyDown={e => { if (e.key === 'Enter') addItem(); else if (e.key === 'Escape') setOpen(false) }} />
               <input type="number" min={0} max={100} style={{ ...pctInput, background: 'var(--s3)' }}
                 placeholder={n2} value={form.p2}
                 onChange={e => {
                   const v = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0))
                   const p1 = v + parseFloat(form.p1) > 100 ? String(100 - v) : form.p1
                   setForm({ ...form, p2: String(v), p1 })
-                }} />
+                }}
+                onKeyDown={e => { if (e.key === 'Enter') addItem(); else if (e.key === 'Escape') setOpen(false) }} />
             </>
           )}
           <button onClick={addItem} style={{ fontFamily: 'var(--font-body)', fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 5, cursor: 'pointer', border: 'none', background: 'var(--accent)', color: 'var(--accent-fg)' }}>Toevoegen</button>

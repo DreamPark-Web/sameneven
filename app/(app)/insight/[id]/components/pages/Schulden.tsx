@@ -67,7 +67,8 @@ export default function Schulden() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
               <div style={{ gridColumn: '1 / -1' }}>
                 <div style={eyebrow}>Naam</div>
-                <input autoFocus style={{ ...inp, textAlign: 'left' }} placeholder="Naam schuld" value={form.naam} onChange={e => setForm({ ...form, naam: e.target.value })} />
+                <input autoFocus style={{ ...inp, textAlign: 'left' }} placeholder="Naam schuld" value={form.naam} onChange={e => setForm({ ...form, naam: e.target.value })}
+                  onKeyDown={e => { if (e.key === 'Enter') addSchuld(); else if (e.key === 'Escape') setShowAdd(false) }} />
               </div>
               <div>
                 <div style={eyebrow}>Type</div>
@@ -85,23 +86,28 @@ export default function Schulden() {
               </div>
               <div>
                 <div style={eyebrow}>Huidige schuld</div>
-                <input style={inp} type="number" placeholder="€" value={form.balance} onChange={e => setForm({ ...form, balance: e.target.value })} />
+                <input style={inp} type="number" placeholder="€" value={form.balance} onChange={e => setForm({ ...form, balance: e.target.value })}
+                  onKeyDown={e => { if (e.key === 'Enter') addSchuld(); else if (e.key === 'Escape') setShowAdd(false) }} />
               </div>
               <div>
                 <div style={eyebrow}>Maand. aflossing</div>
-                <input style={inp} type="number" placeholder="€" value={form.payment} onChange={e => setForm({ ...form, payment: e.target.value })} />
+                <input style={inp} type="number" placeholder="€" value={form.payment} onChange={e => setForm({ ...form, payment: e.target.value })}
+                  onKeyDown={e => { if (e.key === 'Enter') addSchuld(); else if (e.key === 'Escape') setShowAdd(false) }} />
               </div>
               <div>
                 <div style={eyebrow}>Jaarrente (%)</div>
-                <input style={inp} type="number" step="0.01" placeholder="%" value={form.rate} onChange={e => setForm({ ...form, rate: e.target.value })} />
+                <input style={inp} type="number" step="0.01" placeholder="%" value={form.rate} onChange={e => setForm({ ...form, rate: e.target.value })}
+                  onKeyDown={e => { if (e.key === 'Enter') addSchuld(); else if (e.key === 'Escape') setShowAdd(false) }} />
               </div>
               <div>
                 <div style={eyebrow}>Rentevaste periode (jr)</div>
-                <input style={inp} type="number" step="1" value={form.fixedYears} onChange={e => setForm({ ...form, fixedYears: e.target.value })} />
+                <input style={inp} type="number" step="1" value={form.fixedYears} onChange={e => setForm({ ...form, fixedYears: e.target.value })}
+                  onKeyDown={e => { if (e.key === 'Enter') addSchuld(); else if (e.key === 'Escape') setShowAdd(false) }} />
               </div>
               <div>
                 <div style={eyebrow}>Startdatum rente</div>
-                <input style={{ ...inp, textAlign: 'left', fontSize: 11 }} type="date" value={form.fixedStart} onChange={e => setForm({ ...form, fixedStart: e.target.value })} />
+                <input style={{ ...inp, textAlign: 'left', fontSize: 11 }} type="date" value={form.fixedStart} onChange={e => setForm({ ...form, fixedStart: e.target.value })}
+                  onKeyDown={e => { if (e.key === 'Enter') addSchuld(); else if (e.key === 'Escape') setShowAdd(false) }} />
               </div>
             </div>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>

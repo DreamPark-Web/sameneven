@@ -191,11 +191,14 @@ export default function Abonnementen() {
           <div style={{ background: 'var(--s1)', borderRadius: 8, padding: '16px 18px' }}>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                 <input autoFocus style={{ flex: 2, minWidth: 120, background: 'var(--s3)', border: '1px solid var(--input-border)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'left' }}
-                  placeholder="Naam" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
+                  placeholder="Naam" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}
+                  onKeyDown={e => { if (e.key === 'Enter') addSub(); else if (e.key === 'Escape') setOpenForm(false) }} />
                 <input style={{ width: 160, background: 'var(--s3)', border: '1px solid var(--input-border)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'left' }}
-                  type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} />
+                  type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })}
+                  onKeyDown={e => { if (e.key === 'Enter') addSub(); else if (e.key === 'Escape') setOpenForm(false) }} />
                 <input style={{ width: 100, background: 'var(--s3)', border: '1px solid var(--input-border)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'right' }}
-                  type="number" step="0.01" placeholder="Bedrag" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} />
+                  type="number" step="0.01" placeholder="Bedrag" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })}
+                  onKeyDown={e => { if (e.key === 'Enter') addSub(); else if (e.key === 'Escape') setOpenForm(false) }} />
                 <select style={{ background: 'var(--s3)', border: '1px solid var(--input-border)', borderRadius: 5, color: 'var(--text)', padding: '6px 8px', fontSize: 12, fontFamily: 'var(--font-body)', cursor: 'pointer' }}
                   value={form.freq} onChange={e => setForm({ ...form, freq: e.target.value })}>
                   <option value="maandelijks">Per maand</option>

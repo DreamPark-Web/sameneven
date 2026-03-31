@@ -42,6 +42,18 @@ function SavList({ items, can, openSav, setOpenSav, savForm, setSavForm, onAdd, 
     setEditingId(null)
   }
 
+  function submitForm() {
+    if (!savForm.label.trim() || !savForm.value) return
+    onAdd(savForm.label.trim(), parseFloat(savForm.value))
+    setSavForm({ label: '', value: '' })
+    setOpenSav(null)
+  }
+
+  function cancelForm() {
+    setSavForm({ label: '', value: '' })
+    setOpenSav(null)
+  }
+
   function handleDrop(toIdx: number) {
     if (dragging === null || dragging === toIdx) return
     const next = [...items]
@@ -98,12 +110,14 @@ function SavList({ items, can, openSav, setOpenSav, savForm, setSavForm, onAdd, 
         openSav === listKey && (
           <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
             <input autoFocus style={{ flex: 1, background: 'var(--s3)', border: '1px solid var(--input-border)', borderRadius: 5, color: 'var(--text)', padding: '5px 7px', fontSize: 12, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'left' }}
-              placeholder="Omschrijving" value={savForm.label} onChange={e => setSavForm({ ...savForm, label: e.target.value })} />
+              placeholder="Omschrijving" value={savForm.label} onChange={e => setSavForm({ ...savForm, label: e.target.value })}
+              onKeyDown={e => { if (e.key === 'Enter') submitForm(); else if (e.key === 'Escape') cancelForm() }} />
             <input style={{ width: 80, background: 'var(--s3)', border: '1px solid var(--input-border)', borderRadius: 5, color: 'var(--text)', padding: '5px 7px', fontSize: 12, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'right' }}
-              type="number" placeholder="€" value={savForm.value} onChange={e => setSavForm({ ...savForm, value: e.target.value })} />
-            <button onClick={() => { if (!savForm.label.trim() || !savForm.value) return; onAdd(savForm.label.trim(), parseFloat(savForm.value)); setSavForm({ label: '', value: '' }); setOpenSav(null) }}
+              type="number" placeholder="€" value={savForm.value} onChange={e => setSavForm({ ...savForm, value: e.target.value })}
+              onKeyDown={e => { if (e.key === 'Enter') submitForm(); else if (e.key === 'Escape') cancelForm() }} />
+            <button onClick={submitForm}
               style={{ fontFamily: 'var(--font-body)', fontSize: 10, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '4px 8px', borderRadius: 5, cursor: 'pointer', border: 'none', background: 'var(--accent)', color: 'var(--accent-fg)' }}>OK</button>
-            <button onClick={() => { setSavForm({ label: '', value: '' }); setOpenSav(null) }}
+            <button onClick={cancelForm}
               style={{ width: 26, height: 26, background: 'rgba(200,60,60,.1)', color: 'var(--danger)', border: '1px solid rgba(200,60,60,.2)', borderRadius: 4, cursor: 'pointer', fontSize: 14, fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>×</button>
           </div>
         )
@@ -321,11 +335,14 @@ export default function Sparen() {
             <div style={{ background: 'var(--s1)', borderRadius: 8, padding: '16px 18px' }}>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                 <input style={{ flex: 2, minWidth: 120, background: 'var(--s3)', border: '1px solid var(--input-border)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'left' }}
-                  placeholder="Naam spaarpot" value={potForm.label} onChange={e => setPotForm({ ...potForm, label: e.target.value })} />
+                  placeholder="Naam spaarpot" value={potForm.label} onChange={e => setPotForm({ ...potForm, label: e.target.value })}
+                  onKeyDown={e => { if (e.key === 'Enter') addPot(); else if (e.key === 'Escape') { setPotForm({ label: '', current: '', goal: '', owner: 'gezamenlijk' }); setOpenPotForm(false) } }} />
                 <input style={{ width: 100, background: 'var(--s3)', border: '1px solid var(--input-border)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'right' }}
-                  type="number" placeholder="Huidig €" value={potForm.current} onChange={e => setPotForm({ ...potForm, current: e.target.value })} />
+                  type="number" placeholder="Huidig €" value={potForm.current} onChange={e => setPotForm({ ...potForm, current: e.target.value })}
+                  onKeyDown={e => { if (e.key === 'Enter') addPot(); else if (e.key === 'Escape') { setPotForm({ label: '', current: '', goal: '', owner: 'gezamenlijk' }); setOpenPotForm(false) } }} />
                 <input style={{ width: 100, background: 'var(--s3)', border: '1px solid var(--input-border)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'right' }}
-                  type="number" placeholder="Doel €" value={potForm.goal} onChange={e => setPotForm({ ...potForm, goal: e.target.value })} />
+                  type="number" placeholder="Doel €" value={potForm.goal} onChange={e => setPotForm({ ...potForm, goal: e.target.value })}
+                  onKeyDown={e => { if (e.key === 'Enter') addPot(); else if (e.key === 'Escape') { setPotForm({ label: '', current: '', goal: '', owner: 'gezamenlijk' }); setOpenPotForm(false) } }} />
                 {!isSingleUser && (
                   <select style={{ background: 'var(--s3)', border: '1px solid var(--input-border)', borderRadius: 5, color: 'var(--text)', padding: '6px 8px', fontSize: 12, fontFamily: 'var(--font-body)', cursor: 'pointer' }}
                     value={potForm.owner} onChange={e => setPotForm({ ...potForm, owner: e.target.value })}>
