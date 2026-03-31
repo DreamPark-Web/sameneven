@@ -203,7 +203,7 @@ export default function PickerPage() {
     router.push('/login')
   }
 
-  function openInsight(hh: any) {
+  function openInsight(hh: { id: string }) {
     applyThemeVars(BRAND_THEME)
     router.push(`/insight/${hh.id}`)
   }

@@ -70,34 +70,31 @@ export function useInsight() {
   return ctx
 }
 
-function migrateData(d: any): any {
+type LegacyData = Record<string, unknown>
+
+function migrateData(d: LegacyData): LegacyData {
   if (!d) return d
   d = { ...d }
-  // Rename jerry/daphne to user1/user2
   if (d.jerry !== undefined && d.user1 === undefined) { d.user1 = d.jerry; delete d.jerry }
   if (d.daphne !== undefined && d.user2 === undefined) { d.user2 = d.daphne; delete d.daphne }
-  // Rename subscriptions to abonnementen
   if (d.subscriptions !== undefined && d.abonnementen === undefined) {
     d.abonnementen = d.subscriptions
     delete d.subscriptions
   }
-  // Fix person field in abonnementen
   if (d.abonnementen) {
-    d.abonnementen = d.abonnementen.map((s: any) => ({
+    d.abonnementen = (d.abonnementen as LegacyData[]).map((s) => ({
       ...s,
       person: s.person === 'jerry' ? 'user1' : s.person === 'daphne' ? 'user2' : s.person
     }))
   }
-  // Fix wie in schulden
   if (d.schulden) {
-    d.schulden = d.schulden.map((s: any) => ({
+    d.schulden = (d.schulden as LegacyData[]).map((s) => ({
       ...s,
       wie: s.wie === 'jerry' ? 'user1' : s.wie === 'daphne' ? 'user2' : s.wie
     }))
   }
-  // Fix split in shared
   if (d.shared) {
-    d.shared = d.shared.map((s: any) => ({
+    d.shared = (d.shared as LegacyData[]).map((s) => ({
       ...s,
       split: s.split === 'jerry' ? 'user1' : s.split === 'daphne' ? 'user2' : s.split
     }))
