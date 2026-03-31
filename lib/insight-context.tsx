@@ -12,6 +12,13 @@ export type Member = {
   avatar_url?: string
 }
 
+export type Household = {
+  id: string
+  name: string
+  invite_code: string
+  created_by: string
+}
+
 export type InsightData = {
   names: { user1: string; user2: string }
   theme: string
@@ -40,8 +47,8 @@ const DEFAULTS: InsightData = {
 type InsightContextType = {
   data: InsightData
   members: Member[]
-  household: any
-  currentUser: any
+  household: Household | null
+  currentUser: { id: string; email?: string; user_metadata?: Record<string, string> } | null
   mySlot: string | null
   myRole: string | null
   isOwner: boolean
@@ -138,12 +145,12 @@ function applyThemeVars(color: string) {
 export function InsightProvider({ children, householdId }: { children: React.ReactNode; householdId: string }) {
   const [data, setData] = useState<InsightData>(DEFAULTS)
   const [members, setMembers] = useState<Member[]>([])
-  const [household, setHousehold] = useState<any>(null)
-  const [currentUser, setCurrentUser] = useState<any>(null)
+  const [household, setHousehold] = useState<Household | null>(null)
+  const [currentUser, setCurrentUser] = useState<{ id: string; email?: string; user_metadata?: Record<string, string> } | null>(null)
   const [mySlot, setMySlot] = useState<string | null>(null)
   const [myRole, setMyRole] = useState<string | null>(null)
   const [syncState, setSyncState] = useState<'ok' | 'saving' | 'error' | 'live'>('ok')
-  const [saveTimeout, setSaveTimeoutRef] = useState<any>(null)
+  const [saveTimeout, setSaveTimeoutRef] = useState<ReturnType<typeof setTimeout> | null>(null)
   const [ready, setReady] = useState(false)
   const supabase = createClient()
 
@@ -162,13 +169,15 @@ export function InsightProvider({ children, householdId }: { children: React.Rea
       .eq('household_id', householdId)
       .order('joined_at', { ascending: true })
     if (!mData) return
-    const ids = mData.map((m: any) => m.user_id)
+    type MemberRow = { user_id: string; household_id: string; role: string; slot: string | null; joined_at: string }
+    type ProfileRow = { id: string; display_name: string | null; avatar_url: string | null }
+    const ids = (mData as MemberRow[]).map((m) => m.user_id)
     const { data: profiles } = await supabase
       .from('profiles')
       .select('id, display_name, avatar_url')
       .in('id', ids)
-    const merged = mData.map((m: any) => {
-      const profile = profiles?.find((p: any) => p.id === m.user_id)
+    const merged = (mData as MemberRow[]).map((m) => {
+      const profile = (profiles as ProfileRow[] | null)?.find((p) => p.id === m.user_id)
       return { ...m, display_name: profile?.display_name, avatar_url: profile?.avatar_url }
     })
     setMembers(merged)
@@ -227,7 +236,7 @@ export function InsightProvider({ children, householdId }: { children: React.Rea
           event: 'UPDATE', schema: 'public',
           table: 'household_data',
           filter: `household_id=eq.${householdId}`
-        }, async (payload: any) => {
+        }, async (payload: { new: { updated_by: string; data: unknown } }) => {
           if (payload.new?.updated_by === user.id) return
           setData({ ...DEFAULTS, ...migrateData(payload.new.data) })
           setSyncState('live')
@@ -306,7 +315,7 @@ export function InsightProvider({ children, householdId }: { children: React.Rea
   }, [myRole, mySlot])
 
   const updateHouseholdName = useCallback((name: string) => {
-    setHousehold((prev: any) => prev ? { ...prev, name } : prev)
+    setHousehold((prev) => prev ? { ...prev, name } : prev)
   }, [])
 
   const updateMyProfile = useCallback((displayName: string, avatarUrl?: string) => {

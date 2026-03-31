@@ -24,7 +24,10 @@ function daysUntil(dateStr: string) {
   return Math.ceil((next.getTime() - today.getTime()) / 86400000)
 }
 
-function subMonthly(s: any) {
+type Sub = { id: string; name: string; date: string; amount: number; freq: string; person: string }
+type SharedItem = { id: string; label: string; value: number; split: string; p1?: number; p2?: number }
+
+function subMonthly(s: Sub) {
   return s.freq === 'jaarlijks' ? s.amount / 12 : s.amount
 }
 
@@ -71,7 +74,7 @@ export default function Dashboard() {
   const jRatio = totalIncome ? jI / totalIncome : 0.5
   const dRatio = 1 - jRatio
 
-  const jSh = (data.shared || []).reduce((a: number, c: any) => {
+  const jSh = (data.shared as SharedItem[] || []).reduce((a: number, c) => {
     const v = c.value || 0
     if (c.split === '5050') return a + v / 2
     if (c.split === 'user1') return a + v
@@ -79,7 +82,7 @@ export default function Dashboard() {
     return a + v * jRatio
   }, 0)
 
-  const dSh = (data.shared || []).reduce((a: number, c: any) => {
+  const dSh = (data.shared as SharedItem[] || []).reduce((a: number, c) => {
     const v = c.value || 0
     if (c.split === '5050') return a + v / 2
     if (c.split === 'user1') return a
@@ -139,10 +142,10 @@ export default function Dashboard() {
         )`
       : 'var(--s3)'
 
-  const upcoming = (data.abonnementen || [])
-    .map((s: any) => ({ ...s, days: daysUntil(s.date) }))
-    .filter((s: any) => s.days !== null && s.days >= -3 && s.days <= 60)
-    .sort((a: any, b: any) => a.days - b.days)
+  const upcoming = (data.abonnementen as Sub[] || [])
+    .map((s) => ({ ...s, days: daysUntil(s.date) }))
+    .filter((s) => s.days !== null && s.days >= -3 && s.days <= 60)
+    .sort((a, b) => (a.days ?? 0) - (b.days ?? 0))
 
   function renderPerc(inc: number, sh: number, pr: number, sv: number) {
     const l = inc ? (sh + pr) / inc : 0
@@ -360,7 +363,7 @@ export default function Dashboard() {
               Geen vervaldagen de komende 60 dagen.
             </div>
           ) : (
-            upcoming.map((s: any) => {
+            upcoming.map((s) => {
               const bcStyle =
                 s.days <= 0
                   ? { background: 'rgba(224,80,80,.12)', color: 'var(--danger)' }

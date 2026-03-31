@@ -3,6 +3,10 @@
 import { useInsight } from '@/lib/insight-context'
 import { fmtK, sum } from '@/lib/format'
 
+type SharedItem = { id: string; label: string; value: number; split: string }
+type Pot = { id: string; label: string; current: number; goal: number; owner: string }
+type Schuld = { id: string; naam: string; type: string; wie: string; balance: number; payment: number; rate: number; fixedYears: number; fixedStart: string }
+
 function calcMonths(bal: number, pay: number, rate: number) {
   if (!bal || !pay || pay <= 0) return null
   const r = rate / 100 / 12
@@ -22,14 +26,14 @@ export default function Advies() {
   const jRatio = totalIncome ? jI / totalIncome : 0.5
   const dRatio = 1 - jRatio
 
-  const shared = data.shared || []
-  const jSh = shared.reduce((a: number, c: any) => {
+  const shared = (data.shared as SharedItem[]) || []
+  const jSh = shared.reduce((a: number, c) => {
     if (c.split === '5050') return a + c.value / 2
     if (c.split === 'user1') return a + c.value
     if (c.split === 'user2') return a
     return a + c.value * jRatio
   }, 0)
-  const dSh = shared.reduce((a: number, c: any) => {
+  const dSh = shared.reduce((a: number, c) => {
     if (c.split === '5050') return a + c.value / 2
     if (c.split === 'user1') return a
     if (c.split === 'user2') return a + c.value
@@ -48,11 +52,11 @@ export default function Advies() {
   const dR = dI - dTr - dPr - dSprivate
   const total = jR + dR
 
-  const buffer = data.spaarpotjes?.find((x: any) => x.id === 'sp1')
-  const kindPot = data.spaarpotjes?.find((x: any) => x.id === 'sp2')
-  const hyp = data.schulden?.find((x: any) => x.type === 'hypotheek')
-  const duoJ = data.schulden?.find((x: any) => x.type === 'studieschuld' && x.wie === 'user1')
-  const duoD = data.schulden?.find((x: any) => x.type === 'studieschuld' && x.wie === 'user2')
+  const buffer = (data.spaarpotjes as Pot[])?.find((x) => x.id === 'sp1')
+  const kindPot = (data.spaarpotjes as Pot[])?.find((x) => x.id === 'sp2')
+  const hyp = (data.schulden as Schuld[])?.find((x) => x.type === 'hypotheek')
+  const duoJ = (data.schulden as Schuld[])?.find((x) => x.type === 'studieschuld' && x.wie === 'user1')
+  const duoD = (data.schulden as Schuld[])?.find((x) => x.type === 'studieschuld' && x.wie === 'user2')
 
   type CardType = 'ok' | 'ng' | 'tip' | 'info'
   function card(t: CardType, title: string, body: string) {

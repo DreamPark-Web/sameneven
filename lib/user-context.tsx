@@ -9,7 +9,7 @@ export type UserProfile = {
 }
 
 type UserContextType = {
-  currentUser: any
+  currentUser: { id: string; email?: string; user_metadata?: Record<string, string> } | null
   profile: UserProfile | null
   userLoading: boolean
   updateProfile: (displayName: string, avatarUrl?: string) => void
@@ -25,7 +25,7 @@ export function useUser() {
 }
 
 export function UserProvider({ children }: { children: React.ReactNode }) {
-  const [currentUser, setCurrentUser] = useState<any>(null)
+  const [currentUser, setCurrentUser] = useState<{ id: string; email?: string; user_metadata?: Record<string, string> } | null>(null)
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [userLoading, setUserLoading] = useState(true)
   const supabase = createClient()
@@ -73,7 +73,9 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
     if (!memberships?.length) return
 
-    const householdIds = memberships.map((m: any) => m.household_id)
+    type MembershipRow = { household_id: string; slot: string }
+    type HouseholdDataRow = { household_id: string; data: { names?: Record<string, string> } }
+    const householdIds = (memberships as MembershipRow[]).map((m) => m.household_id)
 
     const { data: rows } = await supabase
       .from('household_data')
@@ -82,9 +84,9 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
     if (!rows?.length) return
 
-    const updates = rows
-      .map((row: any) => {
-        const membership = memberships.find((m: any) => m.household_id === row.household_id)
+    const updates = (rows as HouseholdDataRow[])
+      .map((row) => {
+        const membership = (memberships as MembershipRow[]).find((m) => m.household_id === row.household_id)
         if (!membership) return null
         const d = row.data || {}
         return {

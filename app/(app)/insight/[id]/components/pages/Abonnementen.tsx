@@ -124,7 +124,7 @@ export default function Abonnementen() {
   const n2 = data.names?.user2 || 'Gebruiker 2'
   const editable = canEdit('user1') || canEdit('user2')
 
-  const subs: Sub[] = data.abonnementen || (data as any).subscriptions || []
+  const subs: Sub[] = data.abonnementen || []
 
   const [form, setForm] = useState({ name: '', date: '', amount: '', freq: 'maandelijks', person: isSingleUser ? 'user1' : 'gezamenlijk' })
   const [openForm, setOpenForm] = useState(false)

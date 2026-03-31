@@ -71,13 +71,13 @@ export default function Schulden() {
               </div>
               <div>
                 <div style={eyebrow}>Type</div>
-                <select style={{ ...inp, textAlign: 'left', cursor: 'pointer' } as any} value={form.type} onChange={e => setForm({ ...form, type: e.target.value })}>
+                <select style={{ ...inp, textAlign: 'left', cursor: 'pointer' } as React.CSSProperties} value={form.type} onChange={e => setForm({ ...form, type: e.target.value })}>
                   {STYPES.map(t => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
                 </select>
               </div>
               <div>
                 <div style={eyebrow}>Van wie</div>
-                <select style={{ ...inp, textAlign: 'left', cursor: 'pointer' } as any} value={form.wie} onChange={e => setForm({ ...form, wie: e.target.value })}>
+                <select style={{ ...inp, textAlign: 'left', cursor: 'pointer' } as React.CSSProperties} value={form.wie} onChange={e => setForm({ ...form, wie: e.target.value })}>
                   <option value="user1">{n1}</option>
                   <option value="user2">{n2}</option>
                   <option value="samen">Samen</option>
