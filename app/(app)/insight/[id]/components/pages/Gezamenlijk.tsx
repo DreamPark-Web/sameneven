@@ -22,6 +22,7 @@ export default function Gezamenlijk() {
   const [form, setForm] = useState({ label: '', value: '', split: 'ratio', p1: '50', p2: '50' })
   const [dragging, setDragging] = useState<number | null>(null)
   const [dragOver, setDragOver] = useState<number | null>(null)
+  const [focusedLabelId, setFocusedLabelId] = useState<string | null>(null)
 
   const n1 = data.names?.user1 || 'Gebruiker 1'
   const n2 = data.names?.user2 || 'Gebruiker 2'
@@ -189,8 +190,12 @@ export default function Gezamenlijk() {
                   )}
                   <td style={{ padding: '7px 8px', fontSize: 13, verticalAlign: 'middle', borderBottom: '1px solid rgba(255,255,255,.04)' }}>
                     {editable ? (
-                      <input defaultValue={item.label} onBlur={e => editItem(item.id, 'label', e.target.value)}
-                        style={{ background: 'transparent', border: 'none', color: 'var(--text)', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', width: '100%', cursor: 'text' }}
+                      <input defaultValue={item.label}
+                        onFocus={() => setFocusedLabelId(item.id)}
+                        onBlur={e => { setFocusedLabelId(null); editItem(item.id, 'label', e.target.value) }}
+                        style={focusedLabelId === item.id
+                          ? { background: 'var(--s3)', border: '1px solid var(--accent)', borderRadius: 5, color: 'var(--text)', padding: '3px 7px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', width: '100%', cursor: 'text' }
+                          : { background: 'transparent', border: 'none', color: 'var(--text)', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', width: '100%', cursor: 'text' }}
                       />
                     ) : item.label}
                   </td>
