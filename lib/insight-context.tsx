@@ -264,7 +264,6 @@ export function InsightProvider({ children, householdId }: { children: React.Rea
 
   useEffect(() => {
     if (!ready) return
-    console.log('[6] members-effect: members veranderd, slots/namen:', members.map(m => ({ slot: m.slot, name: m.display_name })))
     setData(prev => {
       const names = { ...prev.names }
       let changed = false
@@ -277,14 +276,12 @@ export function InsightProvider({ children, householdId }: { children: React.Rea
           }
         }
       }
-      console.log('[7] members-effect setData: changed=', changed, '→ names:', names)
       return changed ? { ...prev, names } : prev
     })
   }, [members, ready])
 
   const saveData = useCallback((newData: InsightData) => {
     const updated = { ...newData, lastUpdated: new Date().toISOString() }
-    console.log('[8] saveData: setData met names:', updated.names)
     setData(updated)
     setSyncState('saving')
     if (saveTimeout) clearTimeout(saveTimeout)
