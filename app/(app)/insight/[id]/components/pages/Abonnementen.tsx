@@ -162,7 +162,7 @@ export default function Abonnementen() {
             <div key={g.key} style={panel}>
               <div style={{ marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <span style={{ fontSize: 18, fontWeight: 700, color: g.key === 'gezamenlijk' ? '#F5F5F5' : 'var(--accent)', fontFamily: 'var(--font-heading)', display: 'block' }}>{g.title}</span>
+                  <span style={{ fontSize: 18, fontWeight: 700, color: g.key === 'gezamenlijk' ? 'var(--text)' : 'var(--accent)', fontFamily: 'var(--font-heading)', display: 'block' }}>{g.title}</span>
                   <span style={{ ...eyebrow }}>Abonnementen</span>
                 </div>
                 {editable && !openForm && (

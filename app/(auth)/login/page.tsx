@@ -330,9 +330,9 @@ export default function LoginPage() {
             style={{
               width: '100%',
               background: 'var(--s1)',
-              border: `1px solid rgba(232,196,154,${isGoogleHovered ? '0.65' : '0.4'})`,
+              border: `1px solid rgba(var(--accent-rgb),${isGoogleHovered ? '0.65' : '0.4'})`,
               borderRadius: 10,
-              color: '#F5F5F5',
+              color: 'var(--text)',
               padding: '13px 16px',
               fontSize: 14,
               fontFamily: 'var(--font-body)',
@@ -359,14 +359,14 @@ export default function LoginPage() {
 
           {/* Divider */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '16px 0' }}>
-            <div style={{ flex: 1, height: 1, background: 'rgba(232,196,154,0.12)' }} />
+            <div style={{ flex: 1, height: 1, background: 'rgba(var(--accent-rgb),0.12)' }} />
             <span style={{ fontSize: 11, color: 'rgba(245,245,245,0.3)', fontFamily: 'var(--font-body)' }}>of</span>
-            <div style={{ flex: 1, height: 1, background: 'rgba(232,196,154,0.12)' }} />
+            <div style={{ flex: 1, height: 1, background: 'rgba(var(--accent-rgb),0.12)' }} />
           </div>
 
           {/* Magic link */}
           {magicSent ? (
-            <div style={{ background: 'rgba(232,196,154,0.08)', border: '1px solid rgba(232,196,154,0.25)', borderRadius: 10, padding: '14px 16px', fontSize: 13, color: '#E8C49A', fontFamily: 'var(--font-body)', lineHeight: 1.5, marginBottom: 24 }}>
+            <div style={{ background: 'rgba(var(--accent-rgb),0.08)', border: '1px solid rgba(var(--accent-rgb),0.25)', borderRadius: 10, padding: '14px 16px', fontSize: 13, color: 'var(--accent)', fontFamily: 'var(--font-body)', lineHeight: 1.5, marginBottom: 24 }}>
               Check je inbox! We hebben een inloglink gestuurd naar <strong>{magicEmail}</strong>.
             </div>
           ) : (
@@ -381,9 +381,9 @@ export default function LoginPage() {
                 style={{
                   width: '100%',
                   background: 'var(--s2)',
-                  border: '1px solid rgba(232,196,154,0.2)',
+                  border: '1px solid rgba(var(--accent-rgb),0.2)',
                   borderRadius: 10,
-                  color: '#F5F5F5',
+                  color: 'var(--text)',
                   padding: '13px 16px',
                   fontSize: 14,
                   fontFamily: 'var(--font-body)',
@@ -401,10 +401,10 @@ export default function LoginPage() {
                 type="button"
                 style={{
                   width: '100%',
-                  background: 'rgba(232,196,154,0.08)',
-                  border: '1px solid rgba(232,196,154,0.4)',
+                  background: 'rgba(var(--accent-rgb),0.08)',
+                  border: '1px solid rgba(var(--accent-rgb),0.4)',
                   borderRadius: 10,
-                  color: '#E8C49A',
+                  color: 'var(--accent)',
                   padding: '13px 16px',
                   fontSize: 14,
                   fontFamily: 'var(--font-body)',

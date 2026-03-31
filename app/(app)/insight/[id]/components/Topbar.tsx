@@ -943,7 +943,7 @@ export default function Topbar({
       <header
         style={{
           background: 'var(--s1)',
-          boxShadow: '0 1px 0 0 rgba(232,196,154,0.35)',
+          boxShadow: '0 1px 0 0 rgba(var(--accent-rgb),0.35)',
           height: 56,
           display: 'flex',
           alignItems: 'center',
@@ -1468,7 +1468,7 @@ export default function Topbar({
                     setThemeFromHex('#E8C49A')
                     setRgbInput({ r: '232', g: '196', b: '154' })
                   }}
-                  style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '4px 10px', borderRadius: 5, cursor: 'pointer', border: '1px solid rgba(232,196,154,0.3)', background: 'rgba(232,196,154,0.06)', color: '#E8C49A', fontFamily: 'var(--font-body)' }}
+                  style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '4px 10px', borderRadius: 5, cursor: 'pointer', border: '1px solid rgba(var(--accent-rgb),0.3)', background: 'rgba(var(--accent-rgb),0.06)', color: 'var(--accent)', fontFamily: 'var(--font-body)' }}
                 >
                   Standaard
                 </button>
