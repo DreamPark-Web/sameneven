@@ -192,12 +192,12 @@ export default function Dashboard() {
 
           <div style={{ display: 'grid', gridTemplateColumns: isSingleUser ? 'repeat(3, 1fr)' : 'repeat(6, 1fr)', gap: 12, alignItems: 'stretch' }}>
             {[
-              { label: `Inkomen ${n1}`, val: fmtK(jI), cls: 'ac', color: 'var(--ok)', border: 'var(--ok)', sub: 'per maand' },
-              ...(!isSingleUser ? [{ label: `Inkomen ${n2}`, val: fmtK(dI), cls: 'ac', color: 'var(--ok)', border: 'var(--ok)', sub: 'per maand' }] : []),
-              { label: `Lasten ${n1}`, val: fmtK(jSh + jPr), cls: 'ng', color: 'var(--danger)', border: 'var(--danger)', sub: 'gezamenlijk + prive' },
-              ...(!isSingleUser ? [{ label: `Lasten ${n2}`, val: fmtK(dSh + dPr), cls: 'ng', color: 'var(--danger)', border: 'var(--danger)', sub: 'gezamenlijk + prive' }] : []),
-              { label: `Restant ${n1}`, val: fmtK(jR), cls: jR >= 0 ? 'ok' : 'ng', color: 'var(--accent)', border: 'var(--accent)', sub: 'na lasten & sparen' },
-              ...(!isSingleUser ? [{ label: `Restant ${n2}`, val: fmtK(dR), cls: dR >= 0 ? 'ok' : 'ng', color: 'var(--accent)', border: 'var(--accent)', sub: 'na lasten & sparen' }] : []),
+              { label: `Inkomen ${n1}`, val: fmtK(jI), color: 'var(--ok)', border: 'var(--ok)', sub: 'per maand' },
+              ...(!isSingleUser ? [{ label: `Inkomen ${n2}`, val: fmtK(dI), color: 'var(--ok)', border: 'var(--ok)', sub: 'per maand' }] : []),
+              { label: `Lasten ${n1}`, val: fmtK(jSh + jPr), color: 'var(--danger)', border: 'var(--danger)', sub: 'gezamenlijk + prive' },
+              ...(!isSingleUser ? [{ label: `Lasten ${n2}`, val: fmtK(dSh + dPr), color: 'var(--danger)', border: 'var(--danger)', sub: 'gezamenlijk + prive' }] : []),
+              { label: `Restant ${n1}`, val: fmtK(jR), color: 'var(--accent)', border: 'var(--accent)', sub: 'na lasten & sparen' },
+              ...(!isSingleUser ? [{ label: `Restant ${n2}`, val: fmtK(dR), color: 'var(--accent)', border: 'var(--accent)', sub: 'na lasten & sparen' }] : []),
             ].map((s, i) => (
               <div
                 key={i}

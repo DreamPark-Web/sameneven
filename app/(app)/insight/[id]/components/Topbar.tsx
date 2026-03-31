@@ -462,7 +462,6 @@ export default function Topbar({
   const hueRef = useRef<HTMLDivElement | null>(null)
 
   const myMember = members.find((m: any) => m.user_id === currentUser?.id)
-  const mySlot = myMember?.slot
   const displayName =
     myMember?.display_name || currentUser?.user_metadata?.full_name || 'Gebruiker'
   const avatarUrl = myMember?.avatar_url || currentUser?.user_metadata?.avatar_url
