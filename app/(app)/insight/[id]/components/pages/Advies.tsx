@@ -1,8 +1,8 @@
 'use client'
 
 import { useInsight } from '@/lib/insight-context'
+import { fmtK, sum } from '@/lib/format'
 
-function fmtK(n: number) { return '€\u00a0' + Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') }
 function calcMonths(bal: number, pay: number, rate: number) {
   if (!bal || !pay || pay <= 0) return null
   const r = rate / 100 / 12
@@ -10,7 +10,6 @@ function calcMonths(bal: number, pay: number, rate: number) {
   if (pay <= bal * r) return Infinity
   return Math.ceil(-Math.log(1 - (r * bal / pay)) / Math.log(1 + r))
 }
-function sum(arr: any[]) { return (arr || []).reduce((a: number, i: any) => a + (i.value || 0), 0) }
 
 export default function Advies() {
   const { data } = useInsight()

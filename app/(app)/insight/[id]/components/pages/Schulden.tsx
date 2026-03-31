@@ -2,10 +2,9 @@
 
 import { useState } from 'react'
 import { useInsight } from '@/lib/insight-context'
+import { fmtK } from '@/lib/format'
 
 type Schuld = { id: string; naam: string; type: string; wie: string; balance: number; payment: number; rate: number; fixedYears: number; fixedStart: string }
-
-function fmtK(n: number) { return '€\u00a0' + Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') }
 
 function calcMonths(bal: number, pay: number, rate: number) {
   if (!bal || !pay || pay <= 0) return null

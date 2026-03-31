@@ -2,10 +2,9 @@
 
 import { useState } from 'react'
 import { useInsight } from '@/lib/insight-context'
+import { fmt, sum } from '@/lib/format'
 
 type CostItem = { id: string; label: string; value: number; split: string; p1?: number; p2?: number }
-function fmt(n: number, d = 2) { return '€\u00a0' + n.toFixed(d).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.') }
-function sum(arr: any[]) { return (arr || []).reduce((a: number, i: any) => a + (i.value || 0), 0) }
 
 function GripIcon() {
   return (

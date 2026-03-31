@@ -2,11 +2,7 @@
 
 import { useInsight } from '@/lib/insight-context'
 import { useEffect, useState } from 'react'
-
-function fmt(n: number, d = 2) {
-  return '€\u00a0' + n.toFixed(d).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.')
-}
-function fmtK(n: number) { return '€\u00a0' + Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') }
+import { fmt, fmtK, sum } from '@/lib/format'
 function Num({ v }: { v: string }) {
   if (v.startsWith('€')) {
     const num = v.replace(/^€[\u00a0 ]*/, '')
@@ -18,10 +14,6 @@ function Num({ v }: { v: string }) {
     )
   }
   return <span style={{ fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums' }}>{v}</span>
-}
-
-function sum(arr: any[]) {
-  return (arr || []).reduce((a: number, i: any) => a + (i.value || 0), 0)
 }
 
 function daysUntil(dateStr: string) {

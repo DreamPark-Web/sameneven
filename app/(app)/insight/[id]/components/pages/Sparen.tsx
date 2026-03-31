@@ -2,12 +2,10 @@
 
 import { useState } from 'react'
 import { useInsight } from '@/lib/insight-context'
+import { fmt, sum } from '@/lib/format'
 
 type SavItem = { id: string; label: string; value: number }
 type Pot = { id: string; label: string; current: number; goal: number; owner: string }
-
-function fmt(n: number, d = 2) { return '€\u00a0' + n.toFixed(d).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.') }
-function sum(arr: SavItem[]) { return (arr || []).reduce((a, i) => a + (i.value || 0), 0) }
 
 function GripIcon() {
   return (

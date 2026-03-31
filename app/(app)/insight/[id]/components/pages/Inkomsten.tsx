@@ -2,11 +2,9 @@
 
 import { useState } from 'react'
 import { useInsight } from '@/lib/insight-context'
+import { fmt, sum } from '@/lib/format'
 
 type Item = { id: string; label: string; value: number }
-
-function fmt(n: number, d = 2) { return '€\u00a0' + n.toFixed(d).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.') }
-function sum(arr: Item[]) { return (arr || []).reduce((a, i) => a + i.value, 0) }
 
 const panel: React.CSSProperties = { background: 'var(--s3)', border: '1px solid var(--card-border)', borderRadius: 8, padding: '22px 26px', marginBottom: 22, display: 'flex', flexDirection: 'column' }
 const panelHd: React.CSSProperties = { marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }
