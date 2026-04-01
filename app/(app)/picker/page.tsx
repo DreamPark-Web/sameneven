@@ -2,6 +2,9 @@
 
 import { useEffect, useRef, useState } from 'react'
 import LoadingScreen from '@/components/LoadingScreen'
+import ImageCropperModal, { CropInfo } from '@/components/ImageCropperModal'
+
+interface CoverData { src: string; x: number; y: number; width: number; height: number; imageWidth: number; imageHeight: number }
 import { createClient } from '@/lib/supabase'
 import { useUser } from '@/lib/user-context'
 import { useRouter } from 'next/navigation'
@@ -64,6 +67,12 @@ export default function PickerPage() {
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [uploadingCoverId, setUploadingCoverId] = useState<string | null>(null)
+  const coverInputRef = useRef<HTMLInputElement>(null)
+  const coverTargetId = useRef<string | null>(null)
+  const coverAspect = useRef(408 / 170)
+  const [cropSrc, setCropSrc] = useState<string | null>(null)
+  const [cropMode, setCropMode] = useState<'cover' | 'avatar' | 'balance' | null>(null)
   const [showCreate, setShowCreate] = useState(false)
   const [createName, setCreateName] = useState('')
   const [isCreating, setIsCreating] = useState(false)
@@ -71,6 +80,19 @@ export default function PickerPage() {
   const [avatarHovered, setAvatarHovered] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const backdropRef = useRef(false)
+  const [balances, setBalances] = useState<any[]>([])
+  const [balancesReady, setBalancesReady] = useState(false)
+  const [showCreateBalance, setShowCreateBalance] = useState(false)
+  const [createBalanceName, setCreateBalanceName] = useState('')
+  const [isCreatingBalance, setIsCreatingBalance] = useState(false)
+  const [menuOpenBalanceId, setMenuOpenBalanceId] = useState<string | null>(null)
+  const [deleteBalanceId, setDeleteBalanceId] = useState<string | null>(null)
+  const [isDeletingBalance, setIsDeletingBalance] = useState(false)
+  const [deleteBalanceError, setDeleteBalanceError] = useState<string | null>(null)
+  const [uploadingBalanceCoverId, setUploadingBalanceCoverId] = useState<string | null>(null)
+  const balanceCoverInputRef = useRef<HTMLInputElement>(null)
+  const balanceCoverTargetId = useRef<string | null>(null)
+  const balanceCoverAspect = useRef(408 / 170)
   const supabase = createClient()
   const router = useRouter()
 
@@ -139,7 +161,17 @@ export default function PickerPage() {
       const baseHouseholds =
         memberships?.map((m: any) => m.households).filter(Boolean) || []
 
-      setHouseholds(baseHouseholds)
+      const ids = baseHouseholds.map((h: any) => h.id)
+      const { data: hhData } = ids.length
+        ? await supabase.from('household_data').select('household_id, data').in('household_id', ids)
+        : { data: [] }
+
+      const coverMap: Record<string, string | CoverData> = {}
+      for (const row of (hhData || [])) {
+        if (row.data?.cover) coverMap[row.household_id] = row.data.cover
+      }
+
+      setHouseholds(baseHouseholds.map((h: any) => ({ ...h, cover_url: coverMap[h.id] || null })))
       setOwnerOf(new Set(memberships?.filter((m: any) => m.role === 'owner').map((m: any) => m.household_id) || []))
       applyThemeVars(BRAND_THEME)
       setHouseholdsReady(true)
@@ -238,36 +270,190 @@ export default function PickerPage() {
     }
   }
 
-  async function saveAvatar(file: File) {
+  function openAvatarCrop(file: File) {
+    const url = URL.createObjectURL(file)
+    setCropSrc(url)
+    setCropMode('avatar')
+  }
+
+  async function saveAvatarBlob(blob: Blob) {
     if (!user?.id) return
     setIsUploadingAvatar(true)
+    closeCropper()
     try {
-      const dataUrl = await new Promise<string>((resolve, reject) => {
-        const img = new Image()
-        const objectUrl = URL.createObjectURL(file)
-        img.onload = () => {
-          URL.revokeObjectURL(objectUrl)
-          const size = 256
-          const canvas = document.createElement('canvas')
-          canvas.width = size
-          canvas.height = size
-          const ctx = canvas.getContext('2d')!
-          const scale = Math.max(size / img.width, size / img.height)
-          const w = img.width * scale
-          const h = img.height * scale
-          ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h)
-          resolve(canvas.toDataURL('image/jpeg', 0.85))
-        }
-        img.onerror = reject
-        img.src = objectUrl
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(reader.result as string)
+        reader.onerror = reject
+        reader.readAsDataURL(blob)
       })
-      await supabase
-        .from('profiles')
-        .upsert({ id: user.id, avatar_url: dataUrl }, { onConflict: 'id' })
-      updateProfile(displayName, dataUrl)
+      await supabase.from('profiles').upsert({ id: user.id, avatar_url: base64 }, { onConflict: 'id' })
+      updateProfile(displayName, base64)
     } finally {
       setIsUploadingAvatar(false)
     }
+  }
+
+  function cardGradient(name: string) {
+    let h1 = 0, h2 = 0
+    for (let i = 0; i < name.length; i++) {
+      h1 = (h1 * 31 + name.charCodeAt(i)) & 0xffffffff
+      h2 = (h2 * 37 + name.charCodeAt(name.length - 1 - i)) & 0xffffffff
+    }
+    const hue1 = Math.abs(h1) % 360
+    const hue2 = (hue1 + 40 + Math.abs(h2) % 80) % 360
+    return `linear-gradient(135deg, hsl(${hue1},35%,16%) 0%, hsl(${hue2},28%,24%) 100%)`
+  }
+
+  function openCoverCrop(id: string, file: File) {
+    coverTargetId.current = id
+    const cardEl = document.querySelector(`[data-card-id="${id}"]`) as HTMLElement | null
+    if (cardEl) coverAspect.current = (cardEl.offsetWidth - 4) / 166
+    const url = URL.createObjectURL(file)
+    setCropSrc(url)
+    setCropMode('cover')
+    setMenuOpenId(null)
+  }
+
+  function closeCropper() {
+    if (cropSrc?.startsWith('blob:')) URL.revokeObjectURL(cropSrc)
+    setCropSrc(null)
+    setCropMode(null)
+  }
+
+  function openCoverEdit(id: string, cover: string | CoverData) {
+    coverTargetId.current = id
+    const cardEl = document.querySelector(`[data-card-id="${id}"]`) as HTMLElement | null
+    if (cardEl) coverAspect.current = (cardEl.offsetWidth - 4) / 166
+    setCropSrc(typeof cover === 'object' ? cover.src : cover)
+    setCropMode('cover')
+    setMenuOpenId(null)
+  }
+
+  async function saveCoverBlob(blob: Blob, cropInfo?: CropInfo) {
+    const id = coverTargetId.current
+    if (!id) return
+    setUploadingCoverId(id)
+    closeCropper()
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(reader.result as string)
+        reader.onerror = reject
+        reader.readAsDataURL(blob)
+      })
+      const coverValue: string | CoverData = cropInfo
+        ? { src: base64, x: cropInfo.x, y: cropInfo.y, width: cropInfo.width, height: cropInfo.height, imageWidth: cropInfo.imageWidth, imageHeight: cropInfo.imageHeight }
+        : base64
+      const { data: existing } = await supabase.from('household_data').select('data').eq('household_id', id).single()
+      const merged = { ...(existing?.data || {}), cover: coverValue }
+      await supabase.from('household_data').update({ data: merged }).eq('household_id', id)
+      setHouseholds(prev => prev.map(h => h.id === id ? { ...h, cover_url: coverValue } : h))
+    } finally {
+      setUploadingCoverId(null)
+    }
+  }
+
+  async function removeCover(id: string) {
+    setMenuOpenId(null)
+    const { data: existing } = await supabase.from('household_data').select('data').eq('household_id', id).single()
+    const merged = { ...(existing?.data || {}) }
+    delete merged.cover
+    await supabase.from('household_data').update({ data: merged }).eq('household_id', id)
+    setHouseholds(prev => prev.map(h => h.id === id ? { ...h, cover_url: null } : h))
+  }
+
+  useEffect(() => {
+    if (!user?.id) return
+    const userId = user.id
+    async function loadBalances() {
+      const { data } = await supabase
+        .from('balances')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: true })
+      setBalances(data || [])
+      setBalancesReady(true)
+    }
+    loadBalances()
+  }, [user?.id])
+
+  async function createBalance() {
+    if (!createBalanceName.trim() || !user?.id) return
+    setIsCreatingBalance(true)
+    const { data: bal } = await supabase
+      .from('balances')
+      .insert({ name: createBalanceName.trim(), user_id: user.id })
+      .select()
+      .single()
+    if (bal) {
+      setBalances(prev => [...prev, bal])
+      setShowCreateBalance(false)
+      setCreateBalanceName('')
+      router.push(`/balance/${bal.id}`)
+    }
+    setIsCreatingBalance(false)
+  }
+
+  async function deleteBalance(id: string) {
+    setIsDeletingBalance(true)
+    setDeleteBalanceError(null)
+    const { error } = await supabase.from('balances').delete().eq('id', id)
+    if (error) {
+      setDeleteBalanceError('Verwijderen is niet gelukt. Probeer het opnieuw.')
+      setIsDeletingBalance(false)
+      return
+    }
+    setBalances(prev => prev.filter(b => b.id !== id))
+    setDeleteBalanceId(null)
+    setIsDeletingBalance(false)
+  }
+
+  function openBalanceCoverCrop(id: string, file: File) {
+    balanceCoverTargetId.current = id
+    const cardEl = document.querySelector(`[data-balance-id="${id}"]`) as HTMLElement | null
+    if (cardEl) balanceCoverAspect.current = (cardEl.offsetWidth - 4) / 166
+    const url = URL.createObjectURL(file)
+    setCropSrc(url)
+    setCropMode('balance')
+    setMenuOpenBalanceId(null)
+  }
+
+  function openBalanceCoverEdit(id: string, cover: string | CoverData) {
+    balanceCoverTargetId.current = id
+    const cardEl = document.querySelector(`[data-balance-id="${id}"]`) as HTMLElement | null
+    if (cardEl) balanceCoverAspect.current = (cardEl.offsetWidth - 4) / 166
+    setCropSrc(typeof cover === 'object' ? cover.src : cover)
+    setCropMode('balance')
+    setMenuOpenBalanceId(null)
+  }
+
+  async function saveBalanceCoverBlob(blob: Blob, cropInfo?: CropInfo) {
+    const id = balanceCoverTargetId.current
+    if (!id) return
+    setUploadingBalanceCoverId(id)
+    closeCropper()
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(reader.result as string)
+        reader.onerror = reject
+        reader.readAsDataURL(blob)
+      })
+      const coverValue: string | CoverData = cropInfo
+        ? { src: base64, x: cropInfo.x, y: cropInfo.y, width: cropInfo.width, height: cropInfo.height, imageWidth: cropInfo.imageWidth, imageHeight: cropInfo.imageHeight }
+        : base64
+      await supabase.from('balances').update({ cover: coverValue }).eq('id', id)
+      setBalances(prev => prev.map(b => b.id === id ? { ...b, cover: coverValue } : b))
+    } finally {
+      setUploadingBalanceCoverId(null)
+    }
+  }
+
+  async function removeBalanceCover(id: string) {
+    setMenuOpenBalanceId(null)
+    await supabase.from('balances').update({ cover: null }).eq('id', id)
+    setBalances(prev => prev.map(b => b.id === id ? { ...b, cover: null } : b))
   }
 
   const hour = new Date().getHours()
@@ -553,7 +739,7 @@ export default function PickerPage() {
             <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 20, fontFamily: 'var(--font-heading)' }}>Mijn account</div>
 
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
-              <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => { const f = e.target.files?.[0]; if (f) void saveAvatar(f); e.target.value = '' }} />
+              <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => { const f = e.target.files?.[0]; if (f) openAvatarCrop(f); e.target.value = '' }} />
               <button
                 onClick={() => fileInputRef.current?.click()}
                 onMouseEnter={() => setAvatarHovered(true)}
@@ -723,16 +909,43 @@ export default function PickerPage() {
         </div>
 
         <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 48, textAlign: 'left', marginLeft: 0, paddingLeft: 0 }}>
-          Kies een Insight of maak een nieuwe aan.
+          Kies een Insight of Balance, of maak een nieuwe aan.
         </div>
+
+        <input
+          ref={coverInputRef}
+          type="file"
+          accept="image/*"
+          style={{ display: 'none' }}
+          onChange={(e) => {
+            const f = e.target.files?.[0]
+            if (f && coverTargetId.current) openCoverCrop(coverTargetId.current, f)
+            e.target.value = ''
+          }}
+        />
+        <input
+          ref={balanceCoverInputRef}
+          type="file"
+          accept="image/*"
+          style={{ display: 'none' }}
+          onChange={(e) => {
+            const f = e.target.files?.[0]
+            if (f && balanceCoverTargetId.current) openBalanceCoverCrop(balanceCoverTargetId.current, f)
+            e.target.value = ''
+          }}
+        />
 
         {menuOpenId && (
           <div style={{ position: 'fixed', inset: 0, zIndex: 5 }} onClick={() => setMenuOpenId(null)} />
         )}
+        {menuOpenBalanceId && (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 5 }} onClick={() => setMenuOpenBalanceId(null)} />
+        )}
+
+        <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 14 }}>Insights</div>
 
         <div
           style={{
-            marginTop: 20,
             display: 'grid',
             gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
             gap: 20,
@@ -741,13 +954,26 @@ export default function PickerPage() {
         >
           {households.map((hh) => {
             const isOwner = ownerOf.has(hh.id)
+            const cover = hh.cover_url as string | CoverData | null
+            const hasCover = !!cover
+            const isUploading = uploadingCoverId === hh.id
+            const coverSrc = cover && typeof cover === 'object' ? cover.src : cover as string | undefined
+            const coverBgSize = cover && typeof cover === 'object'
+              ? `${cover.imageWidth / cover.width * 100}% ${cover.imageHeight / cover.height * 100}%`
+              : '100% 100%'
+            const coverBgPos = cover && typeof cover === 'object'
+              ? `${cover.width >= cover.imageWidth ? 0 : cover.x / (cover.imageWidth - cover.width) * 100}% ${cover.height >= cover.imageHeight ? 0 : cover.y / (cover.imageHeight - cover.height) * 100}%`
+              : 'center'
             return (
-              <div key={hh.id} style={{ position: 'relative' }}>
+              <div key={hh.id} data-card-id={hh.id} style={{ position: 'relative' }}>
                 <div
                   onClick={() => { setMenuOpenId(null); openInsight(hh) }}
                   style={{
-                    background: 'var(--s1)',
-                    border: '2px solid rgba(var(--accent-rgb), 0.35)',
+                    background: hasCover ? undefined : cardGradient(hh.name),
+                    backgroundImage: hasCover ? `url(${coverSrc})` : undefined,
+                    backgroundSize: hasCover ? coverBgSize : undefined,
+                    backgroundPosition: hasCover ? coverBgPos : undefined,
+                    border: 'none',
                     borderRadius: 10,
                     padding: 22,
                     cursor: 'pointer',
@@ -756,54 +982,62 @@ export default function PickerPage() {
                     width: '100%',
                     display: 'flex',
                     flexDirection: 'column',
-                    justifyContent: 'center',
+                    justifyContent: 'flex-end',
                     textAlign: 'left',
-                    transition: 'border-color .2s, transform .18s ease, box-shadow .2s ease',
+                    transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+                    position: 'relative',
+                    overflow: 'hidden',
+                    transform: 'translateY(0)',
+                    boxShadow: '0 4px 24px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06)',
                   }}
                   onMouseEnter={(e) => {
-                    ;(e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'
-                    ;(e.currentTarget as HTMLElement).style.boxShadow = '0 0 0 1px rgba(var(--accent-rgb), 0.95)'
+                    ;(e.currentTarget as HTMLElement).style.transform = 'translateY(-3px)'
+                    ;(e.currentTarget as HTMLElement).style.boxShadow = '0 8px 32px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.08)'
                   }}
                   onMouseLeave={(e) => {
-                    ;(e.currentTarget as HTMLElement).style.transform = 'none'
-                    ;(e.currentTarget as HTMLElement).style.boxShadow = 'none'
+                    ;(e.currentTarget as HTMLElement).style.transform = 'translateY(0)'
+                    ;(e.currentTarget as HTMLElement).style.boxShadow = '0 4px 24px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06)'
                   }}
                 >
-                  <div style={{ fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-heading)', marginBottom: 12, color: 'var(--text)' }}>
-                    {hh.name}
+                  {hasCover && (
+                    <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(0,0,0,0.3), rgba(0,0,0,0.6))', borderRadius: 8, pointerEvents: 'none' }} />
+                  )}
+                  {isOwner && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setMenuOpenId(menuOpenId === hh.id ? null : hh.id) }}
+                      style={{
+                        position: 'absolute',
+                        top: 10,
+                        right: 10,
+                        width: 28,
+                        height: 28,
+                        background: menuOpenId === hh.id ? 'rgba(var(--accent-rgb), 0.12)' : 'transparent',
+                        border: 'none',
+                        borderRadius: 6,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: hasCover ? '#fff' : 'var(--text)',
+                        fontSize: 16,
+                        lineHeight: 1,
+                        zIndex: 3,
+                        transition: 'background .15s, color .15s',
+                      }}
+                      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--accent)'; (e.currentTarget as HTMLElement).style.background = 'rgba(var(--accent-rgb), 0.2)' }}
+                      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = hasCover ? '#fff' : 'var(--text)'; (e.currentTarget as HTMLElement).style.background = menuOpenId === hh.id ? 'rgba(var(--accent-rgb), 0.12)' : 'transparent' }}
+                      aria-label="Opties"
+                    >
+                      ···
+                    </button>
+                  )}
+                  <div style={{ position: 'relative', zIndex: 1 }}>
+                    <div style={{ fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-heading)', marginBottom: 4, color: hasCover ? '#fff' : 'var(--text)' }}>
+                      {isUploading ? 'Uploaden...' : hh.name}
+                    </div>
+                    <div style={{ fontSize: 11, color: hasCover ? 'rgba(255,255,255,0.65)' : 'var(--muted)' }}>Klik om te openen</div>
                   </div>
-                  <div style={{ fontSize: 11, color: 'var(--muted)' }}>Klik om te openen</div>
                 </div>
-
-                {isOwner && (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setMenuOpenId(menuOpenId === hh.id ? null : hh.id) }}
-                    style={{
-                      position: 'absolute',
-                      top: 10,
-                      right: 10,
-                      width: 28,
-                      height: 28,
-                      background: menuOpenId === hh.id ? 'rgba(var(--accent-rgb), 0.12)' : 'transparent',
-                      border: 'none',
-                      borderRadius: 6,
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: 'var(--muted)',
-                      fontSize: 16,
-                      lineHeight: 1,
-                      zIndex: 2,
-                      transition: 'background .15s, color .15s',
-                    }}
-                    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--accent)'; (e.currentTarget as HTMLElement).style.background = 'rgba(var(--accent-rgb), 0.1)' }}
-                    onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--muted)'; (e.currentTarget as HTMLElement).style.background = menuOpenId === hh.id ? 'rgba(var(--accent-rgb), 0.12)' : 'transparent' }}
-                    aria-label="Opties"
-                  >
-                    ···
-                  </button>
-                )}
 
                 {menuOpenId === hh.id && (
                   <div
@@ -816,35 +1050,52 @@ export default function PickerPage() {
                       borderRadius: 8,
                       boxShadow: '0 8px 24px rgba(0,0,0,.35)',
                       zIndex: 10,
-                      minWidth: 160,
+                      minWidth: 180,
                       overflow: 'hidden',
                     }}
                   >
+                    {hasCover && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); openCoverEdit(hh.id, cover!) }}
+                        style={{ width: '100%', padding: '10px 14px', textAlign: 'left', background: 'transparent', border: 'none', color: 'var(--text)', fontSize: 13, fontFamily: 'var(--font-body)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}
+                        onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--s3)' }}
+                        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                        Afbeelding bewerken
+                      </button>
+                    )}
+                    <button
+                      onClick={(e) => { e.stopPropagation(); coverTargetId.current = hh.id; coverInputRef.current?.click() }}
+                      style={{ width: '100%', padding: '10px 14px', textAlign: 'left', background: 'transparent', border: 'none', color: 'var(--text)', fontSize: 13, fontFamily: 'var(--font-body)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}
+                      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--s3)' }}
+                      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                      {hasCover ? 'Achtergrond wijzigen' : 'Achtergrond toevoegen'}
+                    </button>
+                    {hasCover && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); void removeCover(hh.id) }}
+                        style={{ width: '100%', padding: '10px 14px', textAlign: 'left', background: 'transparent', border: 'none', color: 'var(--muted)', fontSize: 13, fontFamily: 'var(--font-body)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}
+                        onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--s3)' }}
+                        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                        Achtergrond verwijderen
+                      </button>
+                    )}
+                    <div style={{ height: 1, background: 'var(--border)', margin: '2px 0' }} />
                     <button
                       onClick={(e) => { e.stopPropagation(); setMenuOpenId(null); setDeleteConfirmId(hh.id) }}
-                      style={{
-                        width: '100%',
-                        padding: '10px 14px',
-                        textAlign: 'left',
-                        background: 'transparent',
-                        border: 'none',
-                        color: 'var(--del-fg)',
-                        fontSize: 13,
-                        fontFamily: 'var(--font-body)',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 8,
-                      }}
+                      style={{ width: '100%', padding: '10px 14px', textAlign: 'left', background: 'transparent', border: 'none', color: 'var(--del-fg)', fontSize: 13, fontFamily: 'var(--font-body)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}
                       onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--del-bg)' }}
                       onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}
                     >
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                         <polyline points="3 6 5 6 21 6" />
                         <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-                        <path d="M10 11v6" />
-                        <path d="M14 11v6" />
-                        <path d="M9 6V4h6v2" />
+                        <path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4h6v2" />
                       </svg>
                       Verwijder Insight
                     </button>
@@ -887,7 +1138,254 @@ export default function PickerPage() {
             <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>Nieuwe Insight</span>
           </button>
         </div>
+
+        <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--accent)', marginTop: 52, marginBottom: 14 }}>Balances</div>
+
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+            gap: 20,
+            alignItems: 'stretch',
+          }}
+        >
+          {balances.map((bal) => {
+            const cover = bal.cover as string | CoverData | null
+            const hasCover = !!cover
+            const isUploading = uploadingBalanceCoverId === bal.id
+            const coverSrc = cover && typeof cover === 'object' ? cover.src : cover as string | undefined
+            const coverBgSize = cover && typeof cover === 'object'
+              ? `${cover.imageWidth / cover.width * 100}% ${cover.imageHeight / cover.height * 100}%`
+              : '100% 100%'
+            const coverBgPos = cover && typeof cover === 'object'
+              ? `${cover.width >= cover.imageWidth ? 0 : cover.x / (cover.imageWidth - cover.width) * 100}% ${cover.height >= cover.imageHeight ? 0 : cover.y / (cover.imageHeight - cover.height) * 100}%`
+              : 'center'
+            return (
+              <div key={bal.id} data-balance-id={bal.id} style={{ position: 'relative' }}>
+                <div
+                  onClick={() => router.push(`/balance/${bal.id}`)}
+                  style={{
+                    background: hasCover ? undefined : cardGradient(bal.name),
+                    backgroundImage: hasCover ? `url(${coverSrc})` : undefined,
+                    backgroundSize: hasCover ? coverBgSize : undefined,
+                    backgroundPosition: hasCover ? coverBgPos : undefined,
+                    border: 'none',
+                    borderRadius: 10,
+                    padding: 22,
+                    cursor: 'pointer',
+                    minHeight: 170,
+                    height: 170,
+                    width: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'flex-end',
+                    textAlign: 'left',
+                    transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+                    position: 'relative',
+                    overflow: 'hidden',
+                    transform: 'translateY(0)',
+                    boxShadow: '0 4px 24px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06)',
+                  }}
+                  onMouseEnter={(e) => {
+                    ;(e.currentTarget as HTMLElement).style.transform = 'translateY(-3px)'
+                    ;(e.currentTarget as HTMLElement).style.boxShadow = '0 8px 32px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.08)'
+                  }}
+                  onMouseLeave={(e) => {
+                    ;(e.currentTarget as HTMLElement).style.transform = 'translateY(0)'
+                    ;(e.currentTarget as HTMLElement).style.boxShadow = '0 4px 24px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06)'
+                  }}
+                >
+                  {hasCover && (
+                    <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(0,0,0,0.3), rgba(0,0,0,0.6))', borderRadius: 8, pointerEvents: 'none' }} />
+                  )}
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setMenuOpenBalanceId(menuOpenBalanceId === bal.id ? null : bal.id) }}
+                    style={{
+                      position: 'absolute',
+                      top: 10,
+                      right: 10,
+                      width: 28,
+                      height: 28,
+                      background: menuOpenBalanceId === bal.id ? 'rgba(var(--accent-rgb), 0.12)' : 'transparent',
+                      border: 'none',
+                      borderRadius: 6,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: hasCover ? '#fff' : 'var(--muted)',
+                      fontSize: 16,
+                      lineHeight: 1,
+                      zIndex: 3,
+                      transition: 'background .15s, color .15s',
+                    }}
+                    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--accent)'; (e.currentTarget as HTMLElement).style.background = 'rgba(var(--accent-rgb), 0.2)' }}
+                    onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = hasCover ? '#fff' : 'var(--text)'; (e.currentTarget as HTMLElement).style.background = menuOpenBalanceId === bal.id ? 'rgba(var(--accent-rgb), 0.12)' : 'transparent' }}
+                    aria-label="Opties"
+                  >
+                    ···
+                  </button>
+                  <div style={{ position: 'relative', zIndex: 1 }}>
+                    <div style={{ fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-heading)', marginBottom: 4, color: hasCover ? '#fff' : 'var(--text)' }}>
+                      {isUploading ? 'Uploaden...' : bal.name}
+                    </div>
+                    <div style={{ fontSize: 11, color: hasCover ? 'rgba(255,255,255,0.65)' : 'var(--muted)' }}>Klik om te openen</div>
+                  </div>
+                </div>
+
+                {menuOpenBalanceId === bal.id && (
+                  <div style={{ position: 'absolute', top: 42, right: 10, background: 'var(--s2)', border: '1px solid var(--card-border)', borderRadius: 8, boxShadow: '0 8px 24px rgba(0,0,0,.35)', zIndex: 10, minWidth: 180, overflow: 'hidden' }}>
+                    {hasCover && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); openBalanceCoverEdit(bal.id, cover!) }}
+                        style={{ width: '100%', padding: '10px 14px', textAlign: 'left', background: 'transparent', border: 'none', color: 'var(--text)', fontSize: 13, fontFamily: 'var(--font-body)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}
+                        onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--s3)' }}
+                        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                        Afbeelding bewerken
+                      </button>
+                    )}
+                    <button
+                      onClick={(e) => { e.stopPropagation(); balanceCoverTargetId.current = bal.id; balanceCoverInputRef.current?.click() }}
+                      style={{ width: '100%', padding: '10px 14px', textAlign: 'left', background: 'transparent', border: 'none', color: 'var(--text)', fontSize: 13, fontFamily: 'var(--font-body)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}
+                      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--s3)' }}
+                      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                      {hasCover ? 'Achtergrond wijzigen' : 'Achtergrond toevoegen'}
+                    </button>
+                    {hasCover && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); void removeBalanceCover(bal.id) }}
+                        style={{ width: '100%', padding: '10px 14px', textAlign: 'left', background: 'transparent', border: 'none', color: 'var(--muted)', fontSize: 13, fontFamily: 'var(--font-body)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}
+                        onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--s3)' }}
+                        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                        Achtergrond verwijderen
+                      </button>
+                    )}
+                    <div style={{ height: 1, background: 'var(--border)', margin: '2px 0' }} />
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setMenuOpenBalanceId(null); setDeleteBalanceId(bal.id) }}
+                      style={{ width: '100%', padding: '10px 14px', textAlign: 'left', background: 'transparent', border: 'none', color: 'var(--del-fg)', fontSize: 13, fontFamily: 'var(--font-body)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}
+                      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--del-bg)' }}
+                      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                        <path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4h6v2" />
+                      </svg>
+                      Verwijder Balance
+                    </button>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+
+          <button
+            onClick={() => setShowCreateBalance(true)}
+            style={{
+              border: '2px dashed rgba(var(--accent-rgb), 0.25)', background: 'var(--s1)', borderRadius: 10,
+              minHeight: 170, height: 170, width: '100%', display: 'flex', flexDirection: 'column',
+              alignItems: 'center', justifyContent: 'center', gap: 8, color: 'var(--muted)',
+              cursor: 'pointer', transition: 'border-color .2s, color .2s',
+            }}
+            onMouseEnter={(e) => {
+              ;(e.currentTarget as HTMLElement).style.color = 'var(--accent)'
+              ;(e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'
+              ;(e.currentTarget as HTMLElement).style.border = '2px dashed rgba(var(--accent-rgb), 0.95)'
+            }}
+            onMouseLeave={(e) => {
+              ;(e.currentTarget as HTMLElement).style.color = 'var(--muted)'
+              ;(e.currentTarget as HTMLElement).style.transform = 'none'
+              ;(e.currentTarget as HTMLElement).style.border = '2px dashed rgba(var(--accent-rgb), 0.25)'
+            }}
+          >
+            <span style={{ fontSize: 32, lineHeight: 1, color: 'var(--accent)' }}>+</span>
+            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>Nieuwe Balance</span>
+          </button>
+        </div>
       </div>
+
+      {showCreateBalance && (
+        <div
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.75)', zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+          onMouseDown={(e) => { backdropRef.current = e.target === e.currentTarget }}
+          onClick={(e) => { if (e.target === e.currentTarget && backdropRef.current) { setShowCreateBalance(false); setCreateBalanceName('') } }}
+        >
+          <div style={{ background: 'var(--s1)', border: '1px solid rgba(var(--accent-rgb), 0.2)', borderRadius: 14, padding: 28, width: '100%', maxWidth: 400, boxShadow: '0 24px 60px rgba(0,0,0,.42)' }}>
+            <div style={{ fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-heading)', color: 'var(--text)', marginBottom: 18 }}>Nieuwe Balance</div>
+            <input
+              autoFocus
+              value={createBalanceName}
+              onChange={e => setCreateBalanceName(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') void createBalance(); else if (e.key === 'Escape') { setShowCreateBalance(false); setCreateBalanceName('') } }}
+              placeholder="Naam van je Balance"
+              style={{ width: '100%', background: 'var(--s2)', border: '1px solid var(--input-border)', borderRadius: 8, color: 'var(--text)', padding: '10px 12px', fontSize: 14, fontFamily: 'var(--font-body)', outline: 'none', boxSizing: 'border-box', marginBottom: 20 }}
+              autoComplete="off" data-1p-ignore="true" data-lpignore="true" data-bwignore="true"
+            />
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button onClick={() => { setShowCreateBalance(false); setCreateBalanceName('') }} type="button" style={{ background: 'transparent', border: '1px solid var(--cancel-border)', borderRadius: 6, color: 'var(--cancel-fg)', padding: '9px 16px', fontSize: 12, fontFamily: 'var(--font-body)', fontWeight: 600, cursor: 'pointer' }}>Annuleren</button>
+              <button onClick={() => void createBalance()} type="button" disabled={isCreatingBalance || !createBalanceName.trim()} style={{ background: 'var(--accent)', border: 'none', borderRadius: 6, color: 'var(--accent-fg)', padding: '9px 16px', fontSize: 12, fontFamily: 'var(--font-body)', fontWeight: 700, cursor: isCreatingBalance || !createBalanceName.trim() ? 'not-allowed' : 'pointer', opacity: isCreatingBalance || !createBalanceName.trim() ? 0.6 : 1 }}>{isCreatingBalance ? 'Bezig...' : 'Aanmaken'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deleteBalanceId && (
+        <div
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.75)', zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+          onMouseDown={(e) => { backdropRef.current = e.target === e.currentTarget }}
+          onClick={(e) => { if (e.target === e.currentTarget && backdropRef.current) { setDeleteBalanceId(null); setDeleteBalanceError(null) } }}
+        >
+          <div style={{ background: 'var(--s1)', border: '1px solid rgba(var(--accent-rgb), 0.2)', borderRadius: 14, padding: 28, width: '100%', maxWidth: 400, boxShadow: '0 24px 60px rgba(0,0,0,.42)' }}>
+            <div style={{ fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-heading)', color: 'var(--text)', marginBottom: 10 }}>Balance verwijderen</div>
+            <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 24, lineHeight: 1.6 }}>
+              Weet je zeker dat je <strong style={{ color: 'var(--text)' }}>{balances.find(b => b.id === deleteBalanceId)?.name}</strong> wil verwijderen? Dit kan niet ongedaan worden gemaakt.
+            </div>
+            {deleteBalanceError && (
+              <div style={{ fontSize: 12, color: 'var(--del-fg)', background: 'var(--del-bg)', border: '1px solid var(--del-bd)', borderRadius: 6, padding: '8px 12px', marginBottom: 14 }}>{deleteBalanceError}</div>
+            )}
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button onClick={() => { setDeleteBalanceId(null); setDeleteBalanceError(null) }} type="button" style={{ background: 'transparent', border: '1px solid var(--cancel-border)', borderRadius: 6, color: 'var(--cancel-fg)', padding: '9px 16px', fontSize: 12, fontFamily: 'var(--font-body)', fontWeight: 600, cursor: 'pointer' }}>Annuleren</button>
+              <button onClick={() => void deleteBalance(deleteBalanceId)} type="button" disabled={isDeletingBalance} style={{ background: 'var(--del-bg)', border: '1px solid var(--del-bd)', borderRadius: 6, color: 'var(--del-fg)', padding: '9px 16px', fontSize: 12, fontFamily: 'var(--font-body)', fontWeight: 700, cursor: isDeletingBalance ? 'wait' : 'pointer', opacity: isDeletingBalance ? 0.7 : 1 }}>{isDeletingBalance ? 'Bezig...' : 'Verwijderen'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {cropSrc && cropMode === 'cover' && (
+        <ImageCropperModal
+          imageSrc={cropSrc}
+          aspect={coverAspect.current}
+          cropShape="rect"
+          softCrop
+          onSave={saveCoverBlob}
+          onCancel={closeCropper}
+        />
+      )}
+      {cropSrc && cropMode === 'avatar' && (
+        <ImageCropperModal
+          imageSrc={cropSrc}
+          aspect={1}
+          cropShape="round"
+          onSave={saveAvatarBlob}
+          onCancel={closeCropper}
+        />
+      )}
+      {cropSrc && cropMode === 'balance' && (
+        <ImageCropperModal
+          imageSrc={cropSrc}
+          aspect={balanceCoverAspect.current}
+          cropShape="rect"
+          softCrop
+          onSave={saveBalanceCoverBlob}
+          onCancel={closeCropper}
+        />
+      )}
     </div>
   )
 }

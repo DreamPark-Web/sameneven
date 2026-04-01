@@ -214,8 +214,6 @@ export default function Leden() {
           const canChangeRole = isOwner && !isMe && !isOwnerMember
           const displayName = member.display_name || 'Onbekend'
           const initials = displayName.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase()
-          const isViewer = member.role === 'viewer'
-
           return (
             <div key={member.user_id} style={{ background: 'var(--s1)', border: '1px solid var(--card-border)', borderRadius: 14, padding: 18, display: 'grid', gridTemplateColumns: '72px 1fr', gap: 14, alignItems: 'start' }}>
               <div style={{ width: 64, height: 64, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 700, color: 'var(--accent-fg)', background: 'var(--accent)', overflow: 'hidden', flexShrink: 0, marginTop: 2 }}>
@@ -230,21 +228,20 @@ export default function Leden() {
                 </div>
 
                 {canChangeRole ? (
-                  <div style={{ marginTop: 12, display: 'inline-flex', borderRadius: 999, border: '1px solid var(--border)', overflow: 'hidden' }}>
-                    <button
-                      onClick={() => !isViewer && toggleRole(member.user_id, member.role)}
-                      disabled={changingRole === member.user_id}
-                      style={{ padding: '5px 12px', fontSize: 10, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', cursor: isViewer ? 'default' : 'pointer', background: isViewer ? 'var(--accent)' : 'transparent', color: isViewer ? 'var(--accent-fg)' : 'var(--muted)', border: 'none', transition: 'background .15s, color .15s' }}
-                    >
-                      Kijker
-                    </button>
-                    <button
-                      onClick={() => isViewer && toggleRole(member.user_id, member.role)}
-                      disabled={changingRole === member.user_id}
-                      style={{ padding: '5px 12px', fontSize: 10, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', cursor: !isViewer ? 'default' : 'pointer', background: !isViewer ? 'var(--accent)' : 'transparent', color: !isViewer ? 'var(--accent-fg)' : 'var(--muted)', border: 'none', transition: 'background .15s, color .15s' }}
-                    >
-                      Bewerker
-                    </button>
+                  <div style={{ marginTop: 12, display: 'flex', gap: 6 }}>
+                    {(['viewer', 'editor'] as const).map(role => {
+                      const active = role === member.role
+                      return (
+                        <button
+                          key={role}
+                          onClick={() => !active && toggleRole(member.user_id, member.role)}
+                          disabled={changingRole === member.user_id}
+                          style={{ display: 'inline-flex', alignItems: 'center', padding: '4px 10px', borderRadius: 999, fontSize: 10, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', cursor: active ? 'default' : 'pointer', background: active ? 'rgba(255,255,255,.04)' : 'transparent', color: active ? 'var(--accent)' : 'var(--muted)', border: active ? '1px solid rgba(var(--accent-rgb), .18)' : '1px solid var(--border)', transition: 'color .15s, border-color .15s, background .15s' }}
+                        >
+                          {role === 'viewer' ? 'Kijker' : 'Bewerker'}
+                        </button>
+                      )
+                    })}
                   </div>
                 ) : (
                   <div style={{ marginTop: 12, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 999, background: 'rgba(255,255,255,.04)', fontSize: 10, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--accent)', border: '1px solid rgba(var(--accent-rgb), .18)' }}>

@@ -22,7 +22,7 @@ export default function Gezamenlijk() {
   const [form, setForm] = useState({ label: '', value: '', split: 'ratio', p1: '50', p2: '50' })
   const [dragging, setDragging] = useState<number | null>(null)
   const [dragOver, setDragOver] = useState<number | null>(null)
-  const [focusedLabelId, setFocusedLabelId] = useState<string | null>(null)
+  const [focusedRowId, setFocusedRowId] = useState<string | null>(null)
 
   const n1 = data.names?.user1 || 'Gebruiker 1'
   const n2 = data.names?.user2 || 'Gebruiker 2'
@@ -110,19 +110,22 @@ export default function Gezamenlijk() {
         </div>
         {editable && (
           <button className="btn-add" onClick={() => setOpen(!open)} style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 500, letterSpacing: '.04em', textTransform: 'uppercase', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', border: '1px solid rgba(var(--accent-rgb), 0.4)', background: 'var(--s2)', color: 'var(--accent)' }}>
-            + Post
+            {open ? '− Post' : '+ Post'}
           </button>
         )}
       </div>
 
       {open && (
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 14, paddingBottom: 14, borderBottom: '1px solid var(--border)' }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', background: 'var(--s2)', border: '1px solid var(--border)', borderRadius: 8, padding: '14px 16px', marginBottom: 14 }}>
           <input autoFocus style={{ flex: 2, minWidth: 120, ...inputBase, background: 'var(--s3)', textAlign: 'left' }}
             placeholder="Omschrijving" value={form.label} onChange={e => setForm({ ...form, label: e.target.value })}
             onKeyDown={e => { if (e.key === 'Enter') addItem(); else if (e.key === 'Escape') setOpen(false) }} />
-          <input style={{ width: 100, ...inputBase, background: 'var(--s3)', textAlign: 'right' }}
-            type="number" placeholder="Bedrag" value={form.value} onChange={e => setForm({ ...form, value: e.target.value })}
-            onKeyDown={e => { if (e.key === 'Enter') addItem(); else if (e.key === 'Escape') setOpen(false) }} />
+          <div style={{ position: 'relative', display: 'inline-block' }}>
+            <span style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', fontSize: 13, pointerEvents: 'none', userSelect: 'none' }}>€</span>
+            <input style={{ width: 100, ...inputBase, background: 'var(--s3)', textAlign: 'right', padding: '6px 9px 6px 22px' }}
+              type="number" placeholder="Bedrag" value={form.value} onChange={e => setForm({ ...form, value: e.target.value })}
+              onKeyDown={e => { if (e.key === 'Enter') addItem(); else if (e.key === 'Escape') setOpen(false) }} />
+          </div>
           <select style={{ ...selectBase, background: 'var(--s3)', fontSize: 12 }}
             value={form.split} onChange={e => setForm({ ...form, split: e.target.value })}>
             <option value="ratio">Naar rato</option>
@@ -151,107 +154,102 @@ export default function Gezamenlijk() {
                 onKeyDown={e => { if (e.key === 'Enter') addItem(); else if (e.key === 'Escape') setOpen(false) }} />
             </>
           )}
-          <button onClick={addItem} style={{ fontFamily: 'var(--font-body)', fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 5, cursor: 'pointer', border: 'none', background: 'var(--accent)', color: 'var(--accent-fg)' }}>Toevoegen</button>
-          <button onClick={() => setOpen(false)} style={{ fontFamily: 'var(--font-body)', fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 5, cursor: 'pointer', background: 'transparent', color: 'var(--cancel-fg)', border: '1px solid var(--cancel-border)' }}>Annuleren</button>
+          <button className="btn-submit" onClick={addItem} style={{ fontFamily: 'var(--font-body)', fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 5, cursor: 'pointer', border: 'none', background: 'var(--accent)', color: 'var(--accent-fg)' }}>Toevoegen</button>
+          <button className="btn-cancel" onClick={() => setOpen(false)} style={{ fontFamily: 'var(--font-body)', fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 5, cursor: 'pointer', background: 'transparent', color: 'var(--cancel-fg)', border: '1px solid var(--cancel-border)' }}>Annuleren</button>
         </div>
       )}
 
-      <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr>
-              {editable && <th style={{ width: 20, padding: '6px 4px 8px' }}></th>}
-              <th style={{ padding: '6px 8px 8px', minWidth: 180 }}></th>
-              <th style={{ padding: '6px 8px 8px' }}></th>
-              {!isSingleUser && <th style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--muted)', padding: '6px 8px 8px', textAlign: 'left' }}>Verdeling</th>}
-              {!isSingleUser && <th style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--accent)', padding: '6px 8px 8px', textAlign: 'right' }}>{n1}</th>}
-              {!isSingleUser && <th style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--accent)', padding: '6px 8px 8px', textAlign: 'right' }}>{n2}</th>}
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((item, idx) => {
-              const { u1, u2 } = splitVal(item)
-              return (
-                <tr
-                  key={item.id}
-                  draggable={editable}
-                  onDragStart={() => setDragging(idx)}
-                  onDragEnd={() => { setDragging(null); setDragOver(null) }}
-                  onDragOver={e => { e.preventDefault(); setDragOver(idx) }}
-                  onDragLeave={() => setDragOver(d => d === idx ? null : d)}
-                  onDrop={() => handleDrop(idx)}
-                  style={{ borderTop: dragOver === idx && dragging !== idx ? '2px solid var(--accent)' : '2px solid transparent', opacity: dragging === idx ? 0.4 : 1, transition: 'opacity .15s' }}
-                >
-                  {editable && (
-                    <td style={{ padding: '7px 4px', verticalAlign: 'middle', borderBottom: '1px solid rgba(255,255,255,.04)', cursor: 'grab', color: 'var(--muted)' }}>
-                      <GripIcon />
-                    </td>
-                  )}
-                  <td style={{ padding: '7px 8px', fontSize: 13, verticalAlign: 'middle', borderBottom: '1px solid rgba(255,255,255,.04)' }}>
-                    {editable ? (
-                      <input defaultValue={item.label}
-                        onFocus={() => setFocusedLabelId(item.id)}
-                        onBlur={e => { setFocusedLabelId(null); editItem(item.id, 'label', e.target.value) }}
-                        style={focusedLabelId === item.id
-                          ? { background: 'var(--s3)', border: '1px solid var(--accent)', borderRadius: 5, color: 'var(--text)', padding: '3px 7px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', width: '100%', cursor: 'text' }
-                          : { background: 'transparent', border: 'none', color: 'var(--text)', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', width: '100%', cursor: 'text' }}
-                      />
-                    ) : item.label}
-                  </td>
-                  <td style={{ padding: '7px 8px', fontSize: 13, verticalAlign: 'middle', borderBottom: '1px solid rgba(255,255,255,.04)', textAlign: 'right' }}>
-                    {editable ? (
-                      <input type="number" defaultValue={item.value} onBlur={e => editItem(item.id, 'value', e.target.value)}
-                        style={{ width: 100, ...inputBase, background: 'var(--s2)', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}
-                      />
-                    ) : fmt(item.value)}
-                  </td>
-                  {!isSingleUser && (
-                    <td style={{ padding: '7px 8px', fontSize: 13, verticalAlign: 'middle', borderBottom: '1px solid rgba(255,255,255,.04)' }}>
+      <div style={{ overflowX: 'auto', marginTop: 38 }}>
+        {(() => {
+          const cols = isSingleUser
+            ? '20px minmax(220px, 1fr) 120px 32px'
+            : '20px minmax(220px, 525px) 120px 180px 1fr 160px 160px 32px'
+          const hdr: React.CSSProperties = { fontSize: 10, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--muted)', paddingTop: 0, paddingRight: 0, paddingBottom: 8, paddingLeft: 0 }
+          return (
+            <>
+              {!isSingleUser && (
+                <div style={{ display: 'grid', gridTemplateColumns: cols, gap: 14, alignItems: 'end', borderBottom: '1px solid var(--border)', marginBottom: 4, paddingBottom: 8 }}>
+                  <div />
+                  <div style={{ ...hdr, textAlign: 'left', transform: 'translateX(-3px)' }}>Omschrijving</div>
+                  <div style={{ ...hdr, textAlign: 'left' }}>Bedrag</div>
+                  <div style={{ ...hdr, textAlign: 'left' }}>Verdeling</div>
+                  <div />
+                  <div style={{ ...hdr, textAlign: 'right', color: 'var(--accent)' }}>{n1}</div>
+                  <div style={{ ...hdr, textAlign: 'right', color: 'var(--accent)' }}>{n2}</div>
+                  <div />
+                </div>
+              )}
+              {items.map((item, idx) => {
+                const { u1, u2 } = splitVal(item)
+                return (
+                  <div
+                    key={item.id}
+                    draggable={editable}
+                    onDragStart={() => setDragging(idx)}
+                    onDragEnd={() => { setDragging(null); setDragOver(null) }}
+                    onDragOver={e => { e.preventDefault(); setDragOver(idx) }}
+                    onDragLeave={() => setDragOver(d => d === idx ? null : d)}
+                    onDrop={() => handleDrop(idx)}
+                    style={{ display: 'grid', gridTemplateColumns: cols, gap: 14, alignItems: 'center', borderTop: dragOver === idx && dragging !== idx ? '2px solid var(--accent)' : '2px solid transparent', borderBottom: '1px solid rgba(255,255,255,.04)', opacity: dragging === idx ? 0.4 : 1, transition: 'opacity .15s', padding: '10px 0' }}
+                  >
+                    <div style={{ color: 'var(--muted)', cursor: editable ? 'grab' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {editable && <GripIcon />}
+                    </div>
+                    <div style={{ minWidth: 0 }}>
                       {editable ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <select value={item.split} onChange={e => editItem(item.id, 'split', e.target.value)}
-                            style={{ ...selectBase, background: 'var(--s3)', fontSize: 12 }}>
-                            <option value="ratio">Naar rato</option>
-                            <option value="5050">50/50</option>
-                            <option value="percent">Percentage</option>
-                            <option value="user1">{n1}</option>
-                            <option value="user2">{n2}</option>
-                          </select>
-                          {item.split === 'percent' && (
-                            <>
-                              <input
-                                key={item.id + '-p1-' + (item.p1 ?? 50)}
-                                type="number" min={0} max={100}
-                                defaultValue={item.p1 ?? 50}
-                                onBlur={e => editPercent(item.id, 'p1', e.target.value)}
-                                style={{ ...pctInput, background: 'var(--s2)' }}
-                                title={n1 + ' %'}
-                              />
-                              <input
-                                key={item.id + '-p2-' + (item.p2 ?? 50)}
-                                type="number" min={0} max={100}
-                                defaultValue={item.p2 ?? 50}
-                                onBlur={e => editPercent(item.id, 'p2', e.target.value)}
-                                style={{ ...pctInput, background: 'var(--s2)' }}
-                                title={n2 + ' %'}
-                              />
-                            </>
-                          )}
+                        <input defaultValue={item.label}
+                          onFocus={() => setFocusedRowId(item.id)}
+                          onBlur={e => { setFocusedRowId(null); editItem(item.id, 'label', e.target.value) }}
+                          style={focusedRowId === item.id
+                            ? { background: 'var(--s3)', border: '1px solid var(--accent)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', width: '100%', cursor: 'text' }
+                            : { background: 'transparent', border: 'none', color: 'var(--text)', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', width: '100%', cursor: 'text' }}
+                        />
+                      ) : <span style={{ fontSize: 13 }}>{item.label}</span>}
+                    </div>
+                    <div style={{ textAlign: 'right', fontSize: 13, alignSelf: 'stretch', display: 'flex', alignItems: 'center' }}>
+                      {editable ? (
+                        <div style={{ position: 'relative', flex: 1 }}>
+                          <span style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', fontSize: 13, pointerEvents: 'none', userSelect: 'none' }}>€</span>
+                          <input type="number" defaultValue={item.value} onBlur={e => editItem(item.id, 'value', e.target.value)}
+                            style={{ width: '100%', margin: 0, ...inputBase, background: 'var(--s2)', textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)', padding: '6px 9px 6px 22px' }}
+                          />
                         </div>
-                      ) : SPLITS[item.split] || item.split}
-                    </td>
-                  )}
-                  {!isSingleUser && <td style={{ padding: '7px 8px', fontSize: 13, verticalAlign: 'middle', borderBottom: '1px solid rgba(255,255,255,.04)', textAlign: 'right', color: 'var(--accent)', fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>{fmt(u1)}</td>}
-                  {!isSingleUser && <td style={{ padding: '7px 8px', fontSize: 13, verticalAlign: 'middle', borderBottom: '1px solid rgba(255,255,255,.04)', textAlign: 'right', color: 'var(--accent)', fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>{fmt(u2)}</td>}
-                  <td style={{ padding: '7px 8px', verticalAlign: 'middle', borderBottom: '1px solid rgba(255,255,255,.04)' }}>
-                    {editable && <button onClick={() => deleteItem(item.id)} style={{ width: 26, height: 26, background: 'rgba(200,60,60,.1)', color: 'var(--danger)', border: '1px solid rgba(200,60,60,.2)', borderRadius: 4, cursor: 'pointer', fontSize: 14, fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>×</button>}
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
+                      ) : <span style={{ fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>{fmt(item.value)}</span>}
+                    </div>
+                    {!isSingleUser && (
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', fontSize: 13, minWidth: 0 }}>
+                        {editable ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <select value={item.split} onChange={e => editItem(item.id, 'split', e.target.value)}
+                              style={{ ...selectBase, background: 'var(--s2)', fontSize: 13 }}>
+                              <option value="ratio">Naar rato</option>
+                              <option value="5050">50/50</option>
+                              <option value="percent">Percentage</option>
+                              <option value="user1">{n1}</option>
+                              <option value="user2">{n2}</option>
+                            </select>
+                            {item.split === 'percent' && (
+                              <>
+                                <input key={item.id + '-p1-' + (item.p1 ?? 50)} type="number" min={0} max={100} defaultValue={item.p1 ?? 50} onBlur={e => editPercent(item.id, 'p1', e.target.value)} style={{ ...pctInput, background: 'var(--s2)' }} title={n1 + ' %'} />
+                                <input key={item.id + '-p2-' + (item.p2 ?? 50)} type="number" min={0} max={100} defaultValue={item.p2 ?? 50} onBlur={e => editPercent(item.id, 'p2', e.target.value)} style={{ ...pctInput, background: 'var(--s2)' }} title={n2 + ' %'} />
+                              </>
+                            )}
+                          </div>
+                        ) : SPLITS[item.split] || item.split}
+                      </div>
+                    )}
+                    {!isSingleUser && <div />}
+                    {!isSingleUser && <div style={{ fontSize: 13, textAlign: 'right', color: 'var(--accent)', fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>{fmt(u1)}</div>}
+                    {!isSingleUser && <div style={{ fontSize: 13, textAlign: 'right', color: 'var(--accent)', fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>{fmt(u2)}</div>}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {editable && <button className="btn-delete" onClick={() => deleteItem(item.id)} style={{ width: 26, height: 26, background: 'rgba(200,60,60,.1)', color: 'var(--danger)', border: '1px solid rgba(200,60,60,.2)', borderRadius: 4, cursor: 'pointer', fontSize: 14, fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>×</button>}
+                    </div>
+                  </div>
+                )
+              })}
+            </>
+          )
+        })()}
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: isSingleUser ? '1fr' : '1fr 1fr', gap: 12, marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--border)', alignItems: 'stretch' }}>

@@ -100,25 +100,31 @@ function SavList({ items, can, openSav, setOpenSav, savForm, setSavForm, onAdd, 
               {item.label}
             </span>
           )}
-          <input type="number" defaultValue={item.value} onBlur={e => onEditValue(item.id, parseFloat(e.target.value) || 0)} disabled={!can}
-            style={{ width: 100, background: can ? 'var(--s2)' : 'transparent', border: can ? '1px solid var(--input-border)' : 'none', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}
-          />
+          <div style={{ position: 'relative', display: 'inline-block' }}>
+            <span style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', fontSize: 13, pointerEvents: 'none', userSelect: 'none' }}>€</span>
+            <input type="number" defaultValue={item.value} onBlur={e => onEditValue(item.id, parseFloat(e.target.value) || 0)} disabled={!can}
+              style={{ width: 100, background: can ? 'var(--s2)' : 'transparent', border: can ? '1px solid var(--input-border)' : 'none', borderRadius: 5, color: 'var(--text)', padding: '6px 9px 6px 22px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}
+            />
+          </div>
           {can && <button onClick={() => onDelete(item.id)} style={{ width: 22, height: 22, background: 'rgba(200,60,60,.1)', color: 'var(--danger)', border: '1px solid rgba(200,60,60,.2)', borderRadius: 4, cursor: 'pointer', fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>×</button>}
         </div>
       ))}
       {can && (
         openSav === listKey && (
-          <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+          <div style={{ display: 'flex', gap: 6, marginTop: 8, background: 'var(--s2)', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 12px' }}>
             <input autoFocus style={{ flex: 1, background: 'var(--s3)', border: '1px solid var(--input-border)', borderRadius: 5, color: 'var(--text)', padding: '5px 7px', fontSize: 12, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'left' }}
               placeholder="Omschrijving" value={savForm.label} onChange={e => setSavForm({ ...savForm, label: e.target.value })}
               onKeyDown={e => { if (e.key === 'Enter') submitForm(); else if (e.key === 'Escape') cancelForm() }} />
-            <input style={{ width: 80, background: 'var(--s3)', border: '1px solid var(--input-border)', borderRadius: 5, color: 'var(--text)', padding: '5px 7px', fontSize: 12, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'right' }}
-              type="number" placeholder="€" value={savForm.value} onChange={e => setSavForm({ ...savForm, value: e.target.value })}
-              onKeyDown={e => { if (e.key === 'Enter') submitForm(); else if (e.key === 'Escape') cancelForm() }} />
-            <button onClick={submitForm}
+            <div style={{ position: 'relative', display: 'inline-block' }}>
+              <span style={{ position: 'absolute', left: 7, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', fontSize: 12, pointerEvents: 'none', userSelect: 'none' }}>€</span>
+              <input style={{ width: 80, background: 'var(--s3)', border: '1px solid var(--input-border)', borderRadius: 5, color: 'var(--text)', padding: '5px 7px 5px 20px', fontSize: 12, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'right' }}
+                type="number" placeholder="Bedrag" value={savForm.value} onChange={e => setSavForm({ ...savForm, value: e.target.value })}
+                onKeyDown={e => { if (e.key === 'Enter') submitForm(); else if (e.key === 'Escape') cancelForm() }} />
+            </div>
+            <button className="btn-submit" onClick={submitForm}
               style={{ fontFamily: 'var(--font-body)', fontSize: 10, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '4px 8px', borderRadius: 5, cursor: 'pointer', border: 'none', background: 'var(--accent)', color: 'var(--accent-fg)' }}>OK</button>
-            <button onClick={cancelForm}
-              style={{ width: 26, height: 26, background: 'rgba(200,60,60,.1)', color: 'var(--danger)', border: '1px solid rgba(200,60,60,.2)', borderRadius: 4, cursor: 'pointer', fontSize: 14, fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>×</button>
+            <button className="btn-delete" onClick={cancelForm}
+              style={{ fontFamily: 'var(--font-body)', fontSize: 10, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '4px 8px', borderRadius: 5, cursor: 'pointer', background: 'rgba(200,60,60,.1)', color: 'var(--danger)', border: '1px solid rgba(200,60,60,.2)' }}>×</button>
           </div>
         )
       )}
@@ -210,16 +216,14 @@ export default function Sparen() {
                 <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--accent)', fontFamily: 'var(--font-heading)' }}>{name}</span>
                 <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>Maandelijkse spaarbedragen</span>
               </div>
-              {can && (
-                openSav === `${slot}-shared` || openSav === `${slot}-private` ? null : (
-                  <button className="btn-add" onClick={() => { setOpenSav(`${slot}-private`); setSavForm({ label: '', value: '' }) }} style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 500, letterSpacing: '.04em', textTransform: 'uppercase', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', border: '1px solid rgba(var(--accent-rgb), 0.4)', background: 'var(--s2)', color: 'var(--accent)' }}>+ Toevoegen</button>
-                )
-              )}
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: isSingleUser ? '1fr' : '1fr 1fr', gap: 16, flex: 1, alignItems: 'stretch' }}>
               {!isSingleUser && (
                 <div>
-                  <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', marginBottom: 8, paddingBottom: 7, borderBottom: '1px solid var(--border)', color: 'var(--text)', fontFamily: 'var(--font-heading)' }}>Gezamenlijk</div>
+                  <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', marginBottom: 8, paddingBottom: 7, borderBottom: '1px solid var(--border)', color: 'var(--text)', fontFamily: 'var(--font-heading)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>Gezamenlijk</span>
+                    {can && <button className="btn-add" onClick={() => { setOpenSav(openSav === `${slot}-shared` ? null : `${slot}-shared`); setSavForm({ label: '', value: '' }) }} style={{ fontFamily: 'var(--font-body)', fontSize: 10, fontWeight: 500, letterSpacing: '.04em', textTransform: 'uppercase', padding: '3px 10px', borderRadius: 6, cursor: 'pointer', border: '1px solid rgba(var(--accent-rgb), 0.4)', background: 'var(--s2)', color: 'var(--accent)' }}>{openSav === `${slot}-shared` ? '− Toevoegen' : '+ Toevoegen'}</button>}
+                  </div>
                   <SavList
                     items={sh} can={can} listKey={`${slot}-shared`}
                     openSav={openSav} setOpenSav={setOpenSav}
@@ -233,7 +237,17 @@ export default function Sparen() {
                 </div>
               )}
               <div>
-                {!isSingleUser && <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', marginBottom: 8, paddingBottom: 7, borderBottom: '1px solid var(--border)', fontFamily: 'var(--font-heading)' }}>Prive</div>}
+                {!isSingleUser && (
+                  <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', marginBottom: 8, paddingBottom: 7, borderBottom: '1px solid var(--border)', fontFamily: 'var(--font-heading)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>Prive</span>
+                    {can && <button className="btn-add" onClick={() => { setOpenSav(openSav === `${slot}-private` ? null : `${slot}-private`); setSavForm({ label: '', value: '' }) }} style={{ fontFamily: 'var(--font-body)', fontSize: 10, fontWeight: 500, letterSpacing: '.04em', textTransform: 'uppercase', padding: '3px 10px', borderRadius: 6, cursor: 'pointer', border: '1px solid rgba(var(--accent-rgb), 0.4)', background: 'var(--s2)', color: 'var(--accent)' }}>{openSav === `${slot}-private` ? '− Toevoegen' : '+ Toevoegen'}</button>}
+                  </div>
+                )}
+                {isSingleUser && can && (
+                  <div style={{ marginBottom: 8 }}>
+                    <button className="btn-add" onClick={() => { setOpenSav(openSav === `${slot}-private` ? null : `${slot}-private`); setSavForm({ label: '', value: '' }) }} style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 500, letterSpacing: '.04em', textTransform: 'uppercase', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', border: '1px solid rgba(var(--accent-rgb), 0.4)', background: 'var(--s2)', color: 'var(--accent)' }}>{openSav === `${slot}-private` ? '− Toevoegen' : '+ Toevoegen'}</button>
+                  </div>
+                )}
                 <SavList
                   items={pr} can={can} listKey={`${slot}-private`}
                   openSav={openSav} setOpenSav={setOpenSav}
@@ -264,8 +278,8 @@ export default function Sparen() {
           <div>
             <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>Spaardoelen</span>
           </div>
-          {editable && !openPotForm && (
-            <button className="btn-add" onClick={() => setOpenPotForm(true)} style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 500, letterSpacing: '.04em', textTransform: 'uppercase', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', border: '1px solid rgba(var(--accent-rgb), 0.4)', background: 'var(--s2)', color: 'var(--accent)' }}>+ Spaarpot</button>
+          {editable && (
+            <button className="btn-add" onClick={() => setOpenPotForm(!openPotForm)} style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 500, letterSpacing: '.04em', textTransform: 'uppercase', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', border: '1px solid rgba(var(--accent-rgb), 0.4)', background: 'var(--s2)', color: 'var(--accent)' }}>{openPotForm ? '− Spaarpot' : '+ Spaarpot'}</button>
           )}
         </div>
         {potten.map((pot, idx) => {
@@ -280,7 +294,7 @@ export default function Sparen() {
               onDragOver={e => { e.preventDefault(); setPotDragOver(idx) }}
               onDragLeave={() => setPotDragOver(d => d === idx ? null : d)}
               onDrop={() => handlePotDrop(idx)}
-              style={{ background: 'var(--s3)', border: '1px solid var(--border)', borderRadius: 6, padding: '15px 17px', marginBottom: 8, borderTop: potDragOver === idx && potDragging !== idx ? '2px solid var(--accent)' : undefined, opacity: potDragging === idx ? 0.4 : 1, transition: 'opacity .15s' }}
+              style={{ background: 'var(--s3)', border: '1px solid var(--border)', borderRadius: 6, padding: '15px 17px', marginBottom: 8, borderTop: potDragOver === idx && potDragging !== idx ? '2px solid var(--accent)' : '1px solid var(--border)', opacity: potDragging === idx ? 0.4 : 1, transition: 'opacity .15s' }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
@@ -300,31 +314,42 @@ export default function Sparen() {
                         style={{ fontWeight: 600, fontSize: 13, background: 'var(--s3)', border: '1px solid var(--accent)', borderRadius: 5, color: 'var(--text)', padding: '2px 6px', outline: 'none', fontFamily: 'var(--font-body)', width: '100%' }}
                       />
                     ) : (
-                      <div
-                        onClick={() => { if (!editable) return; setEditingPotId(pot.id); setEditPotVal(pot.label) }}
-                        title={editable ? 'Klik om te bewerken' : undefined}
-                        style={{ fontWeight: 600, fontSize: 13, cursor: editable ? 'text' : 'default' }}
-                      >{pot.label}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                        <div
+                          onClick={() => { if (!editable) return; setEditingPotId(pot.id); setEditPotVal(pot.label) }}
+                          title={editable ? 'Klik om te bewerken' : undefined}
+                          style={{ fontWeight: 600, fontSize: 13, cursor: editable ? 'text' : 'default' }}
+                        >{pot.label}</div>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '2px 7px', borderRadius: 999, background: 'rgba(255,255,255,.04)', fontSize: 8, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--accent)', border: '1px solid rgba(var(--accent-rgb), .18)' }}>{ownerLabel}</span>
+                      </div>
                     )}
-                    <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>{ownerLabel}</div>
                   </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  {pot.goal > 0 && <span style={{ fontSize: 11, color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>{fmt(pot.current, 0)} / {fmt(pot.goal, 0)} ({(pct * 100).toFixed(0)}%)</span>}
-                  {editable && <button onClick={() => deletePot(pot.id)} style={{ width: 26, height: 26, background: 'rgba(200,60,60,.1)', color: 'var(--danger)', border: '1px solid rgba(200,60,60,.2)', borderRadius: 4, cursor: 'pointer', fontSize: 14, fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>×</button>}
+                  {editable ? (
+                    <>
+                      <div style={{ position: 'relative', display: 'inline-block' }}>
+                        <span style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', fontSize: 12, pointerEvents: 'none', userSelect: 'none' }}>€</span>
+                        <input type="number" defaultValue={pot.current} onBlur={e => editPot(pot.id, 'current', e.target.value)}
+                          style={{ width: 90, background: 'var(--s2)', border: '1px solid var(--input-border)', borderRadius: 5, color: 'var(--text)', padding: '5px 8px 5px 21px', fontSize: 12, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }} />
+                      </div>
+                      <span style={{ color: 'var(--muted)', fontSize: 13 }}>/</span>
+                      <span style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>{fmt(pot.goal, 0)}</span>
+                    </>
+                  ) : (
+                    <>
+                      <span style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>{fmt(pot.current, 0)}</span>
+                      <span style={{ color: 'var(--muted)', fontSize: 13 }}>/</span>
+                      <span style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>{fmt(pot.goal, 0)}</span>
+                    </>
+                  )}
+                  {pot.goal > 0 && <span style={{ fontSize: 12, color: 'rgba(245,245,245,0.45)' }}>({(pct * 100).toFixed(0)}%)</span>}
+                  {editable && <button className="btn-delete" onClick={() => deletePot(pot.id)} style={{ width: 26, height: 26, background: 'rgba(200,60,60,.1)', color: 'var(--danger)', border: '1px solid rgba(200,60,60,.2)', borderRadius: 4, cursor: 'pointer', fontSize: 14, fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0, marginLeft: 10 }}>×</button>}
                 </div>
               </div>
               {pot.goal > 0 && (
-                <div style={{ height: 5, background: 'var(--s3)', borderRadius: 3, overflow: 'hidden', marginBottom: 8 }}>
-                  <div style={{ height: '100%', borderRadius: 3, width: `${(pct * 100).toFixed(2)}%`, background: 'var(--accent)', transition: 'width .5s ease' }} />
-                </div>
-              )}
-              {editable && (
-                <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                  <input type="number" defaultValue={pot.current} onBlur={e => editPot(pot.id, 'current', e.target.value)}
-                    style={{ flex: 1, background: 'var(--s3)', border: '1px solid var(--input-border)', borderRadius: 5, color: 'var(--text)', padding: '5px 8px', fontSize: 12, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'right' }} placeholder="Huidig €" />
-                  <input type="number" defaultValue={pot.goal} onBlur={e => editPot(pot.id, 'goal', e.target.value)}
-                    style={{ flex: 1, background: 'var(--s3)', border: '1px solid var(--input-border)', borderRadius: 5, color: 'var(--text)', padding: '5px 8px', fontSize: 12, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'right' }} placeholder="Doel €" />
+                <div style={{ height: 8, background: '#141414', borderRadius: 4, overflow: 'hidden' }}>
+                  <div style={{ height: '100%', borderRadius: 4, width: `${(pct * 100).toFixed(2)}%`, background: 'var(--accent)', transition: 'width .5s ease' }} />
                 </div>
               )}
             </div>
@@ -332,17 +357,23 @@ export default function Sparen() {
         })}
         {editable && openPotForm && (
           <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--border)' }}>
-            <div style={{ background: 'var(--s1)', borderRadius: 8, padding: '16px 18px' }}>
+            <div style={{ background: 'var(--s2)', border: '1px solid var(--border)', borderRadius: 8, padding: '16px 18px' }}>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                 <input style={{ flex: 2, minWidth: 120, background: 'var(--s3)', border: '1px solid var(--input-border)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'left' }}
                   placeholder="Naam spaarpot" value={potForm.label} onChange={e => setPotForm({ ...potForm, label: e.target.value })}
                   onKeyDown={e => { if (e.key === 'Enter') addPot(); else if (e.key === 'Escape') { setPotForm({ label: '', current: '', goal: '', owner: 'gezamenlijk' }); setOpenPotForm(false) } }} />
-                <input style={{ width: 100, background: 'var(--s3)', border: '1px solid var(--input-border)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'right' }}
-                  type="number" placeholder="Huidig €" value={potForm.current} onChange={e => setPotForm({ ...potForm, current: e.target.value })}
-                  onKeyDown={e => { if (e.key === 'Enter') addPot(); else if (e.key === 'Escape') { setPotForm({ label: '', current: '', goal: '', owner: 'gezamenlijk' }); setOpenPotForm(false) } }} />
-                <input style={{ width: 100, background: 'var(--s3)', border: '1px solid var(--input-border)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'right' }}
-                  type="number" placeholder="Doel €" value={potForm.goal} onChange={e => setPotForm({ ...potForm, goal: e.target.value })}
-                  onKeyDown={e => { if (e.key === 'Enter') addPot(); else if (e.key === 'Escape') { setPotForm({ label: '', current: '', goal: '', owner: 'gezamenlijk' }); setOpenPotForm(false) } }} />
+                <div style={{ position: 'relative', display: 'inline-block' }}>
+                  <span style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', fontSize: 13, pointerEvents: 'none', userSelect: 'none' }}>€</span>
+                  <input style={{ width: 100, background: 'var(--s3)', border: '1px solid var(--input-border)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px 6px 22px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'right' }}
+                    type="number" placeholder="Huidig" value={potForm.current} onChange={e => setPotForm({ ...potForm, current: e.target.value })}
+                    onKeyDown={e => { if (e.key === 'Enter') addPot(); else if (e.key === 'Escape') { setPotForm({ label: '', current: '', goal: '', owner: 'gezamenlijk' }); setOpenPotForm(false) } }} />
+                </div>
+                <div style={{ position: 'relative', display: 'inline-block' }}>
+                  <span style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', fontSize: 13, pointerEvents: 'none', userSelect: 'none' }}>€</span>
+                  <input style={{ width: 100, background: 'var(--s3)', border: '1px solid var(--input-border)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px 6px 22px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'right' }}
+                    type="number" placeholder="Doel" value={potForm.goal} onChange={e => setPotForm({ ...potForm, goal: e.target.value })}
+                    onKeyDown={e => { if (e.key === 'Enter') addPot(); else if (e.key === 'Escape') { setPotForm({ label: '', current: '', goal: '', owner: 'gezamenlijk' }); setOpenPotForm(false) } }} />
+                </div>
                 {!isSingleUser && (
                   <select style={{ background: 'var(--s3)', border: '1px solid var(--input-border)', borderRadius: 5, color: 'var(--text)', padding: '6px 8px', fontSize: 12, fontFamily: 'var(--font-body)', cursor: 'pointer' }}
                     value={potForm.owner} onChange={e => setPotForm({ ...potForm, owner: e.target.value })}>
@@ -351,8 +382,8 @@ export default function Sparen() {
                     <option value="user2">{n2}</option>
                   </select>
                 )}
-                <button onClick={addPot} style={{ fontFamily: 'var(--font-body)', fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 5, cursor: 'pointer', border: 'none', background: 'var(--accent)', color: 'var(--accent-fg)' }}>Toevoegen</button>
-                <button onClick={() => { setPotForm({ label: '', current: '', goal: '', owner: 'gezamenlijk' }); setOpenPotForm(false) }} style={{ fontFamily: 'var(--font-body)', fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 5, cursor: 'pointer', background: 'transparent', color: 'var(--cancel-fg)', border: '1px solid var(--cancel-border)' }}>Annuleren</button>
+                <button className="btn-submit" onClick={addPot} style={{ fontFamily: 'var(--font-body)', fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 5, cursor: 'pointer', border: 'none', background: 'var(--accent)', color: 'var(--accent-fg)' }}>Toevoegen</button>
+                <button className="btn-cancel" onClick={() => { setPotForm({ label: '', current: '', goal: '', owner: 'gezamenlijk' }); setOpenPotForm(false) }} style={{ fontFamily: 'var(--font-body)', fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 5, cursor: 'pointer', background: 'transparent', color: 'var(--cancel-fg)', border: '1px solid var(--cancel-border)' }}>Annuleren</button>
               </div>
             </div>
           </div>

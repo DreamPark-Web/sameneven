@@ -12,11 +12,17 @@ function subMonthly(s: Sub) {
   if (s.freq === 'jaarlijks') return a / 12
   return a
 }
-function daysUntil(dateStr: string) {
+function daysUntil(dateStr: string, freq: string) {
   if (!dateStr) return null
+  const [y, m, d] = dateStr.split('-').map(Number)
   const today = new Date()
-  const next = new Date(dateStr)
-  while (next < today) next.setFullYear(next.getFullYear() + 1)
+  today.setHours(0, 0, 0, 0)
+  const next = new Date(y, m - 1, d)
+  while (next <= today) {
+    if (freq === 'maandelijks') next.setMonth(next.getMonth() + 1)
+    else if (freq === 'kwartaal') next.setMonth(next.getMonth() + 3)
+    else next.setFullYear(next.getFullYear() + 1)
+  }
   return Math.ceil((next.getTime() - today.getTime()) / 86400000)
 }
 
@@ -65,8 +71,15 @@ function SubList({ items, editable, onDelete, onEdit, onReorder }: {
   return (
     <>
       {items.map((sub, idx) => {
-        const days = daysUntil(sub.date)
-        const bc = days === null ? null : days <= 0 ? { bg: 'rgba(224,80,80,.12)', color: 'var(--danger)' } : days <= 14 ? { bg: 'rgba(224,80,80,.12)', color: 'var(--danger)' } : days <= 30 ? { bg: 'rgba(212,160,23,.12)', color: 'var(--warn)' } : { bg: 'rgba(76,175,130,.12)', color: 'var(--ok)' }
+        const days = daysUntil(sub.date, sub.freq)
+        const red = { bg: 'rgba(224,80,80,.12)', color: 'var(--danger)' }
+        const orange = { bg: 'rgba(212,160,23,.12)', color: 'var(--warn)' }
+        const green = { bg: 'rgba(76,175,130,.12)', color: 'var(--ok)' }
+        const bc = days === null ? null : days <= 0 ? red : sub.freq === 'maandelijks'
+          ? (days <= 3 ? red : days <= 7 ? orange : green)
+          : sub.freq === 'kwartaal'
+          ? (days <= 7 ? red : days <= 14 ? orange : green)
+          : (days <= 14 ? red : days <= 28 ? orange : green)
         const dateDisplay = sub.date ? new Date(sub.date).toLocaleDateString('nl-NL', { day: '2-digit', month: 'short', year: 'numeric' }) : ''
         return (
           <div
@@ -109,7 +122,7 @@ function SubList({ items, editable, onDelete, onEdit, onReorder }: {
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               {bc && days !== null && <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.07em', textTransform: 'uppercase', padding: '3px 7px', borderRadius: 4, whiteSpace: 'nowrap', background: bc.bg, color: bc.color }}>{days <= 0 ? 'Verlopen' : `${days} dgn`}</span>}
-              {editable && <button onClick={() => onDelete(sub.id)} style={{ width: 26, height: 26, background: 'rgba(200,60,60,.1)', color: 'var(--danger)', border: '1px solid rgba(200,60,60,.2)', borderRadius: 4, cursor: 'pointer', fontSize: 14, fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>×</button>}
+              {editable && <button className="btn-delete" onClick={() => onDelete(sub.id)} style={{ width: 26, height: 26, background: 'rgba(200,60,60,.1)', color: 'var(--danger)', border: '1px solid rgba(200,60,60,.2)', borderRadius: 4, cursor: 'pointer', fontSize: 14, fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>×</button>}
             </div>
           </div>
         )
@@ -165,8 +178,8 @@ export default function Abonnementen() {
                   <span style={{ fontSize: 18, fontWeight: 700, color: g.key === 'gezamenlijk' ? 'var(--text)' : 'var(--accent)', fontFamily: 'var(--font-heading)', display: 'block' }}>{g.title}</span>
                   <span style={{ ...eyebrow }}>Abonnementen</span>
                 </div>
-                {editable && !openForm && (
-                  <button className="btn-add" onClick={() => { setForm({ ...form, person: g.key }); setOpenForm(true) }} style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 500, letterSpacing: '.04em', textTransform: 'uppercase', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', border: '1px solid rgba(var(--accent-rgb), 0.4)', background: 'var(--s2)', color: 'var(--accent)' }}>+ Toevoegen</button>
+                {editable && (
+                  <button className="btn-add" onClick={() => { if (openForm && form.person === g.key) { setOpenForm(false) } else { setForm({ ...form, person: g.key }); setOpenForm(true) } }} style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 500, letterSpacing: '.04em', textTransform: 'uppercase', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', border: '1px solid rgba(var(--accent-rgb), 0.4)', background: 'var(--s2)', color: 'var(--accent)' }}>{openForm && form.person === g.key ? '− Toevoegen' : '+ Toevoegen'}</button>
                 )}
               </div>
               <SubList
@@ -188,7 +201,7 @@ export default function Abonnementen() {
             <span style={{ ...eyebrow }}>Toevoegen</span>
             <div style={{ fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-heading)' }}>Nieuw abonnement</div>
           </div>
-          <div style={{ background: 'var(--s1)', borderRadius: 8, padding: '16px 18px' }}>
+          <div style={{ background: 'var(--s2)', border: '1px solid var(--border)', borderRadius: 8, padding: '16px 18px' }}>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                 <input autoFocus style={{ flex: 2, minWidth: 120, background: 'var(--s3)', border: '1px solid var(--input-border)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'left' }}
                   placeholder="Naam" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}
@@ -196,9 +209,12 @@ export default function Abonnementen() {
                 <input style={{ width: 160, background: 'var(--s3)', border: '1px solid var(--input-border)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'left' }}
                   type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })}
                   onKeyDown={e => { if (e.key === 'Enter') addSub(); else if (e.key === 'Escape') setOpenForm(false) }} />
-                <input style={{ width: 100, background: 'var(--s3)', border: '1px solid var(--input-border)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'right' }}
-                  type="number" step="0.01" placeholder="Bedrag" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })}
-                  onKeyDown={e => { if (e.key === 'Enter') addSub(); else if (e.key === 'Escape') setOpenForm(false) }} />
+                <div style={{ position: 'relative', display: 'inline-block' }}>
+                  <span style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', fontSize: 13, pointerEvents: 'none', userSelect: 'none' }}>€</span>
+                  <input style={{ width: 100, background: 'var(--s3)', border: '1px solid var(--input-border)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px 6px 22px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'right' }}
+                    type="number" step="0.01" placeholder="Bedrag" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })}
+                    onKeyDown={e => { if (e.key === 'Enter') addSub(); else if (e.key === 'Escape') setOpenForm(false) }} />
+                </div>
                 <select style={{ background: 'var(--s3)', border: '1px solid var(--input-border)', borderRadius: 5, color: 'var(--text)', padding: '6px 8px', fontSize: 12, fontFamily: 'var(--font-body)', cursor: 'pointer' }}
                   value={form.freq} onChange={e => setForm({ ...form, freq: e.target.value })}>
                   <option value="maandelijks">Per maand</option>
@@ -213,8 +229,8 @@ export default function Abonnementen() {
                     <option value="user2">{n2}</option>
                   </select>
                 )}
-                <button onClick={addSub} style={{ fontFamily: 'var(--font-body)', fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 5, cursor: 'pointer', border: 'none', background: 'var(--accent)', color: 'var(--accent-fg)' }}>Toevoegen</button>
-                <button onClick={() => setOpenForm(false)} style={{ fontFamily: 'var(--font-body)', fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 5, cursor: 'pointer', background: 'transparent', color: 'var(--cancel-fg)', border: '1px solid var(--cancel-border)' }}>Annuleren</button>
+                <button className="btn-submit" onClick={addSub} style={{ fontFamily: 'var(--font-body)', fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 5, cursor: 'pointer', border: 'none', background: 'var(--accent)', color: 'var(--accent-fg)' }}>Toevoegen</button>
+                <button className="btn-cancel" onClick={() => setOpenForm(false)} style={{ fontFamily: 'var(--font-body)', fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 5, cursor: 'pointer', background: 'transparent', color: 'var(--cancel-fg)', border: '1px solid var(--cancel-border)' }}>Annuleren</button>
               </div>
             </div>
         </div>

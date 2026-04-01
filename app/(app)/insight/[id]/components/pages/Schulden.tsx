@@ -49,6 +49,7 @@ export default function Schulden() {
   const panel: React.CSSProperties = { background: 'var(--s3)', border: '1px solid var(--card-border)', borderRadius: 8, padding: '22px 26px', marginBottom: 22 }
   const inp: React.CSSProperties = { background: 'var(--s3)', border: '1px solid var(--input-border)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'right', width: '100%', fontVariantNumeric: 'tabular-nums' }
   const eyebrow: React.CSSProperties = { fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 5 }
+  const onEnterBlur = (e: React.KeyboardEvent<HTMLInputElement>) => { if (e.key === 'Enter') e.currentTarget.blur() }
 
   return (
     <div>
@@ -57,15 +58,15 @@ export default function Schulden() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
             <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>Overzicht</span>
           </div>
-          {editable && <button className="btn-add" onClick={() => setShowAdd(!showAdd)} style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 500, letterSpacing: '.04em', textTransform: 'uppercase', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', border: '1px solid rgba(var(--accent-rgb), 0.4)', background: 'var(--s2)', color: 'var(--accent)' }}>+ Toevoegen</button>}
+          {editable && <button className="btn-add" onClick={() => setShowAdd(!showAdd)} style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 500, letterSpacing: '.04em', textTransform: 'uppercase', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', border: '1px solid rgba(var(--accent-rgb), 0.4)', background: 'var(--s2)', color: 'var(--accent)' }}>{showAdd ? '− Toevoegen' : '+ Toevoegen'}</button>}
         </div>
 
         <div style={{ fontSize: 12, color: 'var(--muted2)', marginBottom: 14, lineHeight: 1.7 }}>DUO, hypotheek, autolening, etc. Stel rentevaste periode in voor een vervaldatummelding.</div>
 
         {showAdd && (
-          <div style={{ background: 'var(--s3)', border: '1px solid var(--border)', borderRadius: 6, padding: '16px 18px', marginBottom: 20 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
-              <div style={{ gridColumn: '1 / -1' }}>
+          <div style={{ background: 'var(--s2)', border: '1px solid var(--border)', borderRadius: 8, padding: '16px 18px', marginBottom: 20 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '3fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
+              <div>
                 <div style={eyebrow}>Naam</div>
                 <input autoFocus style={{ ...inp, textAlign: 'left' }} placeholder="Naam schuld" value={form.naam} onChange={e => setForm({ ...form, naam: e.target.value })}
                   onKeyDown={e => { if (e.key === 'Enter') addSchuld(); else if (e.key === 'Escape') setShowAdd(false) }} />
@@ -84,35 +85,43 @@ export default function Schulden() {
                   <option value="samen">Samen</option>
                 </select>
               </div>
-              <div>
-                <div style={eyebrow}>Huidige schuld</div>
-                <input style={inp} type="number" placeholder="€" value={form.balance} onChange={e => setForm({ ...form, balance: e.target.value })}
-                  onKeyDown={e => { if (e.key === 'Enter') addSchuld(); else if (e.key === 'Escape') setShowAdd(false) }} />
-              </div>
-              <div>
-                <div style={eyebrow}>Maand. aflossing</div>
-                <input style={inp} type="number" placeholder="€" value={form.payment} onChange={e => setForm({ ...form, payment: e.target.value })}
-                  onKeyDown={e => { if (e.key === 'Enter') addSchuld(); else if (e.key === 'Escape') setShowAdd(false) }} />
-              </div>
-              <div>
-                <div style={eyebrow}>Jaarrente (%)</div>
-                <input style={inp} type="number" step="0.01" placeholder="%" value={form.rate} onChange={e => setForm({ ...form, rate: e.target.value })}
-                  onKeyDown={e => { if (e.key === 'Enter') addSchuld(); else if (e.key === 'Escape') setShowAdd(false) }} />
-              </div>
-              <div>
-                <div style={eyebrow}>Rentevaste periode (jr)</div>
-                <input style={inp} type="number" step="1" value={form.fixedYears} onChange={e => setForm({ ...form, fixedYears: e.target.value })}
-                  onKeyDown={e => { if (e.key === 'Enter') addSchuld(); else if (e.key === 'Escape') setShowAdd(false) }} />
-              </div>
-              <div>
-                <div style={eyebrow}>Startdatum rente</div>
-                <input style={{ ...inp, textAlign: 'left', fontSize: 11 }} type="date" value={form.fixedStart} onChange={e => setForm({ ...form, fixedStart: e.target.value })}
-                  onKeyDown={e => { if (e.key === 'Enter') addSchuld(); else if (e.key === 'Escape') setShowAdd(false) }} />
+              <div style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: '2fr 2fr 1.5fr 1.5fr 1.5fr', gap: 12, alignItems: 'end' }}>
+                <div>
+                  <div style={eyebrow}>Huidige schuld</div>
+                  <div style={{ position: 'relative' }}>
+                    <span style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', fontSize: 13, pointerEvents: 'none', userSelect: 'none' }}>€</span>
+                    <input style={{ ...inp, padding: '6px 9px 6px 22px' }} type="number" placeholder="Bedrag" value={form.balance} onChange={e => setForm({ ...form, balance: e.target.value })}
+                      onKeyDown={e => { if (e.key === 'Enter') addSchuld(); else if (e.key === 'Escape') setShowAdd(false) }} />
+                  </div>
+                </div>
+                <div>
+                  <div style={eyebrow}>Maand. aflossing</div>
+                  <div style={{ position: 'relative' }}>
+                    <span style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', fontSize: 13, pointerEvents: 'none', userSelect: 'none' }}>€</span>
+                    <input style={{ ...inp, padding: '6px 9px 6px 22px' }} type="number" placeholder="Bedrag" value={form.payment} onChange={e => setForm({ ...form, payment: e.target.value })}
+                      onKeyDown={e => { if (e.key === 'Enter') addSchuld(); else if (e.key === 'Escape') setShowAdd(false) }} />
+                  </div>
+                </div>
+                <div>
+                  <div style={eyebrow}>Jaarrente (%)</div>
+                  <input style={inp} type="number" step="0.01" placeholder="%" value={form.rate} onChange={e => setForm({ ...form, rate: e.target.value })}
+                    onKeyDown={e => { if (e.key === 'Enter') addSchuld(); else if (e.key === 'Escape') setShowAdd(false) }} />
+                </div>
+                <div>
+                  <div style={eyebrow}>Rentevaste periode (jr)</div>
+                  <input style={inp} type="number" step="1" value={form.fixedYears} onChange={e => setForm({ ...form, fixedYears: e.target.value })}
+                    onKeyDown={e => { if (e.key === 'Enter') addSchuld(); else if (e.key === 'Escape') setShowAdd(false) }} />
+                </div>
+                <div>
+                  <div style={eyebrow}>Startdatum rente</div>
+                  <input style={{ ...inp, textAlign: 'left', fontSize: 11 }} type="date" value={form.fixedStart} onChange={e => setForm({ ...form, fixedStart: e.target.value })}
+                    onKeyDown={e => { if (e.key === 'Enter') addSchuld(); else if (e.key === 'Escape') setShowAdd(false) }} />
+                </div>
               </div>
             </div>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button onClick={() => setShowAdd(false)} style={{ fontFamily: 'var(--font-body)', fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 5, cursor: 'pointer', background: 'transparent', color: 'var(--cancel-fg)', border: '1px solid var(--cancel-border)' }}>Annuleren</button>
-              <button onClick={addSchuld} style={{ fontFamily: 'var(--font-body)', fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 5, cursor: 'pointer', border: 'none', background: 'var(--accent)', color: 'var(--accent-fg)' }}>Toevoegen</button>
+              <button className="btn-cancel" onClick={() => setShowAdd(false)} style={{ fontFamily: 'var(--font-body)', fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 5, cursor: 'pointer', background: 'transparent', color: 'var(--cancel-fg)', border: '1px solid var(--cancel-border)' }}>Annuleren</button>
+              <button className="btn-submit" onClick={addSchuld} style={{ fontFamily: 'var(--font-body)', fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 5, cursor: 'pointer', border: 'none', background: 'var(--accent)', color: 'var(--accent-fg)' }}>Toevoegen</button>
             </div>
           </div>
         )}
@@ -131,59 +140,56 @@ export default function Schulden() {
             e.setFullYear(e.getFullYear() + sc.fixedYears)
             const dl = Math.ceil((e.getTime() - new Date().getTime()) / 86400000)
             const cls = dl < 0 ? { bg: 'rgba(224,80,80,.12)', color: 'var(--danger)' } : dl < 180 ? { bg: 'rgba(212,160,23,.12)', color: 'var(--warn)' } : { bg: 'rgba(76,175,130,.12)', color: 'var(--ok)' }
-            fixedBadge = { text: dl < 0 ? 'Rentevaste periode verlopen' : `Rente vast t/m ${e.toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' })} (${Math.round(dl / 30)} mnd)`, ...cls }
+            fixedBadge = { text: dl < 0 ? 'Rentevaste periode verlopen' : `Rente vast tot ${e.toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' })} (${Math.round(dl / 30)} mnd)`, ...cls }
           }
 
           return (
             <div key={sc.id} style={{ background: 'var(--s3)', border: '1px solid var(--border)', borderRadius: 6, padding: '18px 20px', marginBottom: 16 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14, gap: 12 }}>
-                <div style={{ flex: 1 }}>
-                  {editable ? (
-                    <input defaultValue={sc.naam} onBlur={e => editSchuld(sc.id, 'naam', e.target.value)}
-                      style={{ display: 'block', fontSize: 14, fontWeight: 700, background: 'transparent', border: 'none', color: 'var(--text)', fontFamily: 'var(--font-body)', outline: 'none', width: '100%', maxWidth: 300 }} />
-                  ) : <div style={{ fontSize: 14, fontWeight: 700 }}>{sc.naam}</div>}
-                  <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-                    <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.07em', textTransform: 'uppercase', padding: '3px 7px', borderRadius: 4, background: 'rgba(0,194,255,.1)', color: 'var(--accent)', border: '1px solid rgba(0,194,255,.18)' }}>{wieLabel}</span>
-                    <select value={sc.type} onChange={e => editSchuld(sc.id, 'type', e.target.value)} disabled={!editable}
-                      style={{ background: 'var(--s3)', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--text)', padding: '3px 6px', fontSize: 11, fontFamily: 'var(--font-body)', cursor: editable ? 'pointer' : 'default' }}>
-                      {STYPES.map(t => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
-                    </select>
-                    <select value={sc.wie} onChange={e => editSchuld(sc.id, 'wie', e.target.value)} disabled={!editable}
-                      style={{ background: 'var(--s3)', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--text)', padding: '3px 6px', fontSize: 11, fontFamily: 'var(--font-body)', cursor: editable ? 'pointer' : 'default' }}>
-                      <option value="user1">{n1}</option><option value="user2">{n2}</option><option value="samen">Samen</option>
-                    </select>
-                  </div>
-                </div>
-                {editable && <button onClick={() => deleteSchuld(sc.id)} style={{ width: 26, height: 26, background: 'rgba(200,60,60,.1)', color: 'var(--danger)', border: '1px solid rgba(200,60,60,.2)', borderRadius: 4, cursor: 'pointer', fontSize: 14, fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0, flexShrink: 0 }}>×</button>}
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10, marginBottom: 12 }}>
-                {[
-                  { label: 'Huidige schuld', field: 'balance', val: sc.balance, step: '100' },
-                  { label: 'Maand. aflossing', field: 'payment', val: sc.payment, step: '1' },
-                  { label: 'Jaarrente (%)', field: 'rate', val: sc.rate, step: '0.01' },
-                  { label: 'Rentevaste periode (jr)', field: 'fixedYears', val: sc.fixedYears, step: '1' },
-                ].map(f => (
-                  <div key={f.field}>
-                    <div style={eyebrow}>{f.label}</div>
-                    <input type="number" step={f.step} defaultValue={f.val} onBlur={e => editSchuld(sc.id, f.field, e.target.value)} disabled={!editable}
-                      style={{ ...inp, width: '100%', background: editable ? 'var(--s2)' : 'transparent', border: editable ? '1px solid var(--input-border)' : 'none' }} />
-                  </div>
-                ))}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
                 <div>
-                  <div style={eyebrow}>Startdatum rente</div>
-                  <input type="date" defaultValue={sc.fixedStart} onBlur={e => editSchuld(sc.id, 'fixedStart', e.target.value)} disabled={!editable}
-                    style={{ ...inp, width: '100%', textAlign: 'left', fontSize: 11, background: editable ? 'var(--s3)' : 'transparent', border: editable ? '1px solid var(--input-border)' : 'none' }} />
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '2px 7px', borderRadius: 999, background: 'rgba(255,255,255,.04)', fontSize: 10, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--accent)', border: '1px solid rgba(var(--accent-rgb), .18)' }}>
+                    {sc.naam}<span style={{ opacity: 0.45, fontWeight: 400 }}> – </span>{wieLabel}{endDate && <span style={{ opacity: 0.6, fontWeight: 400, letterSpacing: 0, textTransform: 'none' }}> – afgelost {endDate}</span>}
+                  </span>
                 </div>
+                {editable && <button className="btn-delete" onClick={() => deleteSchuld(sc.id)} style={{ width: 26, height: 26, background: 'rgba(200,60,60,.1)', color: 'var(--danger)', border: '1px solid rgba(200,60,60,.2)', borderRadius: 4, cursor: 'pointer', fontSize: 14, fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0, flexShrink: 0 }}>×</button>}
               </div>
 
-              {fixedBadge && (
-                <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.07em', textTransform: 'uppercase', padding: '3px 7px', borderRadius: 4, background: fixedBadge.bg, color: fixedBadge.color }}>{fixedBadge.text}</span>
-                </div>
-              )}
+              {(() => {
+                const cols = '2fr 2fr 1.5fr 1.5fr 1.5fr'
+                const gap = 10
+                return (
+                  <>
+                    <div style={{ display: 'grid', gridTemplateColumns: cols, gap, marginBottom: 4 }}>
+                      <div style={eyebrow}>Huidige schuld</div>
+                      <div style={eyebrow}>Maand. aflossing</div>
+                      <div style={eyebrow}>Jaarrente (%){fixedBadge && <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 600, color: fixedBadge.color }}>{fixedBadge.text.replace(/^Rente vast /i, '').replace(/^Rentevaste /i, '')}</span>}</div>
+                      <div style={eyebrow}>Rentevaste periode (jr)</div>
+                      <div style={eyebrow}>Startdatum rente</div>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: cols, gap, marginBottom: 12 }}>
+                      <div style={{ position: 'relative' }}>
+                        <span style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', fontSize: 13, pointerEvents: 'none', userSelect: 'none' }}>€</span>
+                        <input type="number" step="100" defaultValue={sc.balance} onBlur={e => editSchuld(sc.id, 'balance', e.target.value)} onKeyDown={onEnterBlur} disabled={!editable}
+                          style={{ ...inp, width: '100%', background: editable ? 'var(--s2)' : 'transparent', border: editable ? '1px solid var(--input-border)' : 'none', padding: '6px 9px 6px 22px' }} />
+                      </div>
+                      <div style={{ position: 'relative' }}>
+                        <span style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', fontSize: 13, pointerEvents: 'none', userSelect: 'none' }}>€</span>
+                        <input type="number" step="1" defaultValue={sc.payment} onBlur={e => editSchuld(sc.id, 'payment', e.target.value)} onKeyDown={onEnterBlur} disabled={!editable}
+                          style={{ ...inp, width: '100%', background: editable ? 'var(--s2)' : 'transparent', border: editable ? '1px solid var(--input-border)' : 'none', padding: '6px 9px 6px 22px' }} />
+                      </div>
+                      <input type="number" step="0.01" defaultValue={sc.rate} onBlur={e => editSchuld(sc.id, 'rate', e.target.value)} onKeyDown={onEnterBlur} disabled={!editable}
+                        style={{ ...inp, width: '100%', background: editable ? 'var(--s2)' : 'transparent', border: editable ? '1px solid var(--input-border)' : 'none' }} />
+                      <input type="number" step="1" defaultValue={sc.fixedYears} onBlur={e => editSchuld(sc.id, 'fixedYears', e.target.value)} onKeyDown={onEnterBlur} disabled={!editable}
+                        style={{ ...inp, width: '100%', background: editable ? 'var(--s2)' : 'transparent', border: editable ? '1px solid var(--input-border)' : 'none' }} />
+                      <input type="date" defaultValue={sc.fixedStart} onBlur={e => editSchuld(sc.id, 'fixedStart', e.target.value)} onKeyDown={onEnterBlur} disabled={!editable}
+                        style={{ ...inp, width: '100%', textAlign: 'left', fontSize: 11, background: editable ? 'var(--s3)' : 'transparent', border: editable ? '1px solid var(--input-border)' : 'none' }} />
+                    </div>
+                  </>
+                )
+              })()}
 
-              <div style={{ background: 'var(--s2)', border: '1px solid var(--card-border)', borderTop: '1px solid var(--accent)', borderRadius: 8, padding: '14px 16px', marginTop: 12 }}>
+
+              <div style={{ background: 'var(--s2)', border: '1px solid var(--card-border)', borderTop: '1px solid var(--accent)', borderRadius: 8, padding: '10px 14px', marginTop: 12 }}>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, alignItems: 'stretch' }}>
                   {[
                     { label: 'Resterende schuld', val: fmtK(sc.balance), color: 'var(--accent)' },
@@ -192,12 +198,11 @@ export default function Schulden() {
                     { label: 'Totale rente', val: fmtK(totalInterestSc), color: 'var(--danger)' },
                   ].map((s, i) => (
                     <div key={i}>
-                      <div style={{ ...eyebrow, color: 'var(--muted)' }}>{s.label}</div>
-                      <div style={{ fontSize: 24, fontWeight: 700, lineHeight: 1, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)', marginTop: 4, color: s.color }}>{s.val}</div>
+                      <div style={{ ...eyebrow, fontSize: 10, fontWeight: 600, letterSpacing: '.07em', textTransform: 'uppercase', color: 'var(--muted)' }}>{s.label}</div>
+                      <div style={{ fontSize: 18, fontWeight: 700, lineHeight: 1, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)', marginTop: 3, color: s.color }}>{s.val}</div>
                     </div>
                   ))}
                 </div>
-                {endDate && <div style={{ fontSize: 11, color: 'var(--muted2)', marginTop: 8, lineHeight: 1.6 }}>Afgelost circa {endDate}</div>}
               </div>
             </div>
           )
