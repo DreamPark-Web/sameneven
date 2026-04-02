@@ -69,7 +69,7 @@ const DEFAULT_ORDER = [
 const WIDGET_META: Record<string, { label: string; dualOnly?: boolean; fullWidth: boolean }> = {
   'financieel-overzicht': { label: 'Financieel overzicht', fullWidth: true },
   'cashflow':             { label: 'Cashflow',              fullWidth: false },
-  'over-te-maken':        { label: 'Over te maken',         dualOnly: true, fullWidth: false },
+  'over-te-maken':        { label: 'Over te maken naar gezamenlijke rekening', dualOnly: true, fullWidth: false },
   'inkomen-verdeling':    { label: 'Inkomen verdeling',     fullWidth: true },
   'spaardoelen':          { label: 'Spaardoelen',           fullWidth: false },
   'schulden':             { label: 'Schulden',              fullWidth: false },
@@ -102,6 +102,9 @@ const card: CSSProperties = {
   border: '1px solid var(--card-border)',
   borderRadius: 10,
   padding: '20px 22px',
+  flex: 1,
+  display: 'flex',
+  flexDirection: 'column',
 }
 
 const cardHd: CSSProperties = {
@@ -351,7 +354,7 @@ export default function Dashboard() {
     return (
       <div style={card}>
         <div style={cardHd}>
-          <span style={{ fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-heading)' }}>Over te maken</span>
+          <span style={{ fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-heading)' }}>Over te maken naar gezamenlijke rekening</span>
           <DragHandle />
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
@@ -644,7 +647,7 @@ export default function Dashboard() {
       )}
 
       {/* Widget grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14, alignItems: 'start' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14, alignItems: 'stretch' }}>
         {visibleIds.map(id => {
           const meta = WIDGET_META[id]
           const isDragging = dragId === id
@@ -665,6 +668,8 @@ export default function Dashboard() {
                 outlineOffset: 2,
                 borderRadius: 12,
                 cursor: 'default',
+                display: 'flex',
+                flexDirection: 'column',
               }}
             >
               {renderWidget(id)}

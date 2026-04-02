@@ -529,7 +529,7 @@ export default function Topbar({
     borderRadius: 14,
     padding: 28,
     width: '100%',
-    maxWidth: 680,
+    maxWidth: 960,
     position: 'relative',
     maxHeight: '92vh',
     overflowY: 'auto',
@@ -654,6 +654,16 @@ export default function Topbar({
     if (!showSettings) return
     applyPreviewTheme(themeColor)
   }, [themeColor, showSettings])
+
+  useEffect(() => {
+    const open = showSettings || showAccount
+    if (open) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+    return () => { document.body.style.overflow = '' }
+  }, [showSettings, showAccount])
 
   function openAccount() {
     setAccountName(displayName)
@@ -1221,40 +1231,49 @@ export default function Topbar({
           }}
         >
           <div style={modal}>
-            <button
-              onClick={() => {
-                applyPreviewTheme(settingsStartTheme)
-                setShowSettings(false)
-              }}
-              style={{
-                position: 'absolute',
-                top: 14,
-                right: 14,
-                background: 'none',
-                border: 'none',
-                color: 'var(--muted)',
-                fontSize: 18,
-                cursor: 'pointer',
-                lineHeight: 1,
-                padding: 4,
-              }}
-            >
-              ×
-            </button>
-
             <div
               style={{
-                fontSize: 16,
-                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
                 marginBottom: 20,
-                fontFamily: 'var(--font-heading)',
               }}
             >
-              Insight-instellingen
+              <div style={{ fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-heading)', flex: 1 }}>
+                Insight-instellingen
+              </div>
+              {isOwner && (
+                <button
+                  onClick={saveInsightSettings}
+                  style={{ ...btnPrimary, width: 'auto', padding: '7px 18px', fontSize: 13, flexShrink: 0 }}
+                >
+                  Opslaan
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  applyPreviewTheme(settingsStartTheme)
+                  setShowSettings(false)
+                }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--muted)',
+                  fontSize: 18,
+                  cursor: 'pointer',
+                  lineHeight: 1,
+                  padding: 4,
+                  flexShrink: 0,
+                }}
+              >
+                ×
+              </button>
             </div>
 
-            {isOwner && (
-              <div style={modalSection}>
+            {isOwner ? (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14, alignItems: 'stretch', marginBottom: 14 }}>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <div style={{ ...modalSection, flex: 1 }}>
                 <div
                   style={{
                     fontSize: 10,
@@ -1280,9 +1299,6 @@ export default function Topbar({
                   data-bwignore="true"
                 />
               </div>
-            )}
-
-            {isOwner && (
               <div style={modalSection}>
               <div
                 style={{
@@ -1349,10 +1365,62 @@ export default function Topbar({
                 Stuur deze link om iemand toegang te geven.
               </div>
               </div>
-            )}
-
-            {isOwner && (
+                </div>
+                <div>
               <div style={modalSection}>
+                <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 10 }}>
+                  Navigatie
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--muted2)', marginBottom: 12, lineHeight: 1.6 }}>
+                  Vink uit om een onderdeel in de navigatie te verbergen.
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {navOrder
+                    .map((id) => NAV_ITEMS.find((item) => item.id === id))
+                    .filter(Boolean)
+                    .map((item) => {
+                      const checked = !hiddenNavItems.includes(item!.id)
+                      return (
+                        <label
+                          key={item!.id}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 10,
+                            padding: '8px 10px',
+                            borderRadius: 8,
+                            border: '1px solid var(--border)',
+                            background: 'rgba(255,255,255,.02)',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => {
+                              setHiddenNavItems((prev) => {
+                                const next = prev.includes(item!.id)
+                                  ? prev.filter((id) => id !== item!.id)
+                                  : [...prev, item!.id]
+                                return next
+                              })
+                            }}
+                            style={{ width: 15, height: 15, accentColor: 'var(--accent)', flexShrink: 0 }}
+                          />
+                          <span style={{ flex: 1, fontSize: 13, fontWeight: 500, color: checked ? 'var(--text)' : 'var(--muted)' }}>
+                            {item!.label}
+                          </span>
+                        </label>
+                      )
+                    })}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 10, lineHeight: 1.6 }}>
+                  Dit zijn persoonlijke instellingen, niet gedeeld met anderen.
+                </div>
+              </div>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <div style={{ ...modalSection, flex: 1 }}>
               <div
                 style={{
                   fontSize: 10,
@@ -1539,40 +1607,22 @@ export default function Topbar({
                 </div>
               </div>
               </div>
-            )}
-
-            <div style={modalSection}>
-              <div
-                style={{
-                  fontSize: 10,
-                  fontWeight: 700,
-                  letterSpacing: '.1em',
-                  textTransform: 'uppercase',
-                  color: 'var(--muted)',
-                  marginBottom: 10,
-                }}
-              >
+                </div>
+              </div>
+            ) : (
+            <div style={{ ...modalSection, marginBottom: 14 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 10 }}>
                 Navigatie
               </div>
-
-              <div
-                style={{
-                  fontSize: 11,
-                  color: 'var(--muted2)',
-                  marginBottom: 12,
-                  lineHeight: 1.6,
-                }}
-              >
+              <div style={{ fontSize: 11, color: 'var(--muted2)', marginBottom: 12, lineHeight: 1.6 }}>
                 Vink uit om een onderdeel in de navigatie te verbergen.
               </div>
-
-              <div id="nav-config-list" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 8 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 8 }}>
                 {navOrder
                   .map((id) => NAV_ITEMS.find((item) => item.id === id))
                   .filter(Boolean)
                   .map((item) => {
                     const checked = !hiddenNavItems.includes(item!.id)
-
                     return (
                       <label
                         key={item!.id}
@@ -1595,37 +1645,23 @@ export default function Topbar({
                               const next = prev.includes(item!.id)
                                 ? prev.filter((id) => id !== item!.id)
                                 : [...prev, item!.id]
-
                               return next
                             })
                           }}
-                          style={{
-                            width: 15,
-                            height: 15,
-                            accentColor: 'var(--accent)',
-                            flexShrink: 0,
-                          }}
+                          style={{ width: 15, height: 15, accentColor: 'var(--accent)', flexShrink: 0 }}
                         />
-
-                        <span
-                          style={{
-                            flex: 1,
-                            fontSize: 13,
-                            fontWeight: 500,
-                            color: checked ? 'var(--text)' : 'var(--muted)',
-                          }}
-                        >
+                        <span style={{ flex: 1, fontSize: 13, fontWeight: 500, color: checked ? 'var(--text)' : 'var(--muted)' }}>
                           {item!.label}
                         </span>
                       </label>
                     )
                   })}
               </div>
-
               <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 10, lineHeight: 1.6 }}>
                 Dit zijn persoonlijke instellingen, niet gedeeld met anderen.
               </div>
             </div>
+            )}
 
             {(myRole === 'owner' || myRole === 'admin') && (
               <div style={modalSection}>
@@ -1747,20 +1783,6 @@ export default function Topbar({
               </div>
             )}
 
-            {isOwner && (
-              <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginTop: 6 }}>
-                <button
-                  onClick={saveInsightSettings}
-                  style={{
-                    ...btnPrimary,
-                    width: 'auto',
-                    padding: '9px 20px',
-                  }}
-                >
-                  Opslaan
-                </button>
-              </div>
-            )}
           </div>
         </div>
       )}
