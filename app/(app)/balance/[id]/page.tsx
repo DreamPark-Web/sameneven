@@ -232,6 +232,8 @@ export default function BalancePage() {
   const [allBalanceIds, setAllBalanceIds] = useState<string[]>([])
   const swipeStartX = useRef<number | null>(null)
   const swipeStartY = useRef<number | null>(null)
+  const swipeLocked = useRef<'h' | 'v' | null>(null)
+  const pageRef = useRef<HTMLDivElement>(null)
 
   // Account modal
   const [showAccount, setShowAccount] = useState(false)
@@ -508,21 +510,71 @@ export default function BalancePage() {
   // --- Swipe navigation ---
 
   function handleTouchStart(e: React.TouchEvent) {
+    if (showManual || showScanConfirm || showClose || showHistory || selectedClosing || showAddMember || showAccount) return
     swipeStartX.current = e.touches[0].clientX
     swipeStartY.current = e.touches[0].clientY
+    swipeLocked.current = null
+  }
+
+  function handleTouchMove(e: React.TouchEvent) {
+    if (swipeStartX.current === null || swipeStartY.current === null) return
+    const dx = e.touches[0].clientX - swipeStartX.current
+    const dy = e.touches[0].clientY - swipeStartY.current
+
+    if (!swipeLocked.current) {
+      if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return
+      swipeLocked.current = Math.abs(dx) > Math.abs(dy) ? 'h' : 'v'
+    }
+    if (swipeLocked.current !== 'h') return
+
+    const el = pageRef.current
+    if (!el) return
+    const idx = allBalanceIds.indexOf(id)
+    const canLeft = dx < 0 && idx < allBalanceIds.length - 1
+    const canRight = dx > 0 && idx > 0
+    if (!canLeft && !canRight) return
+
+    e.preventDefault()
+    const damped = dx * 0.45
+    el.style.transform = `translateX(${damped}px)`
+    el.style.opacity = String(1 - Math.min(Math.abs(damped) / 320, 0.35))
   }
 
   function handleTouchEnd(e: React.TouchEvent) {
-    if (swipeStartX.current === null || swipeStartY.current === null) return
+    const el = pageRef.current
+    if (swipeStartX.current === null || swipeStartY.current === null || swipeLocked.current !== 'h') {
+      swipeStartX.current = null
+      swipeStartY.current = null
+      swipeLocked.current = null
+      return
+    }
     const dx = e.changedTouches[0].clientX - swipeStartX.current
-    const dy = e.changedTouches[0].clientY - swipeStartY.current
     swipeStartX.current = null
     swipeStartY.current = null
-    if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return
+    swipeLocked.current = null
+
     const idx = allBalanceIds.indexOf(id)
-    if (idx === -1) return
-    if (dx < 0 && idx < allBalanceIds.length - 1) router.push(`/balance/${allBalanceIds[idx + 1]}`)
-    if (dx > 0 && idx > 0) router.push(`/balance/${allBalanceIds[idx - 1]}`)
+    const threshold = 72
+    const canNavigate = Math.abs(dx) >= threshold &&
+      ((dx < 0 && idx < allBalanceIds.length - 1) || (dx > 0 && idx > 0))
+
+    if (!el) return
+
+    if (canNavigate) {
+      const targetX = dx < 0 ? -window.innerWidth : window.innerWidth
+      el.style.transition = 'transform 0.22s ease, opacity 0.22s ease'
+      el.style.transform = `translateX(${targetX}px)`
+      el.style.opacity = '0'
+      setTimeout(() => {
+        if (dx < 0) router.push(`/balance/${allBalanceIds[idx + 1]}`)
+        else router.push(`/balance/${allBalanceIds[idx - 1]}`)
+      }, 200)
+    } else {
+      el.style.transition = 'transform 0.3s cubic-bezier(.25,.8,.25,1), opacity 0.3s ease'
+      el.style.transform = 'translateX(0)'
+      el.style.opacity = '1'
+      setTimeout(() => { if (el) el.style.transition = '' }, 320)
+    }
   }
 
   // --- Account modal handlers ---
@@ -606,7 +658,7 @@ export default function BalancePage() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)', fontFamily: 'var(--font-body)', color: 'var(--text)' }} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+    <div ref={pageRef} style={{ minHeight: '100vh', background: 'var(--bg)', fontFamily: 'var(--font-body)', color: 'var(--text)' }} onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
 
       {/* ── Header ── */}
       <div style={{ position: 'sticky', top: 0, zIndex: 100, background: 'var(--s1)', borderBottom: '1px solid var(--border)', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -632,7 +684,7 @@ export default function BalancePage() {
 
         {/* Members */}
         <div style={{ marginBottom: 28 }}>
-          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 24 }}>Leden</div>
+          <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 24 }}>Leden</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px 8px' }}>
             {[...members].sort((a, b) => (b.user_id === user?.id ? 1 : 0) - (a.user_id === user?.id ? 1 : 0)).map(m => {
               const isOwner = m.user_id === user?.id
@@ -688,7 +740,7 @@ export default function BalancePage() {
         {/* Summary per person */}
         {members.length > 0 && totalAll > 0 && (
           <div style={{ marginBottom: 28 }}>
-            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 12 }}>Overzicht</div>
+            <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 12 }}>Overzicht</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(136px,1fr))', gap: 10 }}>
               {members.map(m => {
                 const paid = paidByMember[m.id] || 0
@@ -1003,7 +1055,7 @@ export default function BalancePage() {
               {/* Preview settlements */}
               {entries.length > 0 && members.length > 1 && (
                 <div style={{ marginBottom: 18 }}>
-                  <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 10 }}>Verwachte afrekening</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 10 }}>Verwachte afrekening</div>
                   {calculateSettlements(members, entries).length === 0 ? (
                     <div style={{ fontSize: 12, color: 'var(--ok)' }}>Iedereen staat gelijk</div>
                   ) : calculateSettlements(members, entries).map((s, i) => (
@@ -1123,7 +1175,7 @@ export default function BalancePage() {
           <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
 
             {/* Afrekening */}
-            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 12 }}>Afrekening</div>
+            <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 12 }}>Afrekening</div>
             {(selectedClosing.settlements || []).length === 0 ? (
               <div style={{ background: 'rgba(76,175,130,0.1)', border: '1px solid rgba(76,175,130,0.25)', borderRadius: 10, padding: '14px 16px', marginBottom: 24, color: 'var(--ok)', fontSize: 14, fontWeight: 600, textAlign: 'center' }}>
                 Iedereen stond gelijk — niks te betalen!
@@ -1156,7 +1208,7 @@ export default function BalancePage() {
               const days = Object.keys(byDay).sort((a, b) => b.localeCompare(a))
               return (
                 <>
-                  <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 12 }}>Uitgaven</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 12 }}>Uitgaven</div>
                   {days.map(day => {
                     const dayEntries = byDay[day]
                     const dayTotal = dayEntries.reduce((s, e) => s + Number(e.amount), 0)
