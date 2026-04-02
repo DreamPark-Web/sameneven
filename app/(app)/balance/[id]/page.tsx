@@ -228,6 +228,11 @@ export default function BalancePage() {
   const scanFileRef = useRef<HTMLInputElement>(null)
   const scanLibraryRef = useRef<HTMLInputElement>(null)
 
+  // Swipe navigation
+  const [allBalanceIds, setAllBalanceIds] = useState<string[]>([])
+  const swipeStartX = useRef<number | null>(null)
+  const swipeStartY = useRef<number | null>(null)
+
   // Account modal
   const [showAccount, setShowAccount] = useState(false)
   const [accountName, setAccountName] = useState('')
@@ -297,6 +302,14 @@ export default function BalancePage() {
       setClosings((cls as BalanceClosing[]) || [])
       setApprovals((apps as BalanceApproval[]) || [])
       setLoading(false)
+
+      // Load sibling balance IDs for swipe navigation
+      const { data: siblingBalances } = await supabase
+        .from('balances')
+        .select('id')
+        .eq('user_id', user!.id)
+        .order('created_at', { ascending: true })
+      setAllBalanceIds((siblingBalances || []).map((b: { id: string }) => b.id))
     }
 
     load()
@@ -492,6 +505,26 @@ export default function BalancePage() {
     autoFinalizeRef.current = false
   }
 
+  // --- Swipe navigation ---
+
+  function handleTouchStart(e: React.TouchEvent) {
+    swipeStartX.current = e.touches[0].clientX
+    swipeStartY.current = e.touches[0].clientY
+  }
+
+  function handleTouchEnd(e: React.TouchEvent) {
+    if (swipeStartX.current === null || swipeStartY.current === null) return
+    const dx = e.changedTouches[0].clientX - swipeStartX.current
+    const dy = e.changedTouches[0].clientY - swipeStartY.current
+    swipeStartX.current = null
+    swipeStartY.current = null
+    if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return
+    const idx = allBalanceIds.indexOf(id)
+    if (idx === -1) return
+    if (dx < 0 && idx < allBalanceIds.length - 1) router.push(`/balance/${allBalanceIds[idx + 1]}`)
+    if (dx > 0 && idx > 0) router.push(`/balance/${allBalanceIds[idx - 1]}`)
+  }
+
   // --- Account modal handlers ---
 
   function openAccount() {
@@ -573,7 +606,7 @@ export default function BalancePage() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)', fontFamily: 'var(--font-body)', color: 'var(--text)' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--bg)', fontFamily: 'var(--font-body)', color: 'var(--text)' }} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
 
       {/* ── Header ── */}
       <div style={{ position: 'sticky', top: 0, zIndex: 100, background: 'var(--s1)', borderBottom: '1px solid var(--border)', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
