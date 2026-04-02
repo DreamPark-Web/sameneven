@@ -200,7 +200,7 @@ export default function BalancePage() {
   const [savingEntry, setSavingEntry] = useState(false)
 
   // Scan flow
-  const [scanning, setScanning] = useState(false)
+  const [showLiveCamera, setShowLiveCamera] = useState(false)
   const [scanError, setScanError] = useState<string | null>(null)
   const [showScanConfirm, setShowScanConfirm] = useState(false)
   const [scanAmount, setScanAmount] = useState('')
@@ -208,6 +208,10 @@ export default function BalancePage() {
   const [scanPaidBy, setScanPaidBy] = useState('')
   const [scanReceipt, setScanReceipt] = useState<string | null>(null)
   const [savingScan, setSavingScan] = useState(false)
+  const [scanStatus, setScanStatus] = useState<'scanning' | 'detected' | null>(null)
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const cameraStreamRef = useRef<MediaStream | null>(null)
+  const scanIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   // Delete entry
   const [deleteEntryId, setDeleteEntryId] = useState<string | null>(null)
@@ -225,11 +229,12 @@ export default function BalancePage() {
   // Receipt preview
   const [previewReceipt, setPreviewReceipt] = useState<string | null>(null)
 
-  const scanFileRef = useRef<HTMLInputElement>(null)
   const scanLibraryRef = useRef<HTMLInputElement>(null)
 
   // Swipe navigation
   const [allBalanceIds, setAllBalanceIds] = useState<string[]>([])
+  const allBalanceIdsRef = useRef<string[]>([])
+  const swipeEnabledRef = useRef(true)
   const swipeStartX = useRef<number | null>(null)
   const swipeStartY = useRef<number | null>(null)
   const swipeLocked = useRef<'h' | 'v' | null>(null)
@@ -316,6 +321,111 @@ export default function BalancePage() {
 
     load()
   }, [id, user, userLoading])
+
+  // --- Swipe enter animation ---
+  useEffect(() => {
+    const dir = sessionStorage.getItem('se_swipe_dir')
+    if (!dir || !pageRef.current) return
+    sessionStorage.removeItem('se_swipe_dir')
+    const el = pageRef.current
+    const startX = dir === 'left' ? window.innerWidth : -window.innerWidth
+    el.style.transform = `translateX(${startX}px)`
+    el.style.opacity = '0'
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        el.style.transition = 'transform 0.28s cubic-bezier(.25,.8,.25,1), opacity 0.28s ease'
+        el.style.transform = 'translateX(0)'
+        el.style.opacity = '1'
+        setTimeout(() => { if (el) el.style.transition = '' }, 320)
+      })
+    })
+  }, [])
+
+  // --- Sync swipe refs ---
+  useEffect(() => { allBalanceIdsRef.current = allBalanceIds }, [allBalanceIds])
+  useEffect(() => {
+    swipeEnabledRef.current = !showManual && !showScanConfirm && !showClose && !showHistory && !selectedClosing && !showAddMember && !showAccount && !showLiveCamera
+  }, [showManual, showScanConfirm, showClose, showHistory, selectedClosing, showAddMember, showAccount, showLiveCamera])
+
+  // --- Native swipe listeners (passive: false allows preventDefault) ---
+  useEffect(() => {
+    const el = pageRef.current
+    if (!el) return
+    const node = el
+
+    function onTouchStart(e: TouchEvent) {
+      if (!swipeEnabledRef.current) return
+      swipeStartX.current = e.touches[0].clientX
+      swipeStartY.current = e.touches[0].clientY
+      swipeLocked.current = null
+    }
+
+    function onTouchMove(e: TouchEvent) {
+      if (swipeStartX.current === null || swipeStartY.current === null) return
+      const dx = e.touches[0].clientX - swipeStartX.current
+      const dy = e.touches[0].clientY - swipeStartY.current
+
+      if (!swipeLocked.current) {
+        if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return
+        swipeLocked.current = Math.abs(dx) > Math.abs(dy) ? 'h' : 'v'
+      }
+      if (swipeLocked.current !== 'h') return
+
+      const ids = allBalanceIdsRef.current
+      const idx = ids.indexOf(id)
+      const canLeft = dx < 0 && idx < ids.length - 1
+      const canRight = dx > 0 && idx > 0
+      if (!canLeft && !canRight) return
+
+      e.preventDefault()
+      const damped = dx * 0.85
+      node.style.transform = `translateX(${damped}px)`
+      node.style.opacity = String(1 - Math.min(Math.abs(damped) / 400, 0.25))
+    }
+
+    function onTouchEnd(e: TouchEvent) {
+      if (swipeStartX.current === null || swipeStartY.current === null || swipeLocked.current !== 'h') {
+        swipeStartX.current = null
+        swipeStartY.current = null
+        swipeLocked.current = null
+        return
+      }
+      const dx = e.changedTouches[0].clientX - swipeStartX.current
+      swipeStartX.current = null
+      swipeStartY.current = null
+      swipeLocked.current = null
+
+      const ids = allBalanceIdsRef.current
+      const idx = ids.indexOf(id)
+      const threshold = 60
+      const canNavigate = Math.abs(dx) >= threshold &&
+        ((dx < 0 && idx < ids.length - 1) || (dx > 0 && idx > 0))
+
+      if (canNavigate) {
+        const targetX = dx < 0 ? -window.innerWidth : window.innerWidth
+        sessionStorage.setItem('se_swipe_dir', dx < 0 ? 'left' : 'right')
+        node.style.transition = 'transform 0.22s ease, opacity 0.22s ease'
+        node.style.transform = `translateX(${targetX}px)`
+        node.style.opacity = '0'
+        const nextId = dx < 0 ? ids[idx + 1] : ids[idx - 1]
+        setTimeout(() => router.push(`/balance/${nextId}`), 200)
+      } else {
+        node.style.transition = 'transform 0.3s cubic-bezier(.25,.8,.25,1), opacity 0.3s ease'
+        node.style.transform = 'translateX(0)'
+        node.style.opacity = '1'
+        setTimeout(() => { node.style.transition = '' }, 320)
+      }
+    }
+
+    node.addEventListener('touchstart', onTouchStart, { passive: true })
+    node.addEventListener('touchmove', onTouchMove, { passive: false })
+    node.addEventListener('touchend', onTouchEnd, { passive: true })
+    return () => {
+      node.removeEventListener('touchstart', onTouchStart)
+      node.removeEventListener('touchmove', onTouchMove)
+      node.removeEventListener('touchend', onTouchEnd)
+    }
+  }, [id, router])
 
   // --- Realtime ---
 
@@ -436,18 +546,65 @@ export default function BalancePage() {
     setDeleteEntryId(null)
   }
 
+  function stopCamera() {
+    if (scanIntervalRef.current) { clearInterval(scanIntervalRef.current); scanIntervalRef.current = null }
+    if (cameraStreamRef.current) { cameraStreamRef.current.getTracks().forEach(t => t.stop()); cameraStreamRef.current = null }
+    setShowLiveCamera(false)
+    setScanStatus(null)
+  }
+
+  async function openLiveCamera() {
+    setFabOpen(false)
+    setScanError(null)
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false })
+      cameraStreamRef.current = stream
+      setShowLiveCamera(true)
+      setTimeout(() => {
+        if (videoRef.current) { videoRef.current.srcObject = stream; videoRef.current.play() }
+      }, 100)
+      setScanStatus('scanning')
+      scanIntervalRef.current = setInterval(async () => {
+        const video = videoRef.current
+        if (!video || video.readyState < 2) return
+        const canvas = document.createElement('canvas')
+        canvas.width = video.videoWidth
+        canvas.height = video.videoHeight
+        canvas.getContext('2d')!.drawImage(video, 0, 0)
+        const base64 = canvas.toDataURL('image/jpeg', 0.82)
+        try {
+          const res = await fetch('/api/balance/scan', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ imageBase64: base64, mimeType: 'image/jpeg' }),
+          })
+          if (!res.ok) return
+          const json = await res.json() as { amount?: number }
+          if (json.amount && json.amount > 0) {
+            setScanStatus('detected')
+            stopCamera()
+            setScanAmount(String(json.amount).replace('.', ','))
+            setScanReceipt(base64)
+            setScanDesc('')
+            setScanPaidBy(members[0]?.id || '')
+            setShowScanConfirm(true)
+          }
+        } catch { /* keep trying */ }
+      }, 1500)
+    } catch {
+      setScanError('Camera niet toegankelijk. Controleer je browserinstellingen.')
+    }
+  }
+
   const handleScanFile = useCallback(async (file: File) => {
-    setScanning(true)
     setScanError(null)
     setFabOpen(false)
-
     const base64 = await new Promise<string>((resolve, reject) => {
       const reader = new FileReader()
       reader.onload = () => resolve(reader.result as string)
       reader.onerror = reject
       reader.readAsDataURL(file)
     })
-
     try {
       const res = await fetch('/api/balance/scan', {
         method: 'POST',
@@ -455,7 +612,7 @@ export default function BalancePage() {
         body: JSON.stringify({ imageBase64: base64, mimeType: file.type }),
       })
       const json = await res.json() as { amount?: number; error?: string }
-      if (!res.ok) { setScanError(json.error || 'Scan mislukt'); setScanning(false); return }
+      if (!res.ok) { setScanError(json.error || 'Scan mislukt'); return }
       setScanAmount(String(json.amount!).replace('.', ','))
       setScanReceipt(base64)
       setScanDesc('')
@@ -464,7 +621,6 @@ export default function BalancePage() {
     } catch {
       setScanError('Scan mislukt, probeer opnieuw')
     }
-    setScanning(false)
   }, [members])
 
   async function toggleApproval(memberId: string) {
@@ -505,76 +661,6 @@ export default function BalancePage() {
     setCloseResult(settlements)
     setClosingInProgress(false)
     autoFinalizeRef.current = false
-  }
-
-  // --- Swipe navigation ---
-
-  function handleTouchStart(e: React.TouchEvent) {
-    if (showManual || showScanConfirm || showClose || showHistory || selectedClosing || showAddMember || showAccount) return
-    swipeStartX.current = e.touches[0].clientX
-    swipeStartY.current = e.touches[0].clientY
-    swipeLocked.current = null
-  }
-
-  function handleTouchMove(e: React.TouchEvent) {
-    if (swipeStartX.current === null || swipeStartY.current === null) return
-    const dx = e.touches[0].clientX - swipeStartX.current
-    const dy = e.touches[0].clientY - swipeStartY.current
-
-    if (!swipeLocked.current) {
-      if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return
-      swipeLocked.current = Math.abs(dx) > Math.abs(dy) ? 'h' : 'v'
-    }
-    if (swipeLocked.current !== 'h') return
-
-    const el = pageRef.current
-    if (!el) return
-    const idx = allBalanceIds.indexOf(id)
-    const canLeft = dx < 0 && idx < allBalanceIds.length - 1
-    const canRight = dx > 0 && idx > 0
-    if (!canLeft && !canRight) return
-
-    e.preventDefault()
-    const damped = dx * 0.45
-    el.style.transform = `translateX(${damped}px)`
-    el.style.opacity = String(1 - Math.min(Math.abs(damped) / 320, 0.35))
-  }
-
-  function handleTouchEnd(e: React.TouchEvent) {
-    const el = pageRef.current
-    if (swipeStartX.current === null || swipeStartY.current === null || swipeLocked.current !== 'h') {
-      swipeStartX.current = null
-      swipeStartY.current = null
-      swipeLocked.current = null
-      return
-    }
-    const dx = e.changedTouches[0].clientX - swipeStartX.current
-    swipeStartX.current = null
-    swipeStartY.current = null
-    swipeLocked.current = null
-
-    const idx = allBalanceIds.indexOf(id)
-    const threshold = 72
-    const canNavigate = Math.abs(dx) >= threshold &&
-      ((dx < 0 && idx < allBalanceIds.length - 1) || (dx > 0 && idx > 0))
-
-    if (!el) return
-
-    if (canNavigate) {
-      const targetX = dx < 0 ? -window.innerWidth : window.innerWidth
-      el.style.transition = 'transform 0.22s ease, opacity 0.22s ease'
-      el.style.transform = `translateX(${targetX}px)`
-      el.style.opacity = '0'
-      setTimeout(() => {
-        if (dx < 0) router.push(`/balance/${allBalanceIds[idx + 1]}`)
-        else router.push(`/balance/${allBalanceIds[idx - 1]}`)
-      }, 200)
-    } else {
-      el.style.transition = 'transform 0.3s cubic-bezier(.25,.8,.25,1), opacity 0.3s ease'
-      el.style.transform = 'translateX(0)'
-      el.style.opacity = '1'
-      setTimeout(() => { if (el) el.style.transition = '' }, 320)
-    }
   }
 
   // --- Account modal handlers ---
@@ -658,7 +744,7 @@ export default function BalancePage() {
   }
 
   return (
-    <div ref={pageRef} style={{ minHeight: '100vh', background: 'var(--bg)', fontFamily: 'var(--font-body)', color: 'var(--text)' }} onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
+    <div ref={pageRef} style={{ minHeight: '100vh', background: 'var(--bg)', fontFamily: 'var(--font-body)', color: 'var(--text)' }}>
 
       {/* ── Header ── */}
       <div style={{ position: 'sticky', top: 0, zIndex: 100, background: 'var(--s1)', borderBottom: '1px solid var(--border)', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -841,7 +927,7 @@ export default function BalancePage() {
       {fabOpen && (
         <div style={{ position: 'fixed', bottom: 92, right: 24, zIndex: 200, display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'flex-end' }}>
           <button
-            onClick={() => { setFabOpen(false); scanFileRef.current?.click() }}
+            onClick={openLiveCamera}
             style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', borderRadius: 20, background: 'var(--s2)', border: '1px solid var(--border)', color: 'var(--text)', fontSize: 13, fontWeight: 600, cursor: 'pointer', boxShadow: '0 4px 16px rgba(0,0,0,0.3)', whiteSpace: 'nowrap' }}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
@@ -870,15 +956,7 @@ export default function BalancePage() {
         +
       </button>
 
-      {/* Hidden scan inputs */}
-      <input
-        ref={scanFileRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        style={{ display: 'none' }}
-        onChange={e => { const f = e.target.files?.[0]; if (f) handleScanFile(f); e.target.value = '' }}
-      />
+      {/* Hidden scan input */}
       <input
         ref={scanLibraryRef}
         type="file"
@@ -887,11 +965,19 @@ export default function BalancePage() {
         onChange={e => { const f = e.target.files?.[0]; if (f) handleScanFile(f); e.target.value = '' }}
       />
 
-      {/* Scanning overlay */}
-      {scanning && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.72)', zIndex: 500, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14, fontFamily: 'var(--font-body)' }}>
-          <div style={{ width: 40, height: 40, borderRadius: '50%', border: '3px solid var(--accent)', borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite' }} />
-          <div style={{ fontSize: 14, color: '#fff' }}>Bon wordt gescand...</div>
+      {/* Live camera overlay */}
+      {showLiveCamera && (
+        <div style={{ position: 'fixed', inset: 0, background: '#000', zIndex: 500, display: 'flex', flexDirection: 'column' }}>
+          <video ref={videoRef} playsInline muted style={{ flex: 1, objectFit: 'cover', width: '100%' }} />
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', padding: '40px 24px' }}>
+            {scanStatus === 'scanning' && (
+              <div style={{ marginBottom: 24, display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(0,0,0,0.55)', padding: '10px 18px', borderRadius: 20 }}>
+                <div style={{ width: 16, height: 16, borderRadius: '50%', border: '2px solid var(--accent)', borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite' }} />
+                <span style={{ color: '#fff', fontSize: 14 }}>Bon zoeken...</span>
+              </div>
+            )}
+            <button onClick={stopCamera} style={{ padding: '12px 32px', borderRadius: 24, background: 'rgba(0,0,0,0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.3)', fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>Annuleren</button>
+          </div>
         </div>
       )}
 
