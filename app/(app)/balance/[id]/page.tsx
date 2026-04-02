@@ -586,9 +586,9 @@ export default function BalancePage() {
         <div style={{ flex: 1, fontWeight: 700, fontSize: 16, fontFamily: 'var(--font-heading)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{balance?.name}</div>
         <button
           onClick={() => setShowClose(true)}
-          style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '6px 14px', borderRadius: 6, border: '1px solid var(--border)', background: 'transparent', color: 'var(--muted)', cursor: 'pointer', flexShrink: 0, transition: 'border-color .15s, color .15s' }}
-          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--accent)'; (e.currentTarget as HTMLElement).style.color = 'var(--accent)' }}
-          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)'; (e.currentTarget as HTMLElement).style.color = 'var(--muted)' }}
+          style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '6px 14px', borderRadius: 6, border: '1px solid var(--accent)', background: 'rgba(var(--accent-rgb),0.08)', color: 'var(--accent)', cursor: 'pointer', flexShrink: 0, transition: 'background .15s' }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(var(--accent-rgb),0.18)' }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(var(--accent-rgb),0.08)' }}
         >
           Balans opmaken
         </button>
@@ -599,13 +599,13 @@ export default function BalancePage() {
 
         {/* Members */}
         <div style={{ marginBottom: 28 }}>
-          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 12 }}>Leden</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px 8px' }}>
+          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 24 }}>Leden</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px 8px' }}>
             {[...members].sort((a, b) => (b.user_id === user?.id ? 1 : 0) - (a.user_id === user?.id ? 1 : 0)).map(m => {
               const isOwner = m.user_id === user?.id
               const avatarSrc = isOwner ? ownerAvatarUrl : undefined
               const avatarEl = (
-                <div style={{ width: 46, height: 46, borderRadius: '50%', border: isOwner ? '2px solid var(--accent)' : 'none', overflow: 'hidden', flexShrink: 0, background: memberColor(m.display_name), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 700, color: '#fff' }}>
+                <div style={{ width: 56, height: 56, borderRadius: '50%', border: isOwner ? '2px solid var(--accent)' : 'none', overflow: 'hidden', flexShrink: 0, background: memberColor(m.display_name), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 17, fontWeight: 700, color: '#fff' }}>
                   {avatarSrc
                     ? <img src={avatarSrc} referrerPolicy="no-referrer" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} alt={m.display_name} />
                     : initials(m.display_name)
@@ -613,23 +613,33 @@ export default function BalancePage() {
                 </div>
               )
               return (
-                <div key={m.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
+                <div key={m.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
                   {isOwner
-                    ? <button onClick={openAccount} style={{ padding: 0, background: 'none', border: 'none', cursor: 'pointer', borderRadius: '50%' }}>{avatarEl}</button>
+                    ? <button onClick={openAccount} style={{ padding: 0, background: 'none', border: 'none', cursor: 'pointer', borderRadius: '50%', transition: 'opacity .15s' }} onMouseEnter={e => (e.currentTarget as HTMLElement).style.opacity = '0.8'} onMouseLeave={e => (e.currentTarget as HTMLElement).style.opacity = '1'}>{avatarEl}</button>
                     : avatarEl
                   }
-                  <div style={{ fontSize: 11, color: isOwner ? 'var(--accent)' : 'var(--muted2)', width: '100%', textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: isOwner ? 600 : 400 }}>{isOwner ? displayName : m.display_name}</div>
+                  <div style={{ fontSize: 12, color: isOwner ? 'var(--accent)' : 'var(--muted2)', width: '100%', textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: isOwner ? 600 : 400 }}>{isOwner ? displayName : m.display_name}</div>
                 </div>
               )
             })}
             {members.length < 8 && (
-              <button
-                onClick={() => setShowAddMember(true)}
-                style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, background: 'transparent', border: 'none', cursor: 'pointer' }}
-              >
-                <div style={{ width: 46, height: 46, borderRadius: '50%', border: '2px dashed rgba(var(--accent-rgb),0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)', fontSize: 22, lineHeight: 1 }}>+</div>
-                <div style={{ fontSize: 11, color: 'var(--muted)' }}>Voeg toe</div>
-              </button>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                <button
+                  onClick={() => {
+                    const text = encodeURIComponent(`Doe mee aan onze balance "${balance?.name}": ${window.location.href}`)
+                    window.open(`https://wa.me/?text=${text}`, '_blank')
+                  }}
+                  style={{ width: 56, height: 56, borderRadius: '50%', border: '2px dashed rgba(var(--accent-rgb),0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)', fontSize: 24, lineHeight: 1, background: 'transparent', cursor: 'pointer', transition: 'border-color .15s, background .15s' }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(var(--accent-rgb),0.8)'; (e.currentTarget as HTMLElement).style.background = 'rgba(var(--accent-rgb),0.07)' }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(var(--accent-rgb),0.4)'; (e.currentTarget as HTMLElement).style.background = 'transparent' }}
+                  onMouseDown={e => (e.currentTarget as HTMLElement).style.background = 'rgba(var(--accent-rgb),0.14)'}
+                  onMouseUp={e => (e.currentTarget as HTMLElement).style.background = 'rgba(var(--accent-rgb),0.07)'}
+                  title="Uitnodigen via WhatsApp"
+                >
+                  +
+                </button>
+                <div style={{ fontSize: 12, color: 'var(--muted)', textAlign: 'center' }}>Uitnodigen</div>
+              </div>
             )}
           </div>
         </div>
