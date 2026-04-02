@@ -232,6 +232,7 @@ export default function BalancePage() {
   const scanLibraryRef = useRef<HTMLInputElement>(null)
 
   // Swipe navigation
+  const [allBalances, setAllBalances] = useState<{ id: string; name: string }[]>([])
   const [allBalanceIds, setAllBalanceIds] = useState<string[]>([])
   const allBalanceIdsRef = useRef<string[]>([])
   const swipeEnabledRef = useRef(true)
@@ -239,6 +240,8 @@ export default function BalancePage() {
   const swipeStartY = useRef<number | null>(null)
   const swipeLocked = useRef<'h' | 'v' | null>(null)
   const pageRef = useRef<HTMLDivElement>(null)
+  const prevGhostRef = useRef<HTMLDivElement>(null)
+  const nextGhostRef = useRef<HTMLDivElement>(null)
 
   // Account modal
   const [showAccount, setShowAccount] = useState(false)
@@ -310,13 +313,15 @@ export default function BalancePage() {
       setApprovals((apps as BalanceApproval[]) || [])
       setLoading(false)
 
-      // Load sibling balance IDs for swipe navigation
+      // Load sibling balances for swipe navigation
       const { data: siblingBalances } = await supabase
         .from('balances')
-        .select('id')
+        .select('id, name')
         .eq('user_id', user!.id)
         .order('created_at', { ascending: true })
-      setAllBalanceIds((siblingBalances || []).map((b: { id: string }) => b.id))
+      const siblings = (siblingBalances || []) as { id: string; name: string }[]
+      setAllBalances(siblings)
+      setAllBalanceIds(siblings.map(b => b.id))
     }
 
     load()
@@ -347,11 +352,27 @@ export default function BalancePage() {
     swipeEnabledRef.current = !showManual && !showScanConfirm && !showClose && !showHistory && !selectedClosing && !showAddMember && !showAccount && !showLiveCamera
   }, [showManual, showScanConfirm, showClose, showHistory, selectedClosing, showAddMember, showAccount, showLiveCamera])
 
-  // --- Native swipe listeners (passive: false allows preventDefault) ---
+  // Prefetch adjacent pages whenever siblings load
   useEffect(() => {
-    const el = pageRef.current
-    if (!el) return
-    const node = el
+    const ids = allBalanceIds
+    const idx = ids.indexOf(id)
+    if (idx > 0) router.prefetch(`/balance/${ids[idx - 1]}`)
+    if (idx < ids.length - 1) router.prefetch(`/balance/${ids[idx + 1]}`)
+  }, [allBalanceIds, id, router])
+
+  // --- Native swipe listeners (passive: false allows preventDefault) ---
+  // Re-runs whenever loading finishes (pageRef gets attached) or id/router changes
+  useEffect(() => {
+    const node = pageRef.current
+    if (!node) return
+    const n = node
+
+    const W = window.innerWidth
+
+    function resetGhosts() {
+      if (prevGhostRef.current) { prevGhostRef.current.style.transition = ''; prevGhostRef.current.style.transform = `translateX(${-W}px)` }
+      if (nextGhostRef.current) { nextGhostRef.current.style.transition = ''; nextGhostRef.current.style.transform = `translateX(${W}px)` }
+    }
 
     function onTouchStart(e: TouchEvent) {
       if (!swipeEnabledRef.current) return
@@ -373,14 +394,19 @@ export default function BalancePage() {
 
       const ids = allBalanceIdsRef.current
       const idx = ids.indexOf(id)
-      const canLeft = dx < 0 && idx < ids.length - 1
-      const canRight = dx > 0 && idx > 0
-      if (!canLeft && !canRight) return
+      const goingLeft = dx < 0 && idx < ids.length - 1
+      const goingRight = dx > 0 && idx > 0
+      if (!goingLeft && !goingRight) return
 
       e.preventDefault()
-      const damped = dx * 0.85
-      node.style.transform = `translateX(${damped}px)`
-      node.style.opacity = String(1 - Math.min(Math.abs(damped) / 400, 0.25))
+      n.style.transform = `translateX(${dx}px)`
+
+      if (goingLeft && nextGhostRef.current) {
+        nextGhostRef.current.style.transform = `translateX(${W + dx}px)`
+      }
+      if (goingRight && prevGhostRef.current) {
+        prevGhostRef.current.style.transform = `translateX(${-W + dx}px)`
+      }
     }
 
     function onTouchEnd(e: TouchEvent) {
@@ -397,35 +423,46 @@ export default function BalancePage() {
 
       const ids = allBalanceIdsRef.current
       const idx = ids.indexOf(id)
-      const threshold = 60
+      const threshold = W * 0.3
       const canNavigate = Math.abs(dx) >= threshold &&
         ((dx < 0 && idx < ids.length - 1) || (dx > 0 && idx > 0))
 
+      const trans = 'transform 0.28s cubic-bezier(.25,.8,.25,1)'
+
       if (canNavigate) {
-        const targetX = dx < 0 ? -window.innerWidth : window.innerWidth
-        sessionStorage.setItem('se_swipe_dir', dx < 0 ? 'left' : 'right')
-        node.style.transition = 'transform 0.22s ease, opacity 0.22s ease'
-        node.style.transform = `translateX(${targetX}px)`
-        node.style.opacity = '0'
-        const nextId = dx < 0 ? ids[idx + 1] : ids[idx - 1]
-        setTimeout(() => router.push(`/balance/${nextId}`), 200)
+        const goLeft = dx < 0
+        n.style.transition = trans
+        n.style.transform = `translateX(${goLeft ? -W : W}px)`
+        if (goLeft && nextGhostRef.current) {
+          nextGhostRef.current.style.transition = trans
+          nextGhostRef.current.style.transform = 'translateX(0)'
+        }
+        if (!goLeft && prevGhostRef.current) {
+          prevGhostRef.current.style.transition = trans
+          prevGhostRef.current.style.transform = 'translateX(0)'
+        }
+        const nextId = goLeft ? ids[idx + 1] : ids[idx - 1]
+        sessionStorage.setItem('se_swipe_dir', goLeft ? 'left' : 'right')
+        setTimeout(() => router.push(`/balance/${nextId}`), 260)
       } else {
-        node.style.transition = 'transform 0.3s cubic-bezier(.25,.8,.25,1), opacity 0.3s ease'
-        node.style.transform = 'translateX(0)'
-        node.style.opacity = '1'
-        setTimeout(() => { node.style.transition = '' }, 320)
+        n.style.transition = trans
+        n.style.transform = 'translateX(0)'
+        if (nextGhostRef.current) { nextGhostRef.current.style.transition = trans; nextGhostRef.current.style.transform = `translateX(${W}px)` }
+        if (prevGhostRef.current) { prevGhostRef.current.style.transition = trans; prevGhostRef.current.style.transform = `translateX(${-W}px)` }
+        setTimeout(() => { n.style.transition = ''; resetGhosts() }, 300)
       }
     }
 
-    node.addEventListener('touchstart', onTouchStart, { passive: true })
-    node.addEventListener('touchmove', onTouchMove, { passive: false })
-    node.addEventListener('touchend', onTouchEnd, { passive: true })
+    resetGhosts()
+    n.addEventListener('touchstart', onTouchStart, { passive: true })
+    n.addEventListener('touchmove', onTouchMove, { passive: false })
+    n.addEventListener('touchend', onTouchEnd, { passive: true })
     return () => {
-      node.removeEventListener('touchstart', onTouchStart)
-      node.removeEventListener('touchmove', onTouchMove)
-      node.removeEventListener('touchend', onTouchEnd)
+      n.removeEventListener('touchstart', onTouchStart)
+      n.removeEventListener('touchmove', onTouchMove)
+      n.removeEventListener('touchend', onTouchEnd)
     }
-  }, [id, router])
+  }, [id, router, loading])
 
   // --- Realtime ---
 
@@ -733,18 +770,33 @@ export default function BalancePage() {
 
   const memberById = Object.fromEntries(members.map(m => [m.id, m]))
 
+  // --- Derived: adjacent balance names for ghost pages ---
+  const currentIdx = allBalances.findIndex(b => b.id === id)
+  const prevBalance = currentIdx > 0 ? allBalances[currentIdx - 1] : null
+  const nextBalance = currentIdx >= 0 && currentIdx < allBalances.length - 1 ? allBalances[currentIdx + 1] : null
+
   // --- Render ---
 
-  if (loading) {
-    return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', fontFamily: 'var(--font-body)', color: 'var(--muted)', fontSize: 14 }}>
+  return (
+    <>
+      {prevBalance && (
+        <div ref={prevGhostRef} style={{ position: 'fixed', inset: 0, background: 'var(--bg)', zIndex: 48, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, pointerEvents: 'none', transform: `translateX(-${typeof window !== 'undefined' ? window.innerWidth : 9999}px)` }}>
+          <div style={{ fontSize: 20, fontWeight: 700, fontFamily: 'var(--font-heading)', color: 'var(--text)' }}>{prevBalance.name}</div>
+          <div style={{ fontSize: 13, color: 'var(--muted)' }}>← vorige balans</div>
+        </div>
+      )}
+      {nextBalance && (
+        <div ref={nextGhostRef} style={{ position: 'fixed', inset: 0, background: 'var(--bg)', zIndex: 48, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, pointerEvents: 'none', transform: `translateX(${typeof window !== 'undefined' ? window.innerWidth : 9999}px)` }}>
+          <div style={{ fontSize: 20, fontWeight: 700, fontFamily: 'var(--font-heading)', color: 'var(--text)' }}>{nextBalance.name}</div>
+          <div style={{ fontSize: 13, color: 'var(--muted)' }}>volgende balans →</div>
+        </div>
+      )}
+    <div ref={pageRef} style={{ minHeight: '100vh', background: 'var(--bg)', fontFamily: 'var(--font-body)', color: 'var(--text)', position: 'relative', zIndex: 49 }}>
+    {loading ? (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted)', fontSize: 14 }}>
         Laden...
       </div>
-    )
-  }
-
-  return (
-    <div ref={pageRef} style={{ minHeight: '100vh', background: 'var(--bg)', fontFamily: 'var(--font-body)', color: 'var(--text)' }}>
+    ) : (<>
 
       {/* ── Header ── */}
       <div style={{ position: 'sticky', top: 0, zIndex: 100, background: 'var(--s1)', borderBottom: '1px solid var(--border)', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -1420,6 +1472,8 @@ export default function BalancePage() {
       )}
 
       <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+      </>)}
     </div>
+  </>
   )
 }

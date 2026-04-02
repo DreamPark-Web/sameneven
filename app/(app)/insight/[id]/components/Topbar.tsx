@@ -529,9 +529,9 @@ export default function Topbar({
     borderRadius: 14,
     padding: 28,
     width: '100%',
-    maxWidth: 520,
+    maxWidth: 680,
     position: 'relative',
-    maxHeight: '90vh',
+    maxHeight: '92vh',
     overflowY: 'auto',
     boxShadow: '0 24px 60px rgba(0,0,0,.42)',
   }
@@ -1566,7 +1566,7 @@ export default function Topbar({
                 Vink uit om een onderdeel in de navigatie te verbergen.
               </div>
 
-              <div id="nav-config-list" style={{ display: 'grid', gap: 8 }}>
+              <div id="nav-config-list" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 8 }}>
                 {navOrder
                   .map((id) => NAV_ITEMS.find((item) => item.id === id))
                   .filter(Boolean)
