@@ -220,7 +220,7 @@ export default function BalancePage() {
 
   // History
   const [showHistory, setShowHistory] = useState(false)
-  const [expandedClosingId, setExpandedClosingId] = useState<string | null>(null)
+  const [selectedClosing, setSelectedClosing] = useState<BalanceClosing | null>(null)
 
   // Receipt preview
   const [previewReceipt, setPreviewReceipt] = useState<string | null>(null)
@@ -496,10 +496,10 @@ export default function BalancePage() {
       supabase.from('balance_approvals').delete().eq('balance_id', id),
     ])
 
-    const { data: newClosing } = await supabase.from('balance_closings').select('*').eq('balance_id', id).order('closed_at', { ascending: false }).limit(1).single()
-    if (newClosing) setClosings(prev => [newClosing as BalanceClosing, ...prev])
     setEntries([])
     setApprovals([])
+    const { data: allClosings } = await supabase.from('balance_closings').select('*').eq('balance_id', id).order('closed_at', { ascending: false })
+    setClosings((allClosings as BalanceClosing[]) || [])
     setCloseResult(settlements)
     setClosingInProgress(false)
     autoFinalizeRef.current = false
@@ -1050,79 +1050,151 @@ export default function BalancePage() {
         </Modal>
       )}
 
-      {showHistory && (
-        <Modal onClose={() => setShowHistory(false)}>
-          <div style={{ fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-heading)', marginBottom: 16 }}>Geschiedenis</div>
-          {closings.length === 0 && (
-            <div style={{ fontSize: 13, color: 'var(--muted)', textAlign: 'center', padding: '24px 0' }}>Nog geen afgesloten balansen.</div>
-          )}
-          {closings.map(c => {
-            const date = new Date(c.closed_at).toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' })
-            const snapshot = c.entries_snapshot || []
-            const isExpanded = expandedClosingId === c.id
-            return (
-              <div key={c.id} style={{ background: 'var(--s2)', border: '1px solid var(--border)', borderRadius: 12, marginBottom: 12, overflow: 'hidden' }}>
-                {/* Card header */}
-                <div style={{ padding: '14px 16px' }}>
+      {/* ── Geschiedenis lijst (full-screen) ── */}
+      {showHistory && !selectedClosing && (
+        <div style={{ position: 'fixed', inset: 0, background: 'var(--bg)', zIndex: 400, display: 'flex', flexDirection: 'column', fontFamily: 'var(--font-body)' }}>
+          <div style={{ position: 'sticky', top: 0, background: 'var(--s1)', borderBottom: '1px solid var(--border)', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12, zIndex: 1 }}>
+            <button onClick={() => setShowHistory(false)} style={{ width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--muted)', flexShrink: 0 }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            <div style={{ fontWeight: 700, fontSize: 16, fontFamily: 'var(--font-heading)' }}>Geschiedenis</div>
+          </div>
+          <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
+            {closings.length === 0 && (
+              <div style={{ textAlign: 'center', padding: '52px 0', color: 'var(--muted)', fontSize: 13 }}>Nog geen afgesloten balansen.</div>
+            )}
+            {closings.map(c => {
+              const date = new Date(c.closed_at).toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' })
+              const snapshot = c.entries_snapshot || []
+              const receipts = snapshot.filter(e => e.receipt_url)
+              return (
+                <button
+                  key={c.id}
+                  onClick={() => setSelectedClosing(c)}
+                  style={{ width: '100%', textAlign: 'left', background: 'var(--s2)', border: '1px solid var(--border)', borderRadius: 12, padding: '16px', marginBottom: 12, cursor: 'pointer', transition: 'border-color .15s', display: 'block' }}
+                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = 'var(--accent)'}
+                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)'}
+                >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
                     <div style={{ fontSize: 12, color: 'var(--muted)' }}>{date}</div>
-                    <div style={{ fontSize: 15, fontWeight: 700 }}>{fmt(Number(c.total_amount))}</div>
+                    <div style={{ fontSize: 16, fontWeight: 700 }}>{fmt(Number(c.total_amount))}</div>
                   </div>
-                  {/* Settlements */}
                   {(c.settlements || []).length === 0 ? (
-                    <div style={{ fontSize: 12, color: 'var(--ok)', marginBottom: 10 }}>Iedereen stond gelijk</div>
-                  ) : (
-                    <div style={{ marginBottom: 10 }}>
-                      {(c.settlements || []).map((s, i) => (
-                        <div key={i} style={{ fontSize: 13, marginBottom: 5, display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <span style={{ fontWeight: 600 }}>{s.from}</span>
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--muted)', flexShrink: 0 }}><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-                          <span style={{ fontWeight: 600 }}>{s.to}</span>
-                          <span style={{ marginLeft: 'auto', fontWeight: 700, color: 'var(--accent)' }}>{fmt(s.amount)}</span>
-                        </div>
-                      ))}
+                    <div style={{ fontSize: 12, color: 'var(--ok)', marginBottom: 8 }}>Iedereen stond gelijk</div>
+                  ) : (c.settlements || []).map((s, i) => (
+                    <div key={i} style={{ fontSize: 13, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ fontWeight: 600 }}>{s.from}</span>
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--muted)', flexShrink: 0 }}><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+                      <span style={{ fontWeight: 600 }}>{s.to}</span>
+                      <span style={{ marginLeft: 'auto', fontWeight: 700, color: 'var(--accent)' }}>{fmt(s.amount)}</span>
                     </div>
-                  )}
-                  {/* Expand toggle */}
-                  {snapshot.length > 0 && (
-                    <button
-                      onClick={() => setExpandedClosingId(isExpanded ? null : c.id)}
-                      style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--muted)', fontSize: 12, padding: 0 }}
-                    >
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform .2s' }}><polyline points="9 18 15 12 9 6"/></svg>
-                      {snapshot.length} uitgave{snapshot.length !== 1 ? 'n' : ''} {isExpanded ? 'verbergen' : 'tonen'}
-                    </button>
-                  )}
-                </div>
-
-                {/* Expanded entries */}
-                {isExpanded && (
-                  <div style={{ borderTop: '1px solid var(--border)' }}>
-                    {snapshot.map((e, i) => (
-                      <div key={e.id ?? i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', borderBottom: i < snapshot.length - 1 ? '1px solid var(--border)' : undefined }}>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 13, fontWeight: 700 }}>{fmt(Number(e.amount))}</div>
-                          <div style={{ fontSize: 11, color: 'var(--muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {e.description || '—'} · {new Date(e.date + 'T12:00:00').toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })}
-                          </div>
-                        </div>
-                        {e.receipt_url && (
-                          <button
-                            onClick={() => setPreviewReceipt(e.receipt_url)}
-                            style={{ width: 40, height: 40, borderRadius: 6, overflow: 'hidden', border: '1px solid var(--border)', background: 'none', padding: 0, cursor: 'pointer', flexShrink: 0 }}
-                          >
-                            <img src={e.receipt_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Bon" />
-                          </button>
-                        )}
+                  ))}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10 }}>
+                    {receipts.slice(0, 4).map((e, i) => (
+                      <div key={i} style={{ width: 36, height: 36, borderRadius: 6, overflow: 'hidden', border: '1px solid var(--border)', flexShrink: 0 }}>
+                        <img src={e.receipt_url!} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} alt="" />
                       </div>
                     ))}
+                    {receipts.length > 4 && <div style={{ fontSize: 11, color: 'var(--muted)' }}>+{receipts.length - 4} foto's</div>}
+                    <div style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--muted)' }}>{snapshot.length} uitgave{snapshot.length !== 1 ? 'n' : ''}</div>
                   </div>
-                )}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ── Geschiedenis detail (full-screen) ── */}
+      {selectedClosing && (
+        <div style={{ position: 'fixed', inset: 0, background: 'var(--bg)', zIndex: 410, display: 'flex', flexDirection: 'column', fontFamily: 'var(--font-body)' }}>
+          <div style={{ position: 'sticky', top: 0, background: 'var(--s1)', borderBottom: '1px solid var(--border)', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12, zIndex: 1 }}>
+            <button onClick={() => setSelectedClosing(null)} style={{ width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--muted)', flexShrink: 0 }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 700, fontSize: 15, fontFamily: 'var(--font-heading)' }}>
+                {new Date(selectedClosing.closed_at).toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' })}
               </div>
-            )
-          })}
-          <button className="btn-cancel" onClick={() => setShowHistory(false)} style={{ ...cancelStyle, width: '100%', marginTop: 4 }}>Sluiten</button>
-        </Modal>
+              <div style={{ fontSize: 11, color: 'var(--muted)' }}>{fmt(Number(selectedClosing.total_amount))} totaal</div>
+            </div>
+          </div>
+
+          <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
+
+            {/* Afrekening */}
+            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 12 }}>Afrekening</div>
+            {(selectedClosing.settlements || []).length === 0 ? (
+              <div style={{ background: 'rgba(76,175,130,0.1)', border: '1px solid rgba(76,175,130,0.25)', borderRadius: 10, padding: '14px 16px', marginBottom: 24, color: 'var(--ok)', fontSize: 14, fontWeight: 600, textAlign: 'center' }}>
+                Iedereen stond gelijk — niks te betalen!
+              </div>
+            ) : (
+              <div style={{ marginBottom: 24 }}>
+                {(selectedClosing.settlements || []).map((s, i) => (
+                  <div key={i} style={{ background: 'var(--s2)', border: '1px solid var(--border)', borderRadius: 10, padding: '14px 16px', marginBottom: 8 }}>
+                    <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>Betaling {i + 1}</div>
+                    <div style={{ fontSize: 15 }}>
+                      <span style={{ fontWeight: 700 }}>{s.from}</span>
+                      <span style={{ color: 'var(--muted)' }}> betaalt </span>
+                      <span style={{ fontWeight: 700, color: 'var(--accent)', fontSize: 17 }}>{fmt(s.amount)}</span>
+                      <span style={{ color: 'var(--muted)' }}> aan </span>
+                      <span style={{ fontWeight: 700 }}>{s.to}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Uitgaven */}
+            {(selectedClosing.entries_snapshot || []).length > 0 && (() => {
+              const snapshot = selectedClosing.entries_snapshot || []
+              const byDay = snapshot.reduce<Record<string, BalanceEntry[]>>((acc, e) => {
+                if (!acc[e.date]) acc[e.date] = []
+                acc[e.date].push(e)
+                return acc
+              }, {})
+              const days = Object.keys(byDay).sort((a, b) => b.localeCompare(a))
+              return (
+                <>
+                  <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 12 }}>Uitgaven</div>
+                  {days.map(day => {
+                    const dayEntries = byDay[day]
+                    const dayTotal = dayEntries.reduce((s, e) => s + Number(e.amount), 0)
+                    return (
+                      <div key={day} style={{ marginBottom: 20 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--muted)' }}>{formatDayLabel(day)}</div>
+                          <div style={{ fontSize: 12, color: 'var(--muted)' }}>{fmt(dayTotal)}</div>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                          {dayEntries.map((e, i) => (
+                            <div key={e.id ?? i} style={{ background: 'var(--s2)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 12 }}>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ fontSize: 14, fontWeight: 700 }}>{fmt(Number(e.amount))}</div>
+                                <div style={{ fontSize: 11, color: 'var(--muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  {e.description || '—'}
+                                  {e.via_scan && <span style={{ marginLeft: 6, fontSize: 10, color: 'var(--accent)', fontWeight: 600 }}>scan</span>}
+                                </div>
+                              </div>
+                              {e.receipt_url && (
+                                <button
+                                  onClick={() => setPreviewReceipt(e.receipt_url)}
+                                  style={{ width: 52, height: 52, borderRadius: 8, overflow: 'hidden', border: '1px solid var(--border)', background: 'none', padding: 0, cursor: 'pointer', flexShrink: 0 }}
+                                >
+                                  <img src={e.receipt_url} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} alt="Bon" />
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </>
+              )
+            })()}
+          </div>
+        </div>
       )}
 
       {previewReceipt && (
