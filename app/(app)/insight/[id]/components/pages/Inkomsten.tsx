@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useInsight } from '@/lib/insight-context'
 import { fmt, sum } from '@/lib/format'
+import { PAGE_COLORS } from '@/lib/pageColors'
 
 type Item = { id: string; label: string; value: number }
 
@@ -34,7 +35,18 @@ function PersonPanel({ name, items, onAdd, onDelete, onEdit, onReorder, canEdit 
   const [editVal, setEditVal] = useState('')
   const [dragging, setDragging] = useState<number | null>(null)
   const [dragOver, setDragOver] = useState<number | null>(null)
+  const [isDark, setIsDark] = useState(false)
   const total = sum(items)
+  const colors = PAGE_COLORS.inkomsten
+  const c = isDark ? colors.dark : colors.light
+
+  useEffect(() => {
+    const check = () => setIsDark(document.documentElement.getAttribute('data-theme') === 'dark')
+    check()
+    const obs = new MutationObserver(check)
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
+    return () => obs.disconnect()
+  }, [])
 
   function commitLabel(item: Item) {
     const trimmed = editVal.trim()
@@ -64,11 +76,10 @@ function PersonPanel({ name, items, onAdd, onDelete, onEdit, onReorder, canEdit 
     <div style={panel}>
       <div style={panelHd}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--accent)', fontFamily: 'var(--font-heading)' }}>{name}</span>
-          <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>Inkomsten</span>
+          <span style={{ fontSize: 18, fontWeight: 700, color: c, fontFamily: 'var(--font-heading)' }}>{name}</span>
         </div>
         {canEdit && (
-          <button className="btn-add" onClick={() => setOpen(!open)} style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 500, letterSpacing: '.04em', textTransform: 'uppercase', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', border: '1px solid rgba(var(--accent-rgb), 0.4)', background: 'var(--s2)', color: 'var(--accent)' }}>
+          <button className="btn-add" onClick={() => setOpen(!open)} style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 500, letterSpacing: '.04em', textTransform: 'uppercase', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', ...(isDark ? { background: colors.bg, color: colors.dark, border: `1px solid ${colors.dark}4D` } : { background: colors.light, color: '#FFFFFF', border: 'none' }) }}>
             {open ? '− Post' : '+ Post'}
           </button>
         )}
@@ -153,9 +164,9 @@ function PersonPanel({ name, items, onAdd, onDelete, onEdit, onReorder, canEdit 
       </div>
 
       <div style={{ marginTop: 'auto', paddingTop: 14 }}>
-        <div style={{ background: 'var(--s2)', border: '1px solid var(--card-border)', borderTop: '1px solid var(--accent)', borderRadius: 8, padding: '15px 17px', marginTop: 14 }}>
+        <div style={{ background: 'var(--s2)', border: '1px solid var(--card-border)', borderTop: `1px solid ${c}`, borderRadius: 8, padding: '15px 17px', marginTop: 14 }}>
           <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--muted)' }}>Totaal netto per maand</div>
-          <div style={{ fontSize: 22, fontWeight: 700, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)', marginTop: 4, color: 'var(--accent)' }}>{fmt(total, 0)}</div>
+          <div style={{ fontSize: 22, fontWeight: 700, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)', marginTop: 4, color: c }}>{fmt(total, 0)}</div>
         </div>
       </div>
     </div>
@@ -164,6 +175,16 @@ function PersonPanel({ name, items, onAdd, onDelete, onEdit, onReorder, canEdit 
 
 export default function Inkomsten() {
   const { data, saveData, canEdit, isSingleUser } = useInsight()
+  const [isDarkMain, setIsDarkMain] = useState(false)
+  const colors = PAGE_COLORS.inkomsten
+  const c = isDarkMain ? colors.dark : colors.light
+  useEffect(() => {
+    const check = () => setIsDarkMain(document.documentElement.getAttribute('data-theme') === 'dark')
+    check()
+    const obs = new MutationObserver(check)
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
+    return () => obs.disconnect()
+  }, [])
   const n1 = data.names?.user1 || 'Gebruiker 1'
   const n2 = data.names?.user2 || 'Gebruiker 2'
   const u1: Item[] = data.user1?.income || []
@@ -195,7 +216,8 @@ export default function Inkomsten() {
   }
 
   return (
-    <div>
+    <div style={{ position: 'relative', overflow: 'hidden' }}>
+      <div style={{ fontSize: 18, fontWeight: 700, color: c, fontFamily: 'var(--font-heading)', marginBottom: 20 }}>Inkomsten</div>
       <div style={{ display: 'grid', gridTemplateColumns: isSingleUser ? '1fr' : '1fr 1fr', gap: 16, alignItems: 'stretch' }}>
         <PersonPanel name={n1} items={u1} onAdd={(l, v) => addIncome('user1', l, v)} onDelete={id => deleteIncome('user1', id)} onEdit={(id, l, v) => editIncome('user1', id, l, v)} onReorder={items => reorderIncome('user1', items)} canEdit={canEdit('user1')} />
         {!isSingleUser && <PersonPanel name={n2} items={u2} onAdd={(l, v) => addIncome('user2', l, v)} onDelete={id => deleteIncome('user2', id)} onEdit={(id, l, v) => editIncome('user2', id, l, v)} onReorder={items => reorderIncome('user2', items)} canEdit={canEdit('user2')} />}
@@ -208,11 +230,11 @@ export default function Inkomsten() {
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, alignItems: 'stretch' }}>
           {[
-            { label: 'Totaal gezamenlijk', val: fmt(total, 0), sub: 'per maand', color: 'var(--accent)' },
-            { label: `Aandeel ${n1}`, val: r1, color: 'var(--accent)' },
-            { label: `Aandeel ${n2}`, val: r2, color: 'var(--accent)' },
+            { label: 'Totaal gezamenlijk', val: fmt(total, 0), sub: 'per maand', color: c },
+            { label: `Aandeel ${n1}`, val: r1, color: c },
+            { label: `Aandeel ${n2}`, val: r2, color: c },
           ].map((s, i) => (
-            <div key={i} style={{ background: 'var(--s2)', border: '1px solid var(--card-border)', borderRadius: 8, padding: '15px 17px', borderTop: '1px solid var(--accent)' }}>
+            <div key={i} style={{ background: 'var(--s2)', border: '1px solid var(--card-border)', borderRadius: 8, padding: '15px 17px', borderTop: `1px solid ${c}` }}>
               <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--muted)' }}>{s.label}</div>
               <div style={{ fontSize: i === 0 ? 28 : 19, fontWeight: 700, lineHeight: 1, margin: '6px 0 4px', fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)', color: s.color }}>{s.val}</div>
               {s.sub && <div style={{ fontSize: 11, color: 'var(--muted2)' }}>{s.sub}</div>}
@@ -220,6 +242,12 @@ export default function Inkomsten() {
           ))}
         </div>
       </div>}
+      <div style={{ position: 'absolute', bottom: -50, right: -50, pointerEvents: 'none', zIndex: 0 }}>
+        <svg width="300" height="300" viewBox="0 0 200 200">
+          <polygon points="65,18 135,18 192,62 100,175 8,62" fill={c} opacity="0.06" />
+          <polygon points="65,18 135,18 100,62" fill={c} opacity="0.1" />
+        </svg>
+      </div>
     </div>
   )
 }

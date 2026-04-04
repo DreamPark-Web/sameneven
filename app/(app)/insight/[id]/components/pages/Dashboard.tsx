@@ -4,6 +4,7 @@ import { useInsight } from '@/lib/insight-context'
 import { useEffect, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { fmt, fmtK, sum } from '@/lib/format'
+import { PAGE_COLORS } from '@/lib/pageColors'
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -42,7 +43,7 @@ function subMonthly(s: Sub): number {
 }
 
 function hexToRgb(hex: string) {
-  const c = (hex || '#E8C49A').replace('#', '')
+  const c = (hex || '#6366F1').replace('#', '')
   return { r: parseInt(c.slice(0, 2), 16) || 0, g: parseInt(c.slice(2, 4), 16) || 0, b: parseInt(c.slice(4, 6), 16) || 0 }
 }
 function lighten(hex: string, f = 0.5) {
@@ -140,10 +141,19 @@ export default function Dashboard() {
   const [showWidgetSettings, setShowWidgetSettings] = useState(false)
   const [dragId, setDragId] = useState<string | null>(null)
   const [dragOverId, setDragOverId] = useState<string | null>(null)
-  const [previewTheme, setPreviewTheme] = useState(data.theme || '#E8C49A')
+  const [previewTheme, setPreviewTheme] = useState(data.theme || '#6366F1')
+  const [isDark, setIsDark] = useState(false)
+
+  useEffect(() => {
+    const check = () => setIsDark(document.documentElement.getAttribute('data-theme') === 'dark')
+    check()
+    const obs = new MutationObserver(check)
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
+    return () => obs.disconnect()
+  }, [])
 
   useEffect(() => { setPrefs(loadPrefs(hid)) }, [hid])
-  useEffect(() => { setPreviewTheme(data.theme || '#E8C49A') }, [data.theme])
+  useEffect(() => { setPreviewTheme(data.theme || '#6366F1') }, [data.theme])
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -253,14 +263,19 @@ export default function Dashboard() {
 
   // ── Income bar helper ──────────────────────────────────────────────────────
 
+  const colors = PAGE_COLORS.dashboard
+  const dashColor  = isDark ? colors.dark : colors.light
+  const dashDark   = isDark ? '#4F46E5' : accentDark
+  const dashLight  = isDark ? '#C7D2FE' : accentLight
+
   function incBars(inc: number, sh: number, pr: number, sv: number) {
     const expenses = inc ? (sh + pr) / inc : 0
     const savings = inc ? sv / inc : 0
     const rest = Math.max(0, 1 - expenses - savings)
     return [
-      { label: 'Vaste lasten', pct: expenses, c: accentDark },
-      { label: 'Sparen',       pct: savings,  c: accentHex },
-      { label: 'Restant',      pct: rest,     c: accentLight },
+      { label: 'Vaste lasten', pct: expenses, c: dashDark },
+      { label: 'Sparen',       pct: savings,  c: dashColor },
+      { label: 'Restant',      pct: rest,     c: dashLight },
     ]
   }
 
@@ -273,8 +288,8 @@ export default function Dashboard() {
       ...(!isSingleUser ? [{ label: `Inkomen ${n2}`, val: fmtK(dI), color: 'var(--ok)', sub: 'per maand' }] : []),
       { label: `Lasten ${n1}`,   val: fmtK(jSh + jPr), color: 'var(--danger)', sub: 'gezamenlijk + privé' },
       ...(!isSingleUser ? [{ label: `Lasten ${n2}`, val: fmtK(dSh + dPr), color: 'var(--danger)', sub: 'gezamenlijk + privé' }] : []),
-      { label: `Restant ${n1}`,  val: fmtK(jR),         color: accentHex,       sub: 'na lasten & sparen' },
-      ...(!isSingleUser ? [{ label: `Restant ${n2}`, val: fmtK(dR), color: accentHex, sub: 'na lasten & sparen' }] : []),
+      { label: `Restant ${n1}`,  val: fmtK(jR),         color: dashColor,       sub: 'na lasten & sparen' },
+      ...(!isSingleUser ? [{ label: `Restant ${n2}`, val: fmtK(dR), color: dashColor, sub: 'na lasten & sparen' }] : []),
     ]
     return (
       <div style={card}>
@@ -294,12 +309,12 @@ export default function Dashboard() {
         {/* Donut summary */}
         {totalDonut > 0 && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--border)' }}>
-            <div style={{ width: 48, height: 48, borderRadius: '50%', background: `conic-gradient(${accentDark} 0% ${shPct}%, ${accentHex} ${shPct}% ${shPct + svPct}%, ${accentLight} ${shPct + svPct}% 100%)`, flexShrink: 0 }} />
+            <div style={{ width: 48, height: 48, borderRadius: '50%', background: `conic-gradient(${dashDark} 0% ${shPct}%, ${dashColor} ${shPct}% ${shPct + svPct}%, ${dashLight} ${shPct + svPct}% 100%)`, flexShrink: 0 }} />
             <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
               {[
-                { label: 'Gezamenlijk', val: totalShared, c: accentDark },
-                { label: 'Sparen',      val: totalSparen, c: accentHex },
-                { label: 'Privé',       val: totalPrive,  c: accentLight },
+                { label: 'Gezamenlijk', val: totalShared, c: dashDark },
+                { label: 'Sparen',      val: totalSparen, c: dashColor },
+                { label: 'Privé',       val: totalPrive,  c: dashLight },
               ].map(x => (
                 <div key={x.label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <div style={{ width: 8, height: 8, borderRadius: '50%', background: x.c, flexShrink: 0 }} />
@@ -359,9 +374,9 @@ export default function Dashboard() {
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
           {[{ name: n1, val: jTr }, { name: n2, val: dTr }].map(({ name, val }) => (
-            <div key={name} style={{ flex: 1, background: 'var(--s2)', borderTop: `2px solid ${accentHex}`, borderRadius: 8, padding: '14px 16px', textAlign: 'center' }}>
+            <div key={name} style={{ flex: 1, background: 'var(--s2)', borderTop: `2px solid ${dashColor}`, borderRadius: 8, padding: '14px 16px', textAlign: 'center' }}>
               <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 6 }}>{name}</div>
-              <div style={{ fontSize: 28, fontWeight: 700, color: accentHex, lineHeight: 1 }}><Num v={fmtK(val)} /></div>
+              <div style={{ fontSize: 28, fontWeight: 700, color: dashColor, lineHeight: 1 }}><Num v={fmtK(val)} /></div>
               <div style={{ fontSize: 11, color: 'var(--muted2)', marginTop: 5 }}>p/mnd naar gezamenlijk</div>
             </div>
           ))}
@@ -387,7 +402,7 @@ export default function Dashboard() {
         <div style={{ display: 'grid', gridTemplateColumns: isSingleUser ? '1fr' : '1fr 1fr', gap: 20 }}>
           {users.map(({ name, inc, sh, pr, sv }) => (
             <div key={name}>
-              {!isSingleUser && <div style={{ fontSize: 13, fontWeight: 700, color: accentHex, fontFamily: 'var(--font-heading)', marginBottom: 12 }}>{name}</div>}
+              {!isSingleUser && <div style={{ fontSize: 13, fontWeight: 700, color: dashColor, fontFamily: 'var(--font-heading)', marginBottom: 12 }}>{name}</div>}
               {incBars(inc, sh, pr, sv).map((x, i) => (
                 <div key={i} style={{ marginBottom: 12 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: 12 }}>
@@ -433,7 +448,7 @@ export default function Dashboard() {
               const pct = p.goal > 0 ? Math.min(100, (p.current / p.goal) * 100) : 0
               const remaining = Math.max(0, p.goal - p.current)
               const ownerLabel = p.owner === 'user1' ? n1 : p.owner === 'user2' ? n2 : 'Gedeeld'
-              const barColor = pct >= 80 ? 'var(--ok)' : pct >= 50 ? accentHex : accentDark
+              const barColor = pct >= 80 ? 'var(--ok)' : pct >= 50 ? dashColor : dashDark
               return (
                 <div key={p.id} style={{ marginBottom: 14 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 5 }}>
@@ -458,7 +473,7 @@ export default function Dashboard() {
             {activePots.length > 1 && (
               <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border)', paddingTop: 10, marginTop: 6, fontSize: 11 }}>
                 <span style={{ color: 'var(--muted2)' }}>{activePots.length} doelen · <Num v={fmt(totalCurrent, 0)} /> gespaard</span>
-                <span style={{ fontWeight: 600, color: accentHex }}><Num v={fmt(totalGoal, 0)} /> doel</span>
+                <span style={{ fontWeight: 600, color: dashColor }}><Num v={fmt(totalGoal, 0)} /> doel</span>
               </div>
             )}
           </>
@@ -494,9 +509,9 @@ export default function Dashboard() {
                 <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 4 }}>Openstaand</div>
                 <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--danger)' }}><Num v={fmtK(totalBalance)} /></div>
               </div>
-              <div style={{ background: 'var(--s2)', borderRadius: 8, padding: '10px 12px', borderTop: `2px solid ${accentHex}` }}>
+              <div style={{ background: 'var(--s2)', borderRadius: 8, padding: '10px 12px', borderTop: '2px solid var(--danger)' }}>
                 <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 4 }}>Maand&shy;last</div>
-                <div style={{ fontSize: 20, fontWeight: 700, color: accentHex }}><Num v={fmtK(totalPayment)} /></div>
+                <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--danger)' }}><Num v={fmtK(totalPayment)} /></div>
               </div>
             </div>
             {schulden.slice(0, 4).map(d => {
@@ -607,10 +622,10 @@ export default function Dashboard() {
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div style={{ overflowX: 'hidden' }}>
+    <div style={{ position: 'relative', overflow: 'hidden' }}>
       {/* Dashboard header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: showWidgetSettings ? 10 : 18 }}>
-        <span style={{ fontSize: 18, fontWeight: 700, fontFamily: 'var(--font-heading)', color: 'var(--text)' }}>Dashboard</span>
+        <span style={{ fontSize: 18, fontWeight: 700, fontFamily: 'var(--font-heading)', color: dashColor }}>Dashboard</span>
         <button
           onClick={() => setShowWidgetSettings(s => !s)}
           title="Widgets beheren"
@@ -686,6 +701,12 @@ export default function Dashboard() {
           </button>
         </div>
       )}
+      <div style={{ position: 'absolute', bottom: -50, right: -50, pointerEvents: 'none', zIndex: 0 }}>
+        <svg width="300" height="300" viewBox="0 0 200 200">
+          <polygon points="65,18 135,18 192,62 100,175 8,62" fill={dashColor} opacity="0.06" />
+          <polygon points="65,18 135,18 100,62" fill={dashColor} opacity="0.1" />
+        </svg>
+      </div>
     </div>
   )
 }

@@ -7,24 +7,16 @@ import Topbar from './components/Topbar'
 import Sidebar from './components/Sidebar'
 import Dashboard from './components/pages/Dashboard'
 import Inkomsten from './components/pages/Inkomsten'
-import Gezamenlijk from './components/pages/Gezamenlijk'
-import Prive from './components/pages/Prive'
-import Sparen from './components/pages/Sparen'
-import Schulden from './components/pages/Schulden'
-import Abonnementen from './components/pages/Abonnementen'
+import Kosten from './components/pages/Kosten'
+import Vermogen from './components/pages/Vermogen'
 import Advies from './components/pages/Advies'
-import Leden from './components/pages/Leden'
 
 const PAGES: Record<string, React.ComponentType> = {
   dashboard: Dashboard,
   inkomsten: Inkomsten,
-  gezamenlijk: Gezamenlijk,
-  prive: Prive,
-  sparen: Sparen,
-  schulden: Schulden,
-  abonnementen: Abonnementen,
+  kosten: Kosten,
+  vermogen: Vermogen,
   advies: Advies,
-  leden: Leden,
 }
 
 function InsightPageInner({

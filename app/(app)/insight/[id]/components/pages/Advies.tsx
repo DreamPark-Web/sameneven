@@ -1,7 +1,9 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { useInsight } from '@/lib/insight-context'
 import { fmtK, sum } from '@/lib/format'
+import { PAGE_COLORS } from '@/lib/pageColors'
 
 type SharedItem = { id: string; label: string; value: number; split: string }
 type Pot = { id: string; label: string; current: number; goal: number; owner: string }
@@ -17,6 +19,16 @@ function calcMonths(bal: number, pay: number, rate: number) {
 
 export default function Advies() {
   const { data } = useInsight()
+  const [isDark, setIsDark] = useState(false)
+  const colors = PAGE_COLORS.advies
+  const c = isDark ? colors.dark : colors.light
+  useEffect(() => {
+    const check = () => setIsDark(document.documentElement.getAttribute('data-theme') === 'dark')
+    check()
+    const obs = new MutationObserver(check)
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
+    return () => obs.disconnect()
+  }, [])
   const n1 = data.names?.user1 || 'Gebruiker 1'
   const n2 = data.names?.user2 || 'Gebruiker 2'
 
@@ -61,10 +73,10 @@ export default function Advies() {
   type CardType = 'ok' | 'ng' | 'tip' | 'info'
   function card(t: CardType, title: string, body: string) {
     const styles: Record<CardType, { bd: string; bg: string; tc: string; tl: string }> = {
-      ok: { bd: 'rgba(76,175,130,.2)', bg: 'rgba(76,175,130,.04)', tc: 'var(--ok)', tl: 'Positief' },
-      ng: { bd: 'rgba(224,80,80,.2)', bg: 'rgba(224,80,80,.04)', tc: 'var(--danger)', tl: 'Aandacht' },
-      tip: { bd: 'rgba(0,194,255,.15)', bg: 'rgba(0,194,255,.03)', tc: 'var(--accent)', tl: 'Tip' },
-      info: { bd: 'var(--border)', bg: 'rgba(255,255,255,.015)', tc: 'var(--muted2)', tl: 'Informatief' },
+      ok: { bd: 'rgba(16,185,129,.2)', bg: 'rgba(16,185,129,.04)', tc: '#10B981', tl: 'POSITIEF' },
+      ng: { bd: 'rgba(239,68,68,.2)', bg: 'rgba(239,68,68,.04)', tc: '#EF4444', tl: 'WAARSCHUWING' },
+      tip: { bd: 'rgba(59,130,246,.2)', bg: 'rgba(59,130,246,.04)', tc: '#3B82F6', tl: 'INFORMATIEF' },
+      info: { bd: 'rgba(245,158,11,.2)', bg: 'rgba(245,158,11,.04)', tc: '#F59E0B', tl: 'INFORMATIEF' },
     }
     const s = styles[t]
     return { t, title, body, ...s }
@@ -113,17 +125,23 @@ export default function Advies() {
   const panel: React.CSSProperties = { background: 'var(--s3)', border: '1px solid var(--card-border)', borderRadius: 8, padding: '22px 26px', marginBottom: 22 }
 
   return (
+    <div style={{ position: 'relative', overflow: 'hidden' }}>
+      <div style={{ fontSize: 18, fontWeight: 700, color: c, fontFamily: 'var(--font-heading)', marginBottom: 20 }}>Advies</div>
     <div style={panel}>
-      <div style={{ marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid var(--border)' }}>
-        <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>Financieel advies op maat</span>
-      </div>
-      {cards.map((c, i) => (
-        <div key={i} style={{ borderRadius: 7, padding: '16px 18px', marginBottom: 10, border: `1px solid ${c.bd}`, background: c.bg }}>
-          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', marginBottom: 6, color: c.tc }}>{c.tl}</div>
-          <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 6, fontFamily: 'var(--font-heading)' }}>{c.title}</div>
-          <div style={{ fontSize: 12.5, color: 'var(--muted2)', lineHeight: 1.75 }}>{c.body}</div>
+      {cards.map((card, i) => (
+        <div key={i} style={{ borderRadius: 7, padding: '16px 18px', marginBottom: 10, border: `1px solid ${card.bd}`, background: card.bg }}>
+          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', marginBottom: 6, color: card.tc }}>{card.tl}</div>
+          <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 6, fontFamily: 'var(--font-heading)' }}>{card.title}</div>
+          <div style={{ fontSize: 12.5, color: 'var(--muted2)', lineHeight: 1.75 }}>{card.body}</div>
         </div>
       ))}
+    </div>
+      <div style={{ position: 'absolute', bottom: -50, right: -50, pointerEvents: 'none', zIndex: 0 }}>
+        <svg width="300" height="300" viewBox="0 0 200 200">
+          <polygon points="65,18 135,18 192,62 100,175 8,62" fill={c} opacity="0.06" />
+          <polygon points="65,18 135,18 100,62" fill={c} opacity="0.1" />
+        </svg>
+      </div>
     </div>
   )
 }

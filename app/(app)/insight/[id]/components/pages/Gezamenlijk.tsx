@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useInsight } from '@/lib/insight-context'
 import { fmt, sum } from '@/lib/format'
+import { PAGE_COLORS } from '@/lib/pageColors'
 
 type CostItem = { id: string; label: string; value: number; split: string; p1?: number; p2?: number }
 
@@ -20,6 +21,16 @@ export default function Gezamenlijk() {
   const { data, saveData, canEdit, isSingleUser } = useInsight()
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState({ label: '', value: '', split: 'ratio', p1: '50', p2: '50' })
+  const [isDark, setIsDark] = useState(false)
+  const colors = PAGE_COLORS.gezamenlijk
+  const c = isDark ? colors.dark : colors.light
+  useEffect(() => {
+    const check = () => setIsDark(document.documentElement.getAttribute('data-theme') === 'dark')
+    check()
+    const obs = new MutationObserver(check)
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
+    return () => obs.disconnect()
+  }, [])
   const [dragging, setDragging] = useState<number | null>(null)
   const [dragOver, setDragOver] = useState<number | null>(null)
   const [focusedRowId, setFocusedRowId] = useState<string | null>(null)
@@ -103,13 +114,13 @@ export default function Gezamenlijk() {
   const pctInput: React.CSSProperties = { ...inputBase, width: 52, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }
 
   return (
+    <div style={{ position: 'relative', overflow: 'hidden' }}>
+      <div style={{ fontSize: 18, fontWeight: 700, color: c, fontFamily: 'var(--font-heading)', marginBottom: 20 }}>Gezamenlijke Kosten</div>
     <div style={panel}>
       <div style={{ marginBottom: 12, paddingBottom: 0, borderBottom: 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-          <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>Gezamenlijke vaste lasten</span>
-        </div>
+        <div />
         {editable && (
-          <button className="btn-add" onClick={() => setOpen(!open)} style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 500, letterSpacing: '.04em', textTransform: 'uppercase', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', border: '1px solid rgba(var(--accent-rgb), 0.4)', background: 'var(--s2)', color: 'var(--accent)' }}>
+          <button className="btn-add" onClick={() => setOpen(!open)} style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 500, letterSpacing: '.04em', textTransform: 'uppercase', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', ...(isDark ? { background: colors.bg, color: colors.dark, border: `1px solid ${colors.dark}4D` } : { background: colors.light, color: '#FFFFFF', border: 'none' }) }}>
             {open ? '− Post' : '+ Post'}
           </button>
         )}
@@ -174,8 +185,8 @@ export default function Gezamenlijk() {
                   <div style={{ ...hdr, textAlign: 'left' }}>Bedrag</div>
                   <div style={{ ...hdr, textAlign: 'left' }}>Verdeling</div>
                   <div />
-                  <div style={{ ...hdr, textAlign: 'right', color: 'var(--accent)' }}>{n1}</div>
-                  <div style={{ ...hdr, textAlign: 'right', color: 'var(--accent)' }}>{n2}</div>
+                  <div style={{ ...hdr, textAlign: 'right', color: 'var(--text)' }}>{n1}</div>
+                  <div style={{ ...hdr, textAlign: 'right', color: 'var(--text)' }}>{n2}</div>
                   <div />
                 </div>
               )}
@@ -239,8 +250,8 @@ export default function Gezamenlijk() {
                       </div>
                     )}
                     {!isSingleUser && <div />}
-                    {!isSingleUser && <div style={{ fontSize: 13, textAlign: 'right', color: 'var(--accent)', fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>{fmt(u1)}</div>}
-                    {!isSingleUser && <div style={{ fontSize: 13, textAlign: 'right', color: 'var(--accent)', fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>{fmt(u2)}</div>}
+                    {!isSingleUser && <div style={{ fontSize: 13, textAlign: 'right', color: 'var(--text)', fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>{fmt(u1)}</div>}
+                    {!isSingleUser && <div style={{ fontSize: 13, textAlign: 'right', color: 'var(--text)', fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>{fmt(u2)}</div>}
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       {editable && <button className="btn-delete" onClick={() => deleteItem(item.id)} style={{ width: 26, height: 26, background: 'rgba(200,60,60,.1)', color: 'var(--danger)', border: '1px solid rgba(200,60,60,.2)', borderRadius: 4, cursor: 'pointer', fontSize: 14, fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>×</button>}
                     </div>
@@ -254,20 +265,27 @@ export default function Gezamenlijk() {
 
       <div style={{ display: 'grid', gridTemplateColumns: isSingleUser ? '1fr' : '1fr 1fr', gap: 12, marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--border)', alignItems: 'stretch' }}>
         {isSingleUser ? (
-          <div style={{ background: 'var(--s2)', border: '1px solid var(--card-border)', borderTop: '1px solid var(--accent)', borderRadius: 8, padding: '15px 17px' }}>
+          <div style={{ background: 'var(--s2)', border: '1px solid var(--card-border)', borderTop: `1px solid ${c}`, borderRadius: 8, padding: '15px 17px' }}>
             <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--muted)' }}>Totaal gezamenlijke lasten</div>
-            <div style={{ fontSize: 22, fontWeight: 700, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)', marginTop: 4, color: 'var(--accent)' }}>{fmt(totU1 + totU2, 0)}</div>
+            <div style={{ fontSize: 22, fontWeight: 700, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)', marginTop: 4, color: c }}>{fmt(totU1 + totU2, 0)}</div>
           </div>
         ) : (
           [{ name: n1, tr: jTr, sh: totU1, sav: u1Sh }, { name: n2, tr: dTr, sh: totU2, sav: u2Sh }].map(({ name, tr, sh, sav }) => (
-            <div key={name} style={{ background: 'var(--s2)', border: '1px solid var(--card-border)', borderTop: '1px solid var(--accent)', borderRadius: 8, padding: '15px 17px' }}>
-              <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--accent)' }}>{name}</div>
-              <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(245,245,245,0.45)', marginTop: 2 }}>Totaal over te maken</div>
-              <div style={{ fontSize: 22, fontWeight: 700, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)', marginTop: 4, color: 'var(--accent)' }}>{fmt(tr, 0)}</div>
+            <div key={name} style={{ background: 'var(--s2)', border: '1px solid var(--card-border)', borderTop: `1px solid ${c}`, borderRadius: 8, padding: '15px 17px' }}>
+              <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: c }}>{name}</div>
+              <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--muted)', marginTop: 2 }}>Totaal over te maken</div>
+              <div style={{ fontSize: 22, fontWeight: 700, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)', marginTop: 4, color: c }}>{fmt(tr, 0)}</div>
               <div style={{ fontSize: 11, color: 'var(--muted2)', marginTop: 4 }}>Lasten <span style={{ fontFamily: 'var(--font-mono)' }}>{fmt(sh, 0)}</span> + sparen <span style={{ fontFamily: 'var(--font-mono)' }}>{fmt(sav, 0)}</span></div>
             </div>
           ))
         )}
+      </div>
+    </div>
+      <div style={{ position: 'absolute', bottom: -50, right: -50, pointerEvents: 'none', zIndex: 0 }}>
+        <svg width="300" height="300" viewBox="0 0 200 200">
+          <polygon points="65,18 135,18 192,62 100,175 8,62" fill={c} opacity="0.06" />
+          <polygon points="65,18 135,18 100,62" fill={c} opacity="0.1" />
+        </svg>
       </div>
     </div>
   )

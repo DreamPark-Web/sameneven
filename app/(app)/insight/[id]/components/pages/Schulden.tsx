@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useInsight } from '@/lib/insight-context'
 import { fmtK } from '@/lib/format'
+import { PAGE_COLORS } from '@/lib/pageColors'
 
 type Schuld = { id: string; naam: string; type: string; wie: string; balance: number; payment: number; rate: number; fixedYears: number; fixedStart: string }
 
@@ -25,6 +26,16 @@ export default function Schulden() {
 
   const [showAdd, setShowAdd] = useState(false)
   const [form, setForm] = useState({ naam: '', type: 'overig', wie: 'user1', balance: '', payment: '', rate: '', fixedYears: '0', fixedStart: '' })
+  const [isDark, setIsDark] = useState(false)
+  const colors = PAGE_COLORS.schulden
+  const c = isDark ? colors.dark : colors.light
+  useEffect(() => {
+    const check = () => setIsDark(document.documentElement.getAttribute('data-theme') === 'dark')
+    check()
+    const obs = new MutationObserver(check)
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
+    return () => obs.disconnect()
+  }, [])
 
   function addSchuld() {
     if (!form.naam.trim()) return
@@ -52,13 +63,12 @@ export default function Schulden() {
   const onEnterBlur = (e: React.KeyboardEvent<HTMLInputElement>) => { if (e.key === 'Enter') e.currentTarget.blur() }
 
   return (
-    <div>
+    <div style={{ position: 'relative', overflow: 'hidden' }}>
+      <div style={{ fontSize: 18, fontWeight: 700, color: c, fontFamily: 'var(--font-heading)', marginBottom: 20 }}>Schulden</div>
       <div style={panel}>
         <div style={{ marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-            <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>Overzicht</span>
-          </div>
-          {editable && <button className="btn-add" onClick={() => setShowAdd(!showAdd)} style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 500, letterSpacing: '.04em', textTransform: 'uppercase', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', border: '1px solid rgba(var(--accent-rgb), 0.4)', background: 'var(--s2)', color: 'var(--accent)' }}>{showAdd ? '− Toevoegen' : '+ Toevoegen'}</button>}
+          <div />
+          {editable && <button className="btn-add" onClick={() => setShowAdd(!showAdd)} style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 500, letterSpacing: '.04em', textTransform: 'uppercase', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', ...(isDark ? { background: colors.bg, color: colors.dark, border: `1px solid ${colors.dark}4D` } : { background: colors.light, color: '#FFFFFF', border: 'none' }) }}>{showAdd ? '− Toevoegen' : '+ Toevoegen'}</button>}
         </div>
 
         <div style={{ fontSize: 12, color: 'var(--muted2)', marginBottom: 14, lineHeight: 1.7 }}>DUO, hypotheek, autolening, etc. Stel rentevaste periode in voor een vervaldatummelding.</div>
@@ -147,7 +157,7 @@ export default function Schulden() {
             <div key={sc.id} style={{ background: 'var(--s3)', border: '1px solid var(--border)', borderRadius: 6, padding: '18px 20px', marginBottom: 16 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
                 <div>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '2px 7px', borderRadius: 999, background: 'rgba(255,255,255,.04)', fontSize: 10, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--accent)', border: '1px solid rgba(var(--accent-rgb), .18)' }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '2px 7px', borderRadius: 999, background: 'rgba(255,255,255,.04)', fontSize: 10, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--text)', border: '1px solid var(--border)' }}>
                     {sc.naam}<span style={{ opacity: 0.45, fontWeight: 400 }}> – </span>{wieLabel}{endDate && <span style={{ opacity: 0.6, fontWeight: 400, letterSpacing: 0, textTransform: 'none' }}> – afgelost {endDate}</span>}
                   </span>
                 </div>
@@ -189,12 +199,12 @@ export default function Schulden() {
               })()}
 
 
-              <div style={{ background: 'var(--s2)', border: '1px solid var(--card-border)', borderTop: '1px solid var(--accent)', borderRadius: 8, padding: '10px 14px', marginTop: 12 }}>
+              <div style={{ background: 'var(--s2)', border: '1px solid var(--card-border)', borderTop: `1px solid ${c}`, borderRadius: 8, padding: '10px 14px', marginTop: 12 }}>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, alignItems: 'stretch' }}>
                   {[
-                    { label: 'Resterende schuld', val: fmtK(sc.balance), color: 'var(--accent)' },
-                    { label: 'Maanden resterend', val: months === Infinity ? '∞' : months ? `${months}` : '—', color: 'var(--accent)' },
-                    { label: 'In jaren', val: months && months !== Infinity ? `${yr}j ${rm}m` : '—', color: 'var(--accent)' },
+                    { label: 'Resterende schuld', val: fmtK(sc.balance), color: c },
+                    { label: 'Maanden resterend', val: months === Infinity ? '∞' : months ? `${months}` : '—', color: 'var(--text)' },
+                    { label: 'In jaren', val: months && months !== Infinity ? `${yr}j ${rm}m` : '—', color: 'var(--text)' },
                     { label: 'Totale rente', val: fmtK(totalInterestSc), color: 'var(--danger)' },
                   ].map((s, i) => (
                     <div key={i}>
@@ -215,16 +225,22 @@ export default function Schulden() {
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, alignItems: 'stretch' }}>
           {[
-            { label: 'Totale schuld', val: fmtK(totalBalance), borderTop: 'var(--accent)' },
-            { label: 'Totale maandlast', val: fmtK(totalPayment), borderTop: 'var(--accent)' },
+            { label: 'Totale schuld', val: fmtK(totalBalance), borderTop: c },
+            { label: 'Totale maandlast', val: fmtK(totalPayment), borderTop: c },
             { label: 'Totale verwachte rente', val: fmtK(totalInterest), color: 'var(--danger)', borderTop: 'var(--danger)' },
           ].map((s, i) => (
             <div key={i} style={{ background: 'var(--s2)', border: '1px solid var(--card-border)', borderRadius: 8, padding: '15px 17px', borderTop: `1px solid ${s.borderTop}` }}>
               <div style={{ ...eyebrow, color: 'var(--muted)' }}>{s.label}</div>
-              <div style={{ fontSize: 28, fontWeight: 700, lineHeight: 1, margin: '6px 0 4px', fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)', color: s.color || 'var(--accent)' }}>{s.val}</div>
+              <div style={{ fontSize: 28, fontWeight: 700, lineHeight: 1, margin: '6px 0 4px', fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)', color: s.color || c }}>{s.val}</div>
             </div>
           ))}
         </div>
+      </div>
+      <div style={{ position: 'absolute', bottom: -50, right: -50, pointerEvents: 'none', zIndex: 0 }}>
+        <svg width="300" height="300" viewBox="0 0 200 200">
+          <polygon points="65,18 135,18 192,62 100,175 8,62" fill={c} opacity="0.06" />
+          <polygon points="65,18 135,18 100,62" fill={c} opacity="0.1" />
+        </svg>
       </div>
     </div>
   )

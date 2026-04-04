@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useInsight } from '@/lib/insight-context'
+import { PAGE_COLORS } from '@/lib/pageColors'
 
 type Sub = { id: string; name: string; date: string; amount: number; freq: string; person: string }
 
@@ -141,6 +142,16 @@ export default function Abonnementen() {
 
   const [form, setForm] = useState({ name: '', date: '', amount: '', freq: 'maandelijks', person: isSingleUser ? 'user1' : 'gezamenlijk' })
   const [openForm, setOpenForm] = useState(false)
+  const [isDark, setIsDark] = useState(false)
+  const colors = PAGE_COLORS.abonnementen
+  const c = isDark ? colors.dark : colors.light
+  useEffect(() => {
+    const check = () => setIsDark(document.documentElement.getAttribute('data-theme') === 'dark')
+    check()
+    const obs = new MutationObserver(check)
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
+    return () => obs.disconnect()
+  }, [])
 
   function addSub() {
     if (!form.name.trim() || !form.date) return
@@ -167,7 +178,8 @@ export default function Abonnementen() {
     : [{ key: 'gezamenlijk', title: 'Gezamenlijk' }, { key: 'user1', title: n1 }, { key: 'user2', title: n2 }]
 
   return (
-    <div>
+    <div style={{ position: 'relative', overflow: 'hidden' }}>
+      <div style={{ fontSize: 18, fontWeight: 700, color: c, fontFamily: 'var(--font-heading)', marginBottom: 20 }}>Abonnementen</div>
       <div style={{ display: 'grid', gridTemplateColumns: isSingleUser ? '1fr' : '1fr 1fr 1fr', gap: 16, alignItems: 'stretch' }}>
         {groups.map(g => {
           const groupItems = subs.filter(s => s.person === g.key)
@@ -175,11 +187,10 @@ export default function Abonnementen() {
             <div key={g.key} style={panel}>
               <div style={{ marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <span style={{ fontSize: 18, fontWeight: 700, color: g.key === 'gezamenlijk' ? 'var(--text)' : 'var(--accent)', fontFamily: 'var(--font-heading)', display: 'block' }}>{g.title}</span>
-                  <span style={{ ...eyebrow }}>Abonnementen</span>
+                  <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', fontFamily: 'var(--font-heading)', display: 'block' }}>{g.title}</span>
                 </div>
                 {editable && (
-                  <button className="btn-add" onClick={() => { if (openForm && form.person === g.key) { setOpenForm(false) } else { setForm({ ...form, person: g.key }); setOpenForm(true) } }} style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 500, letterSpacing: '.04em', textTransform: 'uppercase', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', border: '1px solid rgba(var(--accent-rgb), 0.4)', background: 'var(--s2)', color: 'var(--accent)' }}>{openForm && form.person === g.key ? '− Toevoegen' : '+ Toevoegen'}</button>
+                  <button className="btn-add" onClick={() => { if (openForm && form.person === g.key) { setOpenForm(false) } else { setForm({ ...form, person: g.key }); setOpenForm(true) } }} style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 500, letterSpacing: '.04em', textTransform: 'uppercase', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', ...(isDark ? { background: colors.bg, color: colors.dark, border: `1px solid ${colors.dark}4D` } : { background: colors.light, color: '#FFFFFF', border: 'none' }) }}>{openForm && form.person === g.key ? '− Toevoegen' : '+ Toevoegen'}</button>
                 )}
               </div>
               <SubList
@@ -235,6 +246,12 @@ export default function Abonnementen() {
             </div>
         </div>
       )}
+      <div style={{ position: 'absolute', bottom: -50, right: -50, pointerEvents: 'none', zIndex: 0 }}>
+        <svg width="300" height="300" viewBox="0 0 200 200">
+          <polygon points="65,18 135,18 192,62 100,175 8,62" fill={c} opacity="0.06" />
+          <polygon points="65,18 135,18 100,62" fill={c} opacity="0.1" />
+        </svg>
+      </div>
     </div>
   )
 }

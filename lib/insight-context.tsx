@@ -34,7 +34,7 @@ export type InsightData = {
 
 const DEFAULTS: InsightData = {
   names: { user1: 'Gebruiker 1', user2: 'Gebruiker 2' },
-  theme: '#E8C49A',
+  theme: '#6366F1',
   user1: { income: [], private: [], savings: { shared: [], private: [] } },
   user2: { income: [], private: [], savings: { shared: [], private: [] } },
   shared: [],
@@ -115,7 +115,7 @@ function lightenColor(hex: string, factor = 0.15) {
 }
 
 function hexToRgb(hex: string) {
-  const clean = (hex || '#E8C49A').replace('#', '')
+  const clean = (hex || '#6366F1').replace('#', '')
   return {
     r: parseInt(clean.slice(0, 2), 16) || 0,
     g: parseInt(clean.slice(2, 4), 16) || 0,
@@ -126,10 +126,7 @@ function hexToRgb(hex: string) {
 function applyThemeVars(color: string) {
   if (typeof document === 'undefined') return
 
-  const isLight = document.documentElement.getAttribute('data-theme') === 'light'
-  let hex = (color || '#E8C49A').toLowerCase()
-  if (isLight && hex === '#e8c49a') hex = '#a0622a'
-
+  const hex = (color || '#6366F1').toLowerCase()
   const light = lightenColor(hex, 0.15)
   const { r, g, b } = hexToRgb(hex)
 

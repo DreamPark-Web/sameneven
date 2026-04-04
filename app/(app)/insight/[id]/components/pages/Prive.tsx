@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useInsight } from '@/lib/insight-context'
 import { fmt, sum } from '@/lib/format'
+import { PAGE_COLORS } from '@/lib/pageColors'
 
 type Item = { id: string; label: string; value: number }
 
@@ -31,7 +32,18 @@ function PersonPanel({ name, items, onAdd, onDelete, onEdit, onReorder, canEdit 
   const [editVal, setEditVal] = useState('')
   const [dragging, setDragging] = useState<number | null>(null)
   const [dragOver, setDragOver] = useState<number | null>(null)
+  const [isDark, setIsDark] = useState(false)
   const total = sum(items)
+  const colors = PAGE_COLORS.prive
+  const c = isDark ? colors.dark : colors.light
+
+  useEffect(() => {
+    const check = () => setIsDark(document.documentElement.getAttribute('data-theme') === 'dark')
+    check()
+    const obs = new MutationObserver(check)
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
+    return () => obs.disconnect()
+  }, [])
 
   function commitLabel(item: Item) {
     const trimmed = editVal.trim()
@@ -61,11 +73,10 @@ function PersonPanel({ name, items, onAdd, onDelete, onEdit, onReorder, canEdit 
     <div style={{ background: 'var(--s3)', border: '1px solid var(--card-border)', borderRadius: 8, padding: '22px 26px', marginBottom: 22, display: 'flex', flexDirection: 'column' }}>
       <div style={{ marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--accent)', fontFamily: 'var(--font-heading)' }}>{name}</span>
-          <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>Prive vaste lasten</span>
+          <span style={{ fontSize: 18, fontWeight: 700, color: c, fontFamily: 'var(--font-heading)' }}>{name}</span>
         </div>
         {canEdit && (
-          <button className="btn-add" onClick={() => setOpen(!open)} style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 500, letterSpacing: '.04em', textTransform: 'uppercase', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', border: '1px solid rgba(var(--accent-rgb), 0.4)', background: 'var(--s2)', color: 'var(--accent)' }}>{open ? '− Post' : '+ Post'}</button>
+          <button className="btn-add" onClick={() => setOpen(!open)} style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 500, letterSpacing: '.04em', textTransform: 'uppercase', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', ...(isDark ? { background: colors.bg, color: colors.dark, border: `1px solid ${colors.dark}4D` } : { background: colors.light, color: '#FFFFFF', border: 'none' }) }}>{open ? '− Post' : '+ Post'}</button>
         )}
       </div>
       {open && (
@@ -136,9 +147,9 @@ function PersonPanel({ name, items, onAdd, onDelete, onEdit, onReorder, canEdit 
         ))}
       </div>
       <div style={{ marginTop: 'auto', paddingTop: 14 }}>
-        <div style={{ background: 'var(--s2)', border: '1px solid var(--card-border)', borderTop: '1px solid var(--accent)', borderRadius: 8, padding: '15px 17px', marginTop: 14 }}>
+        <div style={{ background: 'var(--s2)', border: '1px solid var(--card-border)', borderTop: `1px solid ${c}`, borderRadius: 8, padding: '15px 17px', marginTop: 14 }}>
           <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--muted)' }}>Totaal prive {name}</div>
-          <div style={{ fontSize: 22, fontWeight: 700, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)', marginTop: 4, color: 'var(--accent)' }}>{fmt(total, 0)}</div>
+          <div style={{ fontSize: 22, fontWeight: 700, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)', marginTop: 4, color: c }}>{fmt(total, 0)}</div>
         </div>
       </div>
     </div>
@@ -147,6 +158,16 @@ function PersonPanel({ name, items, onAdd, onDelete, onEdit, onReorder, canEdit 
 
 export default function Prive() {
   const { data, saveData, canEdit, isSingleUser } = useInsight()
+  const [isDark, setIsDark] = useState(false)
+  const colors = PAGE_COLORS.prive
+  const c = isDark ? colors.dark : colors.light
+  useEffect(() => {
+    const check = () => setIsDark(document.documentElement.getAttribute('data-theme') === 'dark')
+    check()
+    const obs = new MutationObserver(check)
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
+    return () => obs.disconnect()
+  }, [])
   const n1 = data.names?.user1 || 'Gebruiker 1'
   const n2 = data.names?.user2 || 'Gebruiker 2'
 
@@ -173,9 +194,18 @@ export default function Prive() {
   }
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: isSingleUser ? '1fr' : '1fr 1fr', gap: 16, alignItems: 'stretch' }}>
+    <div style={{ position: 'relative', overflow: 'hidden' }}>
+      <div style={{ fontSize: 18, fontWeight: 700, color: c, fontFamily: 'var(--font-heading)', marginBottom: 20 }}>Privé Kosten</div>
+      <div style={{ display: 'grid', gridTemplateColumns: isSingleUser ? '1fr' : '1fr 1fr', gap: 16, alignItems: 'stretch' }}>
       <PersonPanel name={n1} items={data.user1?.private || []} onAdd={(l, v) => addItem('user1', l, v)} onDelete={id => deleteItem('user1', id)} onEdit={(id, l, v) => editItem('user1', id, l, v)} onReorder={items => reorderItem('user1', items)} canEdit={canEdit('user1')} />
       {!isSingleUser && <PersonPanel name={n2} items={data.user2?.private || []} onAdd={(l, v) => addItem('user2', l, v)} onDelete={id => deleteItem('user2', id)} onEdit={(id, l, v) => editItem('user2', id, l, v)} onReorder={items => reorderItem('user2', items)} canEdit={canEdit('user2')} />}
+      </div>
+      <div style={{ position: 'absolute', bottom: -50, right: -50, pointerEvents: 'none', zIndex: 0 }}>
+        <svg width="300" height="300" viewBox="0 0 200 200">
+          <polygon points="65,18 135,18 192,62 100,175 8,62" fill={c} opacity="0.06" />
+          <polygon points="65,18 135,18 100,62" fill={c} opacity="0.1" />
+        </svg>
+      </div>
     </div>
   )
 }

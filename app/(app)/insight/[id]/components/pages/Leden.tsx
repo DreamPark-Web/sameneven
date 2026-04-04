@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useInsight } from '@/lib/insight-context'
 import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
+import { PAGE_COLORS } from '@/lib/pageColors'
 
 function WhatsAppIcon() {
   return (
@@ -52,6 +53,16 @@ function NativeShareIcon() {
 
 export default function Leden() {
   const { members, household, currentUser, myRole, isOwner, data, isSingleUser, updateMemberRole, updateMemberSlot } = useInsight()
+  const [isDark, setIsDark] = useState(false)
+  const colors = PAGE_COLORS.leden
+  const c = isDark ? colors.dark : colors.light
+  useEffect(() => {
+    const check = () => setIsDark(document.documentElement.getAttribute('data-theme') === 'dark')
+    check()
+    const obs = new MutationObserver(check)
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
+    return () => obs.disconnect()
+  }, [])
   const [copied, setCopied] = useState(false)
   const [changingRole, setChangingRole] = useState<string | null>(null)
   const [changingSlot, setChangingSlot] = useState<string | null>(null)
@@ -169,9 +180,10 @@ export default function Leden() {
   const panel: React.CSSProperties = { background: 'var(--s3)', border: '1px solid var(--card-border)', borderRadius: 8, padding: '22px 26px', marginBottom: 22 }
 
   return (
+    <div style={{ position: 'relative', overflow: 'hidden' }}>
+      <div style={{ fontSize: 18, fontWeight: 700, color: c, fontFamily: 'var(--font-heading)', marginBottom: 20 }}>Leden</div>
     <div style={panel}>
       <div style={{ marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>Ledenoverzicht</span>
         {isOwner && (
           <div ref={shareRef} style={{ position: 'relative' }}>
             <button
@@ -236,7 +248,7 @@ export default function Leden() {
                           key={role}
                           onClick={() => !active && toggleRole(member.user_id, member.role)}
                           disabled={changingRole === member.user_id}
-                          style={{ display: 'inline-flex', alignItems: 'center', padding: '4px 10px', borderRadius: 999, fontSize: 10, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', cursor: active ? 'default' : 'pointer', background: active ? 'rgba(255,255,255,.04)' : 'transparent', color: active ? 'var(--accent)' : 'var(--muted)', border: active ? '1px solid rgba(var(--accent-rgb), .18)' : '1px solid var(--border)', transition: 'color .15s, border-color .15s, background .15s' }}
+                          style={{ display: 'inline-flex', alignItems: 'center', padding: '4px 10px', borderRadius: 999, fontSize: 10, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', cursor: active ? 'default' : 'pointer', background: active ? 'rgba(255,255,255,.04)' : 'transparent', color: active ? (role === 'editor' ? '#8B5CF6' : 'var(--muted)') : 'var(--muted)', border: active ? `1px solid ${role === 'editor' ? 'rgba(139,92,246,.25)' : 'var(--border)'}` : '1px solid var(--border)', transition: 'color .15s, border-color .15s, background .15s' }}
                         >
                           {role === 'viewer' ? 'Kijker' : 'Bewerker'}
                         </button>
@@ -244,7 +256,7 @@ export default function Leden() {
                     })}
                   </div>
                 ) : (
-                  <div style={{ marginTop: 12, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 999, background: 'rgba(255,255,255,.04)', fontSize: 10, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--accent)', border: '1px solid rgba(var(--accent-rgb), .18)' }}>
+                  <div style={{ marginTop: 12, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 999, background: 'rgba(255,255,255,.04)', fontSize: 10, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: member.role === 'owner' || member.role === 'admin' ? '#6366F1' : member.role === 'editor' ? '#8B5CF6' : 'var(--muted)', border: `1px solid ${member.role === 'owner' || member.role === 'admin' ? 'rgba(99,102,241,.25)' : member.role === 'editor' ? 'rgba(139,92,246,.25)' : 'var(--border)'}` }}>
                     {roleLabel[member.role] || member.role}
                   </div>
                 )}
@@ -313,6 +325,13 @@ export default function Leden() {
           )}
         </div>
       )}
+    </div>
+      <div style={{ position: 'absolute', bottom: -50, right: -50, pointerEvents: 'none', zIndex: 0 }}>
+        <svg width="300" height="300" viewBox="0 0 200 200">
+          <polygon points="65,18 135,18 192,62 100,175 8,62" fill={c} opacity="0.06" />
+          <polygon points="65,18 135,18 100,62" fill={c} opacity="0.1" />
+        </svg>
+      </div>
     </div>
   )
 }

@@ -1,31 +1,31 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
 :root {
-  color-scheme: dark;
-  --bg: #0F0F0F;
-  --s1: #141414;
-  --s2: #1a1a1a;
-  --s3: #222222;
-  --border: #2e2e2e;
-  --border2: #3a3a3a;
-  --text: #F5F5F5;
-  --card-border: rgba(232, 196, 154, 0.12);
-  --muted: #666;
-  --muted2: #999;
-  --accent: #E8C49A;
-  --accent2: #EBCCA9;
-  --accent-rgb: 232, 196, 154;
-  --accent-fg: #0a0a0a;
-  --accent-dim: #6b4c28;
-  --input-border: #2e2e2e;
-  --cancel-border: #2e2e2e;
-  --cancel-fg: #999;
-  --ok: #4caf82;
-  --danger: #e05050;
-  --warn: #d4a017;
-  --del-bg: rgba(200, 60, 60, 0.1);
-  --del-bd: rgba(200, 60, 60, 0.2);
-  --del-fg: #e05050;
+  color-scheme: light;
+  --bg: #F4F4F6;
+  --s1: #FFFFFF;
+  --s2: #F4F4F6;
+  --s3: #FFFFFF;
+  --border: #E5E7EB;
+  --border2: #D1D5DB;
+  --text: #111111;
+  --card-border: #E5E7EB;
+  --muted: #6B7280;
+  --muted2: #9CA3AF;
+  --accent: #6366F1;
+  --accent2: #818CF8;
+  --accent-rgb: 99, 102, 241;
+  --accent-fg: #FFFFFF;
+  --accent-dim: #4338CA;
+  --input-border: #E5E7EB;
+  --cancel-border: #E5E7EB;
+  --cancel-fg: #111111;
+  --ok: #10B981;
+  --danger: #EF4444;
+  --warn: #F59E0B;
+  --del-bg: rgba(239, 68, 68, 0.08);
+  --del-bd: rgba(239, 68, 68, 0.18);
+  --del-fg: #EF4444;
 
   --sidebar-w: 240px;
   --sidebar-w-collapsed: 64px;
@@ -35,28 +35,32 @@
   --font-mono: 'Inter', sans-serif;
 }
 
-[data-theme="light"] {
-  --bg: #F5F0EB;
-  --s1: #EDE8E3;
-  --s2: #EDE8E3;
-  --s3: #FFFFFF;
-  --border: rgba(160, 98, 42, 0.15);
-  --border2: rgba(160, 98, 42, 0.25);
-  --text: #1A1A1A;
-  --card-border: rgba(160, 98, 42, 0.15);
-  --muted: rgba(26, 26, 26, 0.5);
-  --muted2: rgba(26, 26, 26, 0.35);
-  --accent: #A0622A;
-  --accent2: #b47840;
-  --accent-rgb: 160, 98, 42;
-  --accent-fg: #FFFFFF;
-  --accent-dim: #5c3818;
-  --del-bg: rgba(200, 60, 60, 0.08);
-  --del-bd: rgba(200, 60, 60, 0.18);
-  --del-fg: #c83030;
-  --input-border: rgba(160, 98, 42, 0.2);
-  --cancel-border: rgba(26, 26, 26, 0.2);
-  --cancel-fg: #1A1A1A;
+[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #111827;
+  --s1: #1F2937;
+  --s2: #111827;
+  --s3: #1F2937;
+  --border: #374151;
+  --border2: #4B5563;
+  --text: #F5F5F5;
+  --card-border: rgba(255,255,255,0.08);
+  --muted: #6B7280;
+  --muted2: #9CA3AF;
+  --accent: #E8C49A;
+  --accent2: #EBCCA9;
+  --accent-rgb: 232, 196, 154;
+  --accent-fg: #0a0a0a;
+  --accent-dim: #6b4c28;
+  --input-border: #374151;
+  --cancel-border: #374151;
+  --cancel-fg: #9CA3AF;
+  --ok: #34D399;
+  --danger: #FC8181;
+  --warn: #FCD34D;
+  --del-bg: rgba(200, 60, 60, 0.1);
+  --del-bd: rgba(200, 60, 60, 0.2);
+  --del-fg: #FC8181;
 }
 
 *,
@@ -107,7 +111,7 @@ button {
 input,
 select,
 textarea {
-  background: var(--s2);
+  background: var(--s1);
   border: 1px solid var(--border);
   color: var(--text);
 }
@@ -117,6 +121,7 @@ select:focus,
 textarea:focus {
   outline: none;
   border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.12);
 }
 
 input[type='number'] {
@@ -197,14 +202,19 @@ svg {
   transition: filter .15s, box-shadow .15s;
 }
 .btn-submit:hover {
-  filter: brightness(1.18);
-  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), .35);
+  filter: brightness(1.06);
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), .25);
 }
 
 .btn-cancel {
   transition: background .15s, border-color .15s, color .15s;
 }
 .btn-cancel:hover {
+  background: rgba(0,0,0,.04) !important;
+  border-color: var(--border2) !important;
+}
+
+[data-theme="dark"] .btn-cancel:hover {
   background: rgba(255,255,255,.06) !important;
   border-color: rgba(255,255,255,.2) !important;
 }
@@ -215,7 +225,7 @@ svg {
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--s1);
+  background: var(--s2);
 }
 
 ::-webkit-scrollbar-thumb {
@@ -229,7 +239,7 @@ svg {
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: var(--border) var(--s1);
+  scrollbar-color: var(--border) var(--s2);
 }
 
 @keyframes diamondPulse {

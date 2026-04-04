@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 
-const BRAND_COLOR = '#E8C49A'
+const BRAND_COLOR = '#6366F1'
 
 function lightenColor(hex: string, factor = 0.15) {
   const clean = (hex || BRAND_COLOR).replace('#', '')
@@ -28,9 +28,7 @@ function hexToRgb(hex: string) {
 
 function applyThemeVars(color: string) {
   if (typeof document === 'undefined') return
-  const isLight = document.documentElement.getAttribute('data-theme') === 'light'
-  let hex = (color || BRAND_COLOR).toLowerCase()
-  if (isLight && hex === '#e8c49a') hex = '#a0622a'
+  const hex = (color || BRAND_COLOR).toLowerCase()
   const light = lightenColor(hex, 0.15)
   const { r, g, b } = hexToRgb(hex)
   const root = document.documentElement
@@ -41,9 +39,9 @@ function applyThemeVars(color: string) {
 
 export default function LoginPage() {
   const [isDark, setIsDark] = useState(() => {
-    if (typeof window === 'undefined') return true
+    if (typeof window === 'undefined') return false
     const stored = localStorage.getItem('se_theme')
-    return stored ? stored === 'dark' : true
+    return stored ? stored === 'dark' : false
   })
   const [isThemeHovered, setIsThemeHovered] = useState(false)
   const [isGoogleHovered, setIsGoogleHovered] = useState(false)
@@ -56,7 +54,11 @@ export default function LoginPage() {
   const router = useRouter()
 
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light')
+    if (isDark) {
+      document.documentElement.setAttribute('data-theme', 'dark')
+    } else {
+      document.documentElement.removeAttribute('data-theme')
+    }
     localStorage.setItem('se_theme', isDark ? 'dark' : 'light')
     applyThemeVars(BRAND_COLOR)
   }, [isDark])
@@ -133,30 +135,15 @@ export default function LoginPage() {
           zIndex: 0,
         }}
       >
-        <defs>
-          <linearGradient id="loginAmberFillBg" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#E8C49A" stopOpacity="0.3" />
-            <stop offset="100%" stopColor="#E8C49A" stopOpacity="0.1" />
-          </linearGradient>
-        </defs>
-        <polygon points="65,18 135,18 192,62 100,175 8,62" fill="url(#loginAmberFillBg)" />
-        <polyline points="65,18 135,18 192,62 100,175 8,62 65,18" fill="none" stroke="#E8C49A" strokeWidth="6" strokeLinejoin="round" strokeLinecap="round" />
-        <line x1="65" y1="18" x2="48" y2="66" stroke="#E8C49A" strokeWidth="6" strokeLinecap="round" />
-        <line x1="135" y1="18" x2="152" y2="66" stroke="#E8C49A" strokeWidth="6" strokeLinecap="round" />
-        <line x1="65" y1="18" x2="100" y2="66" stroke="#E8C49A" strokeWidth="6" strokeLinecap="round" />
-        <line x1="135" y1="18" x2="100" y2="66" stroke="#E8C49A" strokeWidth="6" strokeLinecap="round" />
-        <polyline points="8,62 48,66 100,66 152,66 192,62" fill="none" stroke="#E8C49A" strokeWidth="6" strokeLinejoin="round" strokeLinecap="round" />
-        <line x1="48" y1="66" x2="100" y2="175" stroke="#E8C49A" strokeWidth="6" strokeLinecap="round" />
-        <line x1="152" y1="66" x2="100" y2="175" stroke="#E8C49A" strokeWidth="6" strokeLinecap="round" />
-        <line x1="100" y1="66" x2="100" y2="175" stroke="#E8C49A" strokeWidth="6" strokeLinecap="round" />
-        <line x1="8" y1="118" x2="192" y2="118" stroke="#E8C49A" strokeWidth="6" strokeLinecap="round" />
+        <polygon points="65,18 135,18 192,62 100,175 8,62" fill="#6366F1" />
+        <polygon points="65,18 135,18 100,62" fill="#A5B4FC" />
       </svg>
 
       {/* Topbar */}
       <header
         style={{
           background: 'var(--s1)',
-          boxShadow: '0 2px 0 0 rgba(var(--accent-rgb), 0.35)',
+          borderBottom: '0.5px solid var(--border)',
           paddingLeft: 24,
           paddingRight: 24,
           height: 56,
@@ -177,23 +164,8 @@ export default function LoginPage() {
             aria-hidden="true"
             style={{ display: 'block', flexShrink: 0 }}
           >
-            <defs>
-              <linearGradient id="loginAmberFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.3" />
-                <stop offset="100%" stopColor="var(--accent)" stopOpacity="0.1" />
-              </linearGradient>
-            </defs>
-            <polygon points="65,18 135,18 192,62 100,175 8,62" fill="url(#loginAmberFill)" />
-            <polyline points="65,18 135,18 192,62 100,175 8,62 65,18" fill="none" stroke="var(--accent)" strokeWidth="6" strokeLinejoin="round" strokeLinecap="round" />
-            <line x1="65" y1="18" x2="48" y2="66" stroke="var(--accent)" strokeWidth="6" strokeLinecap="round" />
-            <line x1="135" y1="18" x2="152" y2="66" stroke="var(--accent)" strokeWidth="6" strokeLinecap="round" />
-            <line x1="65" y1="18" x2="100" y2="66" stroke="var(--accent)" strokeWidth="6" strokeLinecap="round" />
-            <line x1="135" y1="18" x2="100" y2="66" stroke="var(--accent)" strokeWidth="6" strokeLinecap="round" />
-            <polyline points="8,62 48,66 100,66 152,66 192,62" fill="none" stroke="var(--accent)" strokeWidth="6" strokeLinejoin="round" strokeLinecap="round" />
-            <line x1="48" y1="66" x2="100" y2="175" stroke="var(--accent)" strokeWidth="6" strokeLinecap="round" />
-            <line x1="152" y1="66" x2="100" y2="175" stroke="var(--accent)" strokeWidth="6" strokeLinecap="round" />
-            <line x1="100" y1="66" x2="100" y2="175" stroke="var(--accent)" strokeWidth="6" strokeLinecap="round" />
-            <line x1="8" y1="118" x2="192" y2="118" stroke="var(--accent)" strokeWidth="6" strokeLinecap="round" />
+                <polygon points="65,18 135,18 192,62 100,175 8,62" fill="#6366F1" />
+            <polygon points="65,18 135,18 100,62" fill="#A5B4FC" />
           </svg>
 
           <div
@@ -207,8 +179,8 @@ export default function LoginPage() {
               alignItems: 'center',
             }}
           >
-            <span style={{ color: 'var(--text)' }}>Get&nbsp;</span>
-            <span style={{ color: 'var(--accent)' }}>Clear</span>
+            <span style={{ color: '#6366F1' }}>Get&nbsp;</span>
+            <span style={{ color: 'var(--text)' }}>Clear</span>
           </div>
         </div>
 

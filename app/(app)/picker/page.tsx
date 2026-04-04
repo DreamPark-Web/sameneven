@@ -9,7 +9,7 @@ import { createClient } from '@/lib/supabase'
 import { useUser } from '@/lib/user-context'
 import { useRouter } from 'next/navigation'
 
-const BRAND_THEME = '#E8C49A'
+const BRAND_THEME = '#6366F1'
 
 function lightenColor(hex: string, factor = 0.15) {
   const clean = (hex || BRAND_THEME).replace('#', '')
@@ -36,10 +36,7 @@ function hexToRgb(hex: string) {
 function applyThemeVars(color: string) {
   if (typeof document === 'undefined') return
 
-  const isLight = document.documentElement.getAttribute('data-theme') === 'light'
-  let hex = (color || BRAND_THEME).toLowerCase()
-  if (isLight && hex === '#e8c49a') hex = '#a0622a'
-
+  const hex = (color || BRAND_THEME).toLowerCase()
   const light = lightenColor(hex, 0.15)
   const { r, g, b } = hexToRgb(hex)
 
@@ -57,9 +54,9 @@ export default function PickerPage() {
   const [accountName, setAccountName] = useState('')
   const [isSavingAccount, setIsSavingAccount] = useState(false)
   const [isDark, setIsDark] = useState(() => {
-    if (typeof window === 'undefined') return true
+    if (typeof window === 'undefined') return false
     const stored = localStorage.getItem('se_theme')
-    return stored ? stored === 'dark' : true
+    return stored ? stored === 'dark' : false
   })
   const [isThemeHovered, setIsThemeHovered] = useState(false)
   const [ownerOf, setOwnerOf] = useState<Set<string>>(new Set())
@@ -97,7 +94,11 @@ export default function PickerPage() {
   const router = useRouter()
 
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light')
+    if (isDark) {
+      document.documentElement.setAttribute('data-theme', 'dark')
+    } else {
+      document.documentElement.removeAttribute('data-theme')
+    }
     localStorage.setItem('se_theme', isDark ? 'dark' : 'light')
     applyThemeVars(BRAND_THEME)
   }, [isDark])
@@ -487,60 +488,14 @@ export default function PickerPage() {
           zIndex: 0,
         }}
       >
-        <defs>
-          <linearGradient id="amberFillBg" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.3" />
-            <stop offset="100%" stopColor="var(--accent)" stopOpacity="0.1" />
-          </linearGradient>
-        </defs>
-
-        <polygon
-          points="65,18 135,18 192,62 100,175 8,62"
-          fill="url(#amberFillBg)"
-          style={{
-            stroke: 'none',
-            color: 'rgb(255, 255, 255)',
-            strokeWidth: 1,
-            strokeLinecap: 'butt',
-            strokeLinejoin: 'miter',
-            opacity: 1,
-          }}
-        />
-
-        <polyline
-          points="65,18 135,18 192,62 100,175 8,62 65,18"
-          fill="none"
-          stroke="var(--accent)"
-          strokeWidth="6"
-          strokeLinejoin="round"
-          strokeLinecap="round"
-        />
-
-        <line x1="65" y1="18" x2="48" y2="66" fill="none" stroke="var(--accent)" strokeWidth="6" strokeLinecap="round" strokeLinejoin="miter" />
-        <line x1="135" y1="18" x2="152" y2="66" fill="none" stroke="var(--accent)" strokeWidth="6" strokeLinecap="round" strokeLinejoin="miter" />
-        <line x1="65" y1="18" x2="100" y2="66" fill="none" stroke="var(--accent)" strokeWidth="6" strokeLinecap="round" strokeLinejoin="miter" />
-        <line x1="135" y1="18" x2="100" y2="66" fill="none" stroke="var(--accent)" strokeWidth="6" strokeLinecap="round" strokeLinejoin="miter" />
-
-        <polyline
-          points="8,62 48,66 100,66 152,66 192,62"
-          fill="none"
-          stroke="var(--accent)"
-          strokeWidth="6"
-          strokeLinejoin="round"
-          strokeLinecap="round"
-        />
-
-        <line x1="48" y1="66" x2="100" y2="175" fill="none" stroke="var(--accent)" strokeWidth="6" strokeLinecap="round" strokeLinejoin="miter" />
-        <line x1="152" y1="66" x2="100" y2="175" fill="none" stroke="var(--accent)" strokeWidth="6" strokeLinecap="round" strokeLinejoin="miter" />
-        <line x1="100" y1="66" x2="100" y2="175" fill="none" stroke="var(--accent)" strokeWidth="6" strokeLinecap="round" strokeLinejoin="miter" />
-
-        <line x1="8" y1="118" x2="192" y2="118" fill="none" stroke="var(--accent)" strokeWidth="6" strokeLinecap="round" strokeLinejoin="miter" />
+        <polygon points="65,18 135,18 192,62 100,175 8,62" fill="#6366F1" />
+        <polygon points="65,18 135,18 100,62" fill="#A5B4FC" />
       </svg>
 
       <header
         style={{
           background: 'var(--s1)',
-          boxShadow: '0 2px 0 0 rgba(var(--accent-rgb), 0.35)',
+          borderBottom: '0.5px solid var(--border)',
           paddingLeft: 24,
           paddingRight: 24,
           paddingTop: 0,
@@ -556,60 +511,14 @@ export default function PickerPage() {
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 27, marginTop: 0, paddingTop: 0 }}>
-          <svg
-            width="38"
-            height="38"
-            viewBox="0 0 200 200"
-            xmlns="http://www.w3.org/2000/svg"
-            aria-hidden="true"
-            style={{ display: 'block', flexShrink: 0, alignSelf: 'center' }}
-          >
-            <defs>
-              <linearGradient id="amberFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.3" />
-                <stop offset="100%" stopColor="var(--accent)" stopOpacity="0.1" />
-              </linearGradient>
-            </defs>
-
-            <polygon
-              points="65,18 135,18 192,62 100,175 8,62"
-              fill="url(#amberFill)"
-              style={{ stroke: 'none', color: 'rgb(255, 255, 255)', strokeWidth: 1 }}
-            />
-
-            <polyline
-              points="65,18 135,18 192,62 100,175 8,62 65,18"
-              fill="none"
-              stroke="var(--accent)"
-              strokeWidth="6"
-              strokeLinejoin="round"
-              strokeLinecap="round"
-            />
-
-            <line x1="65" y1="18" x2="48" y2="66" fill="none" stroke="var(--accent)" strokeWidth="6" strokeLinecap="round" strokeLinejoin="miter" />
-            <line x1="135" y1="18" x2="152" y2="66" fill="none" stroke="var(--accent)" strokeWidth="6" strokeLinecap="round" strokeLinejoin="miter" />
-            <line x1="65" y1="18" x2="100" y2="66" fill="none" stroke="var(--accent)" strokeWidth="6" strokeLinecap="round" strokeLinejoin="miter" />
-            <line x1="135" y1="18" x2="100" y2="66" fill="none" stroke="var(--accent)" strokeWidth="6" strokeLinecap="round" strokeLinejoin="miter" />
-
-            <polyline
-              points="8,62 48,66 100,66 152,66 192,62"
-              fill="none"
-              stroke="var(--accent)"
-              strokeWidth="6"
-              strokeLinejoin="round"
-              strokeLinecap="round"
-            />
-
-            <line x1="48" y1="66" x2="100" y2="175" fill="none" stroke="var(--accent)" strokeWidth="6" strokeLinecap="round" strokeLinejoin="miter" />
-            <line x1="152" y1="66" x2="100" y2="175" fill="none" stroke="var(--accent)" strokeWidth="6" strokeLinecap="round" strokeLinejoin="miter" />
-            <line x1="100" y1="66" x2="100" y2="175" fill="none" stroke="var(--accent)" strokeWidth="6" strokeLinecap="round" strokeLinejoin="miter" />
-
-            <line x1="8" y1="118" x2="192" y2="118" fill="none" stroke="var(--accent)" strokeWidth="6" strokeLinecap="round" strokeLinejoin="miter" />
+          <svg width="32" height="32" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style={{ display: 'block', flexShrink: 0 }}>
+            <polygon points="65,18 135,18 192,62 100,175 8,62" fill="#6366F1" />
+            <polygon points="65,18 135,18 100,62" fill="#A5B4FC" />
           </svg>
 
           <div
             style={{
-              fontSize: 30,
+              fontSize: 22,
               fontWeight: 700,
               fontFamily: 'var(--font-heading)',
               letterSpacing: '-.3px',
@@ -618,8 +527,8 @@ export default function PickerPage() {
               alignItems: 'center',
             }}
           >
-            <span style={{ color: 'var(--text)' }}>Get&nbsp;</span>
-            <span style={{ color: 'var(--accent)' }}>Clear</span>
+            <span style={{ color: '#6366F1' }}>Get&nbsp;</span>
+            <span style={{ color: 'var(--text)' }}>Clear</span>
           </div>
         </div>
 
@@ -635,7 +544,7 @@ export default function PickerPage() {
               width: 40,
               height: 40,
               background: isThemeHovered ? 'rgba(var(--accent-rgb), 0.08)' : 'transparent',
-              border: '1px solid rgba(var(--accent-rgb), 0.2)',
+              border: '1px solid var(--border)',
               borderRadius: 10,
               cursor: 'pointer',
               display: 'flex',
@@ -672,7 +581,7 @@ export default function PickerPage() {
               width: 40,
               height: 40,
               borderRadius: 999,
-              border: '1px solid rgba(var(--accent-rgb), 0.2)',
+              border: '1px solid var(--border)',
               background: 'transparent',
               display: 'flex',
               alignItems: 'center',
@@ -942,7 +851,7 @@ export default function PickerPage() {
           <div style={{ position: 'fixed', inset: 0, zIndex: 5 }} onClick={() => setMenuOpenBalanceId(null)} />
         )}
 
-        <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 14 }}>Insights</div>
+        <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: '#6366F1', marginBottom: 14 }}>Insights</div>
 
         <div
           style={{
@@ -1108,7 +1017,7 @@ export default function PickerPage() {
           <button
             onClick={() => setShowCreate(true)}
             style={{
-              border: '2px dashed rgba(var(--accent-rgb), 0.25)',
+              border: '2px dashed rgba(99,102,241,0.35)',
               background: 'var(--s1)',
               borderRadius: 10,
               minHeight: 170,
@@ -1119,27 +1028,24 @@ export default function PickerPage() {
               alignItems: 'center',
               justifyContent: 'center',
               gap: 8,
-              color: 'var(--muted)',
               cursor: 'pointer',
-              transition: 'border-color .2s, color .2s',
+              transition: 'border-color .2s, background .2s',
             }}
             onMouseEnter={(e) => {
-              ;(e.currentTarget as HTMLElement).style.color = 'var(--accent)'
-              ;(e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'
-              ;(e.currentTarget as HTMLElement).style.border = '2px dashed rgba(var(--accent-rgb), 0.95)'
+              ;(e.currentTarget as HTMLElement).style.background = '#EEF2FF'
+              ;(e.currentTarget as HTMLElement).style.border = '2px dashed rgba(99,102,241,0.8)'
             }}
             onMouseLeave={(e) => {
-              ;(e.currentTarget as HTMLElement).style.color = 'var(--muted)'
-              ;(e.currentTarget as HTMLElement).style.transform = 'none'
-              ;(e.currentTarget as HTMLElement).style.border = '2px dashed rgba(var(--accent-rgb), 0.25)'
+              ;(e.currentTarget as HTMLElement).style.background = 'var(--s1)'
+              ;(e.currentTarget as HTMLElement).style.border = '2px dashed rgba(99,102,241,0.35)'
             }}
           >
-            <span style={{ fontSize: 32, lineHeight: 1, color: 'var(--accent)' }}>+</span>
-            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>Nieuwe Insight</span>
+            <span style={{ fontSize: 32, lineHeight: 1, color: '#6366F1' }}>+</span>
+            <span style={{ fontSize: 13, fontWeight: 600, color: '#6366F1' }}>Nieuwe Insight</span>
           </button>
         </div>
 
-        <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--accent)', marginTop: 52, marginBottom: 14 }}>Balances</div>
+        <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: '#6366F1', marginTop: 52, marginBottom: 14 }}>Balances</div>
 
         <div
           style={{
@@ -1288,24 +1194,22 @@ export default function PickerPage() {
           <button
             onClick={() => setShowCreateBalance(true)}
             style={{
-              border: '2px dashed rgba(var(--accent-rgb), 0.25)', background: 'var(--s1)', borderRadius: 10,
+              border: '2px dashed rgba(99,102,241,0.35)', background: 'var(--s1)', borderRadius: 10,
               minHeight: 170, height: 170, width: '100%', display: 'flex', flexDirection: 'column',
-              alignItems: 'center', justifyContent: 'center', gap: 8, color: 'var(--muted)',
-              cursor: 'pointer', transition: 'border-color .2s, color .2s',
+              alignItems: 'center', justifyContent: 'center', gap: 8,
+              cursor: 'pointer', transition: 'border-color .2s, background .2s',
             }}
             onMouseEnter={(e) => {
-              ;(e.currentTarget as HTMLElement).style.color = 'var(--accent)'
-              ;(e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'
-              ;(e.currentTarget as HTMLElement).style.border = '2px dashed rgba(var(--accent-rgb), 0.95)'
+              ;(e.currentTarget as HTMLElement).style.background = '#EEF2FF'
+              ;(e.currentTarget as HTMLElement).style.border = '2px dashed rgba(99,102,241,0.8)'
             }}
             onMouseLeave={(e) => {
-              ;(e.currentTarget as HTMLElement).style.color = 'var(--muted)'
-              ;(e.currentTarget as HTMLElement).style.transform = 'none'
-              ;(e.currentTarget as HTMLElement).style.border = '2px dashed rgba(var(--accent-rgb), 0.25)'
+              ;(e.currentTarget as HTMLElement).style.background = 'var(--s1)'
+              ;(e.currentTarget as HTMLElement).style.border = '2px dashed rgba(99,102,241,0.35)'
             }}
           >
-            <span style={{ fontSize: 32, lineHeight: 1, color: 'var(--accent)' }}>+</span>
-            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>Nieuwe Balance</span>
+            <span style={{ fontSize: 32, lineHeight: 1, color: '#6366F1' }}>+</span>
+            <span style={{ fontSize: 13, fontWeight: 600, color: '#6366F1' }}>Nieuwe Balance</span>
           </button>
         </div>
       </div>

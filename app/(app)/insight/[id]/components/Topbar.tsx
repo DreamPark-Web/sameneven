@@ -5,17 +5,14 @@ import { useInsight } from '@/lib/insight-context'
 import { useUser } from '@/lib/user-context'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
+import Leden from './pages/Leden'
 
 const NAV_ITEMS: { id: string; label: string }[] = [
   { id: 'dashboard', label: 'Dashboard' },
   { id: 'inkomsten', label: 'Inkomsten' },
-  { id: 'gezamenlijk', label: 'Gezamenlijke Kosten' },
-  { id: 'prive', label: 'Privé Kosten' },
-  { id: 'sparen', label: 'Sparen' },
-  { id: 'schulden', label: 'Schulden' },
-  { id: 'abonnementen', label: 'Abonnementen' },
+  { id: 'kosten', label: 'Kosten' },
+  { id: 'vermogen', label: 'Vermogen' },
   { id: 'advies', label: 'Advies' },
-  { id: 'leden', label: 'Leden' },
 ]
 
 function getNavPrefsKey(householdId?: string) {
@@ -414,6 +411,7 @@ export default function Topbar({
 
   const [showAccount, setShowAccount] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const [settingsTab, setSettingsTab] = useState<'instellingen' | 'leden'>('instellingen')
   const settingsBackdropRef = useRef(false)
   const [isBackHovered, setIsBackHovered] = useState(false)
   const [isSettingsHovered, setIsSettingsHovered] = useState(false)
@@ -423,9 +421,9 @@ export default function Topbar({
   const [insightName, setInsightName] = useState('')
   const [inviteCode, setInviteCode] = useState(household?.invite_code || '')
 
-  const [themeColor, setThemeColor] = useState(data?.theme || '#E8C49A')
-  const [pickerHSV, setPickerHSV] = useState(() => hexToHsv(data?.theme || '#E8C49A'))
-  const [settingsStartTheme, setSettingsStartTheme] = useState(data?.theme || '#E8C49A')
+  const [themeColor, setThemeColor] = useState(data?.theme || '#6366F1')
+  const [pickerHSV, setPickerHSV] = useState(() => hexToHsv(data?.theme || '#6366F1'))
+  const [settingsStartTheme, setSettingsStartTheme] = useState(data?.theme || '#6366F1')
 
   const [copied, setCopied] = useState(false)
 
@@ -439,18 +437,22 @@ export default function Topbar({
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
 
   const [isDark, setIsDark] = useState(() => {
-    if (typeof window === 'undefined') return true
+    if (typeof window === 'undefined') return false
     const stored = localStorage.getItem('se_theme')
-    return stored ? stored === 'dark' : true
+    return stored ? stored === 'dark' : false
   })
 
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light')
+    if (isDark) {
+      document.documentElement.setAttribute('data-theme', 'dark')
+    } else {
+      document.documentElement.removeAttribute('data-theme')
+    }
     localStorage.setItem('se_theme', isDark ? 'dark' : 'light')
   }, [isDark])
 
   const [rgbInput, setRgbInput] = useState(() => {
-    const rgb = hexToRgb(data?.theme || '#E8C49A')
+    const rgb = hexToRgb(data?.theme || '#6366F1')
     return {
       r: String(rgb.r),
       g: String(rgb.g),
@@ -601,7 +603,7 @@ export default function Topbar({
     const defaultOrder = NAV_ITEMS.map((item) => item.id)
 
     if (!raw) {
-      setHiddenNavItems(isSingleUser ? ['gezamenlijk'] : [])
+      setHiddenNavItems([])
       setNavOrder(defaultOrder)
       setNavPrefsLoaded(true)
       return
@@ -626,12 +628,8 @@ export default function Topbar({
 
   const prevIsSingleUser = useRef<boolean | null>(null)
   useEffect(() => {
-    if (!navPrefsLoaded) return
-    if (prevIsSingleUser.current === false && isSingleUser === true) {
-      setHiddenNavItems(prev => prev.includes('gezamenlijk') ? prev : [...prev, 'gezamenlijk'])
-    }
     prevIsSingleUser.current = isSingleUser
-  }, [isSingleUser, navPrefsLoaded])
+  }, [isSingleUser])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -671,7 +669,7 @@ export default function Topbar({
   }
 
   function openSettings() {
-    const currentTheme = data?.theme || '#E8C49A'
+    const currentTheme = data?.theme || '#6366F1'
     const currentRgb = hexToRgb(currentTheme)
 
     setInsightName(household?.name || '')
@@ -681,6 +679,7 @@ export default function Topbar({
     setSettingsStartTheme(currentTheme)
     setConfirmDeleteInsight(false)
     setDeleteInsightError('')
+    setSettingsTab('instellingen')
     setRgbInput({
       r: String(currentRgb.r),
       g: String(currentRgb.g),
@@ -801,10 +800,7 @@ export default function Topbar({
   }
 
   function applyPreviewTheme(color: string) {
-    const isLight = document.documentElement.getAttribute('data-theme') === 'light'
-    let effectiveColor = color.toLowerCase()
-    if (isLight && effectiveColor === '#e8c49a') effectiveColor = '#a0622a'
-
+    const effectiveColor = color.toLowerCase()
     const light = lightenColor(effectiveColor, 0.15)
     const rgb = hexToRgb(effectiveColor)
 
@@ -953,7 +949,7 @@ export default function Topbar({
       <header
         style={{
           background: 'var(--s1)',
-          boxShadow: '0 1px 0 0 rgba(var(--accent-rgb),0.35)',
+          borderBottom: '0.5px solid var(--border)',
           height: 56,
           display: 'flex',
           alignItems: 'center',
@@ -1020,20 +1016,12 @@ export default function Topbar({
                 lineHeight: 1,
               }}
             >
-              <svg width="38" height="38" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" style={{ color: 'var(--accent)', flexShrink: 0, display: 'block' }}>
-                <polyline points="65,18 135,18 192,62 100,175 8,62 65,18" fill="none" stroke="currentColor" strokeWidth="6" strokeLinejoin="round" strokeLinecap="round" />
-                <line x1="65" y1="18" x2="48" y2="66" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="miter" />
-                <line x1="135" y1="18" x2="152" y2="66" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="miter" />
-                <line x1="65" y1="18" x2="100" y2="66" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="miter" />
-                <line x1="135" y1="18" x2="100" y2="66" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="miter" />
-                <polyline points="8,62 48,66 100,66 152,66 192,62" fill="none" stroke="currentColor" strokeWidth="6" strokeLinejoin="round" strokeLinecap="round" />
-                <line x1="48" y1="66" x2="100" y2="175" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="miter" />
-                <line x1="152" y1="66" x2="100" y2="175" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="miter" />
-                <line x1="100" y1="66" x2="100" y2="175" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="miter" />
-                <line x1="8" y1="118" x2="192" y2="118" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="miter" />
+              <svg width="32" height="32" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0, display: 'block' }}>
+                <polygon points="65,18 135,18 192,62 100,175 8,62" fill="#6366F1" />
+                <polygon points="65,18 135,18 100,62" fill="#A5B4FC" />
               </svg>
-              <span style={{ fontSize: 30, fontWeight: 700, fontFamily: 'var(--font-heading)', letterSpacing: '-0.3px', lineHeight: 1 }}>
-                <span style={{ color: 'var(--text)' }}>Get&nbsp;</span><span style={{ color: 'var(--accent)' }}>Clear</span>
+              <span style={{ fontSize: 22, fontWeight: 700, fontFamily: 'var(--font-heading)', letterSpacing: '-0.3px', lineHeight: 1 }}>
+                <span style={{ color: '#6366F1' }}>Get&nbsp;</span><span style={{ color: 'var(--text)' }}>Clear</span>
               </span>
             </div>
 
@@ -1236,13 +1224,33 @@ export default function Topbar({
                 display: 'flex',
                 alignItems: 'center',
                 gap: 10,
-                marginBottom: 20,
+                marginBottom: 16,
               }}
             >
-              <div style={{ fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-heading)', flex: 1 }}>
-                Insight-instellingen
+              <div style={{ display: 'flex', gap: 4, flex: 1 }}>
+                {(['instellingen', 'leden'] as const).map(tab => (
+                  <button
+                    key={tab}
+                    onClick={() => setSettingsTab(tab)}
+                    style={{
+                      fontFamily: 'var(--font-body)',
+                      fontSize: 12,
+                      fontWeight: 600,
+                      letterSpacing: '.04em',
+                      textTransform: 'capitalize',
+                      padding: '6px 14px',
+                      borderRadius: 6,
+                      cursor: 'pointer',
+                      border: settingsTab === tab ? 'none' : '1px solid var(--border)',
+                      background: settingsTab === tab ? 'var(--accent)' : 'transparent',
+                      color: settingsTab === tab ? 'var(--accent-fg)' : 'var(--muted)',
+                    }}
+                  >
+                    {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                  </button>
+                ))}
               </div>
-              {isOwner && (
+              {isOwner && settingsTab === 'instellingen' && (
                 <button
                   onClick={saveInsightSettings}
                   style={{ ...btnPrimary, width: 'auto', padding: '7px 18px', fontSize: 13, flexShrink: 0 }}
@@ -1270,7 +1278,9 @@ export default function Topbar({
               </button>
             </div>
 
-            {isOwner ? (
+            {settingsTab === 'leden' ? (
+              <Leden />
+            ) : isOwner ? (
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14, alignItems: 'stretch', marginBottom: 14 }}>
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
               <div style={{ ...modalSection, flex: 1 }}>
@@ -1533,8 +1543,8 @@ export default function Topbar({
                 <button
                   type="button"
                   onClick={() => {
-                    setThemeFromHex('#E8C49A')
-                    setRgbInput({ r: '232', g: '196', b: '154' })
+                    setThemeFromHex('#6366F1')
+                    setRgbInput({ r: '99', g: '102', b: '241' })
                   }}
                   style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '4px 10px', borderRadius: 5, cursor: 'pointer', border: '1px solid rgba(var(--accent-rgb),0.3)', background: 'rgba(var(--accent-rgb),0.06)', color: 'var(--accent)', fontFamily: 'var(--font-body)' }}
                 >
@@ -1663,7 +1673,7 @@ export default function Topbar({
             </div>
             )}
 
-            {(myRole === 'owner' || myRole === 'admin') && (
+            {settingsTab === 'instellingen' && (myRole === 'owner' || myRole === 'admin') && (
               <div style={modalSection}>
                 <div
                   style={{
