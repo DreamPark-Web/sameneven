@@ -29,6 +29,7 @@ export type InsightData = {
   spaarpotjes: any[]
   abonnementen: any[]
   dashOrder: string[]
+  autoKostenSplits?: Record<string, { split: string; p1?: number; p2?: number }>
   lastUpdated?: string
   inkomstenTs?: string
   kostenTs?: string

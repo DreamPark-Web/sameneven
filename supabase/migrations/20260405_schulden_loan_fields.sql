@@ -1,0 +1,4 @@
+-- Geen SQL-migratie nodig.
+-- Schulden worden opgeslagen als JSON blob in household_data.data.schulden.
+-- De velden loanType, looptijdMaanden en entryDate zijn onderdeel van
+-- het schuld-object in die JSON — er is geen aparte Supabase-tabel.

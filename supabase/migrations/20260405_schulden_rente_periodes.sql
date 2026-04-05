@@ -1,0 +1,6 @@
+-- Geen SQL-migratie nodig.
+-- Schulden worden opgeslagen als JSON blob in household_data.data.schulden.
+-- Rentevaste periodes worden inline opgeslagen als rentePeriodes[] op elk
+-- schuld-object in die JSON — er is geen aparte Supabase-tabel nodig.
+-- De automatische migratie van fixedYears/fixedStart naar rentePeriodes
+-- wordt uitgevoerd door de app bij het eerste laden van de Schulden pagina.

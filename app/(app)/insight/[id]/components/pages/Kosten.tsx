@@ -5,10 +5,12 @@ import { useInsight } from '@/lib/insight-context'
 import { fmt, sum } from '@/lib/format'
 import { PAGE_COLORS } from '@/lib/pageColors'
 import { useToast } from '@/lib/toast-context'
+import { buildAutoKosten, AutoKostItem, AutoKostSplits } from '@/lib/schuld-calc'
 
 type CostItem = { id: string; label: string; value: number; split: string; p1?: number; p2?: number }
 type Item = { id: string; label: string; value: number }
 type Sub = { id: string; name: string; date: string; amount: number; freq: string; person: string; split?: string; p1?: number; p2?: number }
+type Schuld = { id: string; naam: string; wie: string; balance: number; payment: number; rate: number; loanType?: string; looptijdMaanden?: number; entryDate?: string; rentePeriodes?: { id: string; startDate: string; endDate?: string; rate: number }[] }
 
 function subMonthly(s: Sub) {
   const a = s.amount || 0
@@ -338,7 +340,7 @@ const TABS = [
 ]
 
 export default function Kosten() {
-  const { data, saveData, canEdit, isSingleUser } = useInsight()
+  const { data, saveData, canEdit, isSingleUser, household } = useInsight()
   const { addToast, removeToast } = useToast()
   const [pendingDeletionIds, setPendingDeletionIds] = useState<Set<string>>(new Set())
   const pendingTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
@@ -353,6 +355,7 @@ export default function Kosten() {
     const valid = isSingleUser ? ['prive', 'abonnementen'] : ['gezamenlijk', 'prive', 'abonnementen']
     return tab && valid.includes(tab) ? tab : (isSingleUser ? 'prive' : 'gezamenlijk')
   })
+  const [hoveredTab, setHoveredTab] = useState<string | null>(null)
 
   useEffect(() => {
     const check = () => setIsDark(document.documentElement.getAttribute('data-theme') === 'dark')
@@ -371,6 +374,43 @@ export default function Kosten() {
 
   const n1 = data.names?.user1 || 'Gebruiker 1'
   const n2 = data.names?.user2 || 'Gebruiker 2'
+
+  // ─── Auto kosten uit schulden ────────────────────────────────────────────────
+  const schulden = (data.schulden as Schuld[] || [])
+  const autoKostenSplits = (data.autoKostenSplits as AutoKostSplits | undefined) || {}
+  const autoItems: AutoKostItem[] = buildAutoKosten(schulden, autoKostenSplits)
+
+  const [autoEditItemId, setAutoEditItemId] = useState<string | null>(null)
+  const [autoEditSplit, setAutoEditSplit] = useState('5050')
+  const [autoEditP1, setAutoEditP1] = useState('50')
+  const [autoEditP2, setAutoEditP2] = useState('50')
+
+  function startAutoEdit(itemId: string) {
+    const cfg = autoKostenSplits[itemId] || { split: '5050' }
+    setAutoEditItemId(itemId)
+    setAutoEditSplit(cfg.split)
+    setAutoEditP1(String(cfg.p1 ?? 50))
+    setAutoEditP2(String(cfg.p2 ?? 50))
+  }
+  function saveAutoSplit() {
+    if (!autoEditItemId) return
+    const splits: AutoKostSplits = { ...autoKostenSplits, [autoEditItemId]: { split: autoEditSplit, ...(autoEditSplit === 'percent' ? { p1: parseFloat(autoEditP1) || 50, p2: parseFloat(autoEditP2) || 50 } : {}) } }
+    saveData({ ...data, autoKostenSplits: splits, kostenTs: new Date().toISOString() })
+    setAutoEditItemId(null)
+  }
+
+  const hid = household?.id || 'local'
+  const [autoPromptDismissed, setAutoPromptDismissed] = useState(() => {
+    try { return !!localStorage.getItem(`se_auto_kp_${hid}`) } catch { return false }
+  })
+  function dismissAutoPrompt(deleteManual: boolean, manualIds: string[]) {
+    try { localStorage.setItem(`se_auto_kp_${hid}`, '1') } catch {}
+    setAutoPromptDismissed(true)
+    if (deleteManual) {
+      const newShared = (data.shared as CostItem[] || []).filter(i => !manualIds.includes(i.id))
+      saveData({ ...data, shared: newShared, kostenTs: new Date().toISOString() })
+    }
+  }
 
   // ─── Gezamenlijk state ──────────────────────────────────────────────────────
   const [gOpen, setGOpen] = useState(false)
@@ -391,22 +431,33 @@ export default function Kosten() {
   const totalInc = u1Inc + u2Inc
   const r1 = totalInc ? u1Inc / totalInc : 0.5
   const r2 = 1 - r1
-  function splitVal(item: CostItem) {
+  function splitVal(item: CostItem | AutoKostItem) {
     if (item.split === '5050') return { u1: item.value / 2, u2: item.value / 2 }
     if (item.split === 'user1') return { u1: item.value, u2: 0 }
     if (item.split === 'user2') return { u1: 0, u2: item.value }
     if (item.split === 'percent') {
-      const pct1 = item.p1 ?? 50
-      const pct2 = item.p2 ?? 50
+      const pct1 = (item as CostItem).p1 ?? 50
+      const pct2 = (item as CostItem).p2 ?? 50
       return { u1: item.value * pct1 / 100, u2: item.value * pct2 / 100 }
     }
     return { u1: item.value * r1, u2: item.value * r2 }
   }
   const u1Sh = sum(data.user1?.savings?.shared || [])
   const u2Sh = sum(data.user2?.savings?.shared || [])
-  const totU1 = items.reduce((a, i) => a + splitVal(i).u1, 0)
-  const totU2 = items.reduce((a, i) => a + splitVal(i).u2, 0)
+  const totU1Manual = items.reduce((a, i) => a + splitVal(i).u1, 0)
+  const totU2Manual = items.reduce((a, i) => a + splitVal(i).u2, 0)
+  const totU1Auto = autoItems.reduce((a, i) => a + splitVal(i).u1, 0)
+  const totU2Auto = autoItems.reduce((a, i) => a + splitVal(i).u2, 0)
+  const totU1 = totU1Manual + totU1Auto
+  const totU2 = totU2Manual + totU2Auto
   const jTr = totU1 + u1Sh, dTr = totU2 + u2Sh
+
+  const MORTGAGE_KEYWORDS = ['hypotheek', 'rente', 'afloss', 'mortgage']
+  const autoSchuldNamen = [...new Set(autoItems.map(a => a.schuldNaam.toLowerCase()))]
+  const similarManualItems = !isSingleUser ? gItems.filter(i => {
+    const lower = i.label.toLowerCase()
+    return autoSchuldNamen.some(n => lower.includes(n)) || MORTGAGE_KEYWORDS.some(kw => lower.includes(kw))
+  }) : []
   const editable = canEdit('user1') || canEdit('user2')
   const SPLITS: Record<string, string> = { ratio: 'Naar rato', '5050': '50/50', user1: n1, user2: n2, percent: 'Percentage' }
 
@@ -590,9 +641,12 @@ export default function Kosten() {
       <div style={{ display: 'flex', gap: 4, marginBottom: 24 }}>
         {TABS.filter(tab => !isSingleUser || tab.id !== 'gezamenlijk').map(tab => {
           const isActive = activeTab === tab.id
+          const isHovered = hoveredTab === tab.id
           return (
             <button key={tab.id} onClick={() => handleTabChange(tab.id)}
-              style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 16px', borderRadius: 7, cursor: 'pointer', border: isActive ? 'none' : '1px solid var(--border)', background: isActive ? (isDark ? colors.bg : colors.light) : 'transparent', color: isActive ? (isDark ? colors.dark : '#FFFFFF') : 'var(--muted)', transition: 'all .15s' }}
+              onMouseEnter={() => setHoveredTab(tab.id)}
+              onMouseLeave={() => setHoveredTab(null)}
+              style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 16px', borderRadius: 8, cursor: 'pointer', transition: 'all .15s', border: isActive ? 'none' : isHovered ? `1px solid ${isDark ? colors.dark : colors.light}4D` : '1px solid var(--border)', background: isActive ? (isDark ? colors.dark : colors.light) : isHovered ? (isDark ? `${colors.dark}26` : `${colors.light}26`) : 'transparent', color: isActive ? '#FFFFFF' : isHovered ? (isDark ? colors.dark : colors.light) : 'var(--muted)' }}
             >{tab.label}</button>
           )
         })}
@@ -641,7 +695,80 @@ export default function Kosten() {
             </div>
           )}
           <div style={{ flex: 1 }}>
-            {gItems.length === 0 && !gOpen && (
+            {autoItems.length > 0 && !isSingleUser && !autoPromptDismissed && similarManualItems.length > 0 && (
+              <div style={{ background: `${c}12`, border: `1px solid ${c}40`, borderRadius: 8, padding: '12px 14px', marginBottom: 12 }}>
+                <div style={{ fontSize: 12, color: 'var(--text)', lineHeight: 1.6, marginBottom: 8 }}>
+                  We hebben automatische posten toegevoegd vanuit je schulden. Je hebt mogelijk handmatige posten die je kunt verwijderen:{' '}
+                  <span style={{ color: c, fontWeight: 600 }}>{similarManualItems.map(i => i.label).join(', ')}</span>. Wil je deze verwijderen?
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={() => dismissAutoPrompt(true, similarManualItems.map(i => i.id))}
+                    style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '6px 12px', borderRadius: 5, cursor: 'pointer', border: 'none', background: c, color: '#FFFFFF' }}>
+                    Verwijder handmatige posten
+                  </button>
+                  <button onClick={() => dismissAutoPrompt(false, [])}
+                    style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '6px 12px', borderRadius: 5, cursor: 'pointer', background: 'transparent', color: 'var(--cancel-fg)', border: '1px solid var(--cancel-border)' }}>
+                    Behoud beide
+                  </button>
+                </div>
+              </div>
+            )}
+            {autoItems.length > 0 && !isSingleUser && autoItems.map(item => {
+              const isEditing = autoEditItemId === item.id
+              if (isEditing) {
+                return (
+                  <div key={item.id + '-edit'} style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', background: 'var(--s2)', border: `1px solid ${c}`, borderRadius: 8, padding: '10px 12px', marginBottom: 2 }}>
+                    <div style={{ flex: 1, minWidth: 120 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ fontSize: 13, color: 'var(--muted)' }}>{item.label}</span>
+                        <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: c, background: `${c}20`, border: `1px solid ${c}40`, borderRadius: 3, padding: '1px 5px' }}>AUTO</span>
+                      </div>
+                      <span style={{ fontSize: 10, color: 'var(--muted)', display: 'block', marginTop: 1 }}>Verdeling aanpassen — bedrag wordt automatisch berekend</span>
+                    </div>
+                    <select value={autoEditSplit} onChange={e => setAutoEditSplit(e.target.value)}
+                      style={{ ...selectBase, background: 'var(--s3)', fontSize: 13 }}>
+                      <option value="5050">50/50</option>
+                      <option value="ratio">Naar rato</option>
+                      <option value="user1">{n1}</option>
+                      <option value="user2">{n2}</option>
+                      <option value="percent">Percentage</option>
+                    </select>
+                    {autoEditSplit === 'percent' && (
+                      <>
+                        <input type="number" min={0} max={100} value={autoEditP1} onChange={e => { const v = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0)); setAutoEditP1(String(v)) }}
+                          style={{ ...pctInput, background: 'var(--s3)' }} title={n1 + ' %'} />
+                        <input type="number" min={0} max={100} value={autoEditP2} onChange={e => { const v = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0)); setAutoEditP2(String(v)) }}
+                          style={{ ...pctInput, background: 'var(--s3)' }} title={n2 + ' %'} />
+                      </>
+                    )}
+                    <button onClick={saveAutoSplit} style={{ fontFamily: 'var(--font-body)', fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 5, cursor: 'pointer', border: 'none', background: c, color: '#FFFFFF' }}>Opslaan</button>
+                    <button onClick={() => setAutoEditItemId(null)} style={{ fontFamily: 'var(--font-body)', fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 5, cursor: 'pointer', background: 'transparent', color: 'var(--cancel-fg)', border: '1px solid var(--cancel-border)' }}>Annuleren</button>
+                  </div>
+                )
+              }
+              return (
+                <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 0', borderBottom: '1px solid rgba(255,255,255,.04)' }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.label}</span>
+                      <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: c, background: `${c}20`, border: `1px solid ${c}40`, borderRadius: 3, padding: '1px 5px', flexShrink: 0 }}>AUTO</span>
+                    </div>
+                    <span style={{ fontSize: 10, color: 'var(--muted)', display: 'block', marginTop: 1 }}>Automatisch berekend vanuit Schulden · updates maandelijks</span>
+                  </div>
+                  <div style={{ position: 'relative', display: 'inline-block', flexShrink: 0 }}>
+                    <span style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', fontSize: 13, pointerEvents: 'none', userSelect: 'none' }}>€</span>
+                    <input type="number" key={item.id} defaultValue={item.value} disabled
+                      style={{ width: 100, background: 'transparent', border: 'none', borderRadius: 5, color: 'var(--text)', padding: '6px 9px 6px 22px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }} />
+                  </div>
+                  <span style={{ fontSize: 11, color: 'var(--muted)', whiteSpace: 'nowrap', flexShrink: 0, width: 90, textAlign: 'right', display: 'inline-block', overflow: 'hidden', textOverflow: 'ellipsis' }}>{SPLITS[item.split] || item.split}</span>
+                  {editable && (
+                    <button onClick={() => startAutoEdit(item.id)} style={{ width: 26, height: 26, background: 'transparent', color: 'var(--muted)', border: '1px solid var(--border)', borderRadius: 4, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0, flexShrink: 0 }}><PencilIcon /></button>
+                  )}
+                  <div style={{ width: 26, flexShrink: 0 }} />
+                </div>
+              )
+            })}
+            {gItems.length === 0 && autoItems.length === 0 && !gOpen && (
               <div style={{ padding: '28px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, textAlign: 'center' }}>
                 <div style={{ width: 44, height: 44, borderRadius: '50%', background: `${c}1A`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

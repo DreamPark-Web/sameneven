@@ -8,7 +8,17 @@ import { useToast } from '@/lib/toast-context'
 
 type SavItem = { id: string; label: string; value: number; split?: string; p1?: number; p2?: number }
 type Pot = { id: string; label: string; current: number; goal: number; owner: string; createdAt?: string; updatedAt?: string }
-type Schuld = { id: string; naam: string; type: string; wie: string; balance: number; payment: number; rate: number; fixedYears: number; fixedStart: string; createdAt?: string }
+type LoanType = 'annuitair' | 'lineair' | 'aflossingsvrij' | 'overig'
+type RentePeriode = { id: string; startDate: string; endDate?: string; rate: number }
+type Schuld = { id: string; naam: string; type: string; wie: string; balance: number; payment: number; rate: number; fixedYears: number; fixedStart: string; createdAt?: string; loanType?: LoanType; looptijdMaanden?: number; entryDate?: string; rentePeriodes?: RentePeriode[] }
+
+function msBetween(from: Date, to: Date): number {
+  return Math.max(0, Math.round((to.getTime() - from.getTime()) / (86400000 * 365.25 / 12)))
+}
+
+function maandenTussen(van: Date, tot: Date): number {
+  return Math.max(0, (tot.getFullYear() - van.getFullYear()) * 12 + (tot.getMonth() - van.getMonth()))
+}
 
 function calcMonths(bal: number, pay: number, rate: number) {
   if (!bal || !pay || pay <= 0) return null
@@ -17,6 +27,107 @@ function calcMonths(bal: number, pay: number, rate: number) {
   if (pay <= bal * r) return Infinity
   return Math.ceil(-Math.log(1 - (r * bal / pay)) / Math.log(1 + r))
 }
+
+function getActivePeriode(sc: Schuld, atDate: Date): RentePeriode | null {
+  const periodes = sc.rentePeriodes
+  if (!periodes || periodes.length === 0) return null
+  const sorted = [...periodes].sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())
+  for (const p of sorted) {
+    const start = new Date(p.startDate)
+    const end = p.endDate ? new Date(p.endDate) : null
+    if (atDate >= start && (!end || atDate < end)) return p
+  }
+  return sorted[sorted.length - 1]
+}
+
+function calcRemainingBalance(sc: Schuld, targetDate: Date): number {
+  const loanType = sc.loanType || 'overig'
+  const entry = sc.entryDate ? new Date(sc.entryDate) : null
+  const n = sc.looptijdMaanden
+  if (!entry || !n) return sc.balance
+  if (loanType === 'aflossingsvrij') return sc.balance
+
+  const periodes = sc.rentePeriodes && sc.rentePeriodes.length > 0
+    ? [...sc.rentePeriodes].sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())
+    : null
+
+  if (!periodes) {
+    const r = sc.rate / 100 / 12
+    const k = Math.max(0, maandenTussen(entry, targetDate) - 1)
+    if (k === 0) return sc.balance
+    if (loanType === 'annuitair') {
+      if (r === 0) return Math.max(0, sc.balance - k * (sc.balance / n))
+      const ann = sc.balance * (r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1)
+      return Math.max(0, sc.balance * Math.pow(1 + r, k) - ann * (Math.pow(1 + r, k) - 1) / r)
+    }
+    if (loanType === 'lineair') return Math.max(0, sc.balance - k * (sc.balance / n))
+    return Math.max(0, sc.balance - k * (sc.payment || 0))
+  }
+
+  if (loanType !== 'annuitair' && loanType !== 'lineair') {
+    const k = Math.max(0, maandenTussen(entry, targetDate) - 1)
+    return Math.max(0, sc.balance - k * (sc.payment || 0))
+  }
+
+  let balance = sc.balance
+  let cursor = new Date(entry)
+  const loanEnd = new Date(entry)
+  loanEnd.setMonth(loanEnd.getMonth() + n)
+
+  for (let i = 0; i < periodes.length; i++) {
+    const p = periodes[i]
+    const periodeEnd = p.endDate ? new Date(p.endDate) : (periodes[i + 1] ? new Date(periodes[i + 1].startDate) : targetDate)
+    const segmentEnd = periodeEnd < targetDate ? periodeEnd : targetDate
+    if (segmentEnd <= cursor) { cursor = segmentEnd; continue }
+    const rawK = i === 0 ? maandenTussen(cursor, segmentEnd) - 1 : maandenTussen(cursor, segmentEnd)
+    const k = Math.max(0, rawK)
+    if (k <= 0) { cursor = segmentEnd; continue }
+    const r = p.rate / 100 / 12
+    const remainingMonths = Math.max(1, msBetween(cursor, loanEnd))
+    if (loanType === 'annuitair') {
+      if (r === 0) {
+        balance = Math.max(0, balance - k * (sc.balance / n))
+      } else {
+        const ann = balance * (r * Math.pow(1 + r, remainingMonths)) / (Math.pow(1 + r, remainingMonths) - 1)
+        balance = Math.max(0, balance * Math.pow(1 + r, k) - ann * (Math.pow(1 + r, k) - 1) / r)
+      }
+    } else {
+      balance = Math.max(0, balance - k * (sc.balance / n))
+    }
+    cursor = segmentEnd
+    if (cursor >= targetDate) break
+  }
+
+  return Math.max(0, balance)
+}
+
+function calcMonthlyPayment(sc: Schuld): number | null {
+  const loanType = sc.loanType || 'overig'
+  const n = sc.looptijdMaanden
+  if (!n) return null
+  const today = new Date()
+  const activePeriode = getActivePeriode(sc, today)
+  const rate = activePeriode ? activePeriode.rate : sc.rate
+  const r = rate / 100 / 12
+  const rem = calcRemainingBalance(sc, today)
+  const entry = sc.entryDate ? new Date(sc.entryDate) : null
+  const remMonths = entry ? Math.max(1, n - msBetween(entry, today)) : n
+  if (loanType === 'annuitair') {
+    if (r === 0) return rem / remMonths
+    return rem * (r * Math.pow(1 + r, remMonths)) / (Math.pow(1 + r, remMonths) - 1)
+  }
+  if (loanType === 'lineair') {
+    return (sc.balance / n) + rem * r
+  }
+  return null
+}
+
+const LOAN_TYPES: { value: LoanType; label: string }[] = [
+  { value: 'annuitair', label: 'Annuïtair' },
+  { value: 'lineair', label: 'Lineair' },
+  { value: 'aflossingsvrij', label: 'Aflossingsvrij' },
+  { value: 'overig', label: 'Overig' },
+]
 
 const STYPES = ['studieschuld', 'hypotheek', 'persoonlijke lening', 'creditcard', 'overig']
 
@@ -185,6 +296,7 @@ export default function Vermogen() {
     const tab = params.get('tab')
     return tab && ['sparen', 'schulden'].includes(tab) ? tab : 'sparen'
   })
+  const [hoveredTab, setHoveredTab] = useState<string | null>(null)
 
   useEffect(() => {
     const check = () => setIsDark(document.documentElement.getAttribute('data-theme') === 'dark')
@@ -311,17 +423,24 @@ export default function Vermogen() {
 
   // ─── Schulden state ─────────────────────────────────────────────────────────
   const schulden: Schuld[] = data.schulden || []
-  const [showAdd, setShowAdd] = useState(false)
-  const [sForm, setSForm] = useState({ naam: '', type: 'overig', wie: 'user1', balance: '', payment: '', rate: '', fixedYears: '0', fixedStart: '' })
+  const [openSchuldCol, setOpenSchuldCol] = useState<string | null>(null)
+  const [editingSchuldId, setEditingSchuldId] = useState<string | null>(null)
+  const blankSForm = { naam: '', type: 'overig', loanType: 'overig' as LoanType, looptijdMaanden: '', balance: '', payment: '', rate: '', fixedYears: '0', fixedStart: '' }
+  const [sForm, setSForm] = useState(blankSForm)
 
-  function addSchuld() {
+  function addSchuld(wie: string) {
     if (!sForm.naam.trim()) return
-    const s: Schuld = { id: 'sc' + Date.now(), naam: sForm.naam.trim(), type: sForm.type, wie: sForm.wie, balance: parseFloat(sForm.balance) || 0, payment: parseFloat(sForm.payment) || 0, rate: parseFloat(sForm.rate) || 0, fixedYears: parseInt(sForm.fixedYears) || 0, fixedStart: sForm.fixedStart, createdAt: new Date().toISOString() }
+    const loanType = sForm.loanType
+    if ((loanType === 'annuitair' || loanType === 'lineair') && !sForm.looptijdMaanden) {
+      addToast({ message: 'Vul de looptijd in maanden in voor dit leningtype.', variant: 'danger' })
+      return
+    }
+    const s: Schuld = { id: 'sc' + Date.now(), naam: sForm.naam.trim(), type: sForm.type, wie, loanType, looptijdMaanden: sForm.looptijdMaanden ? parseInt(sForm.looptijdMaanden) : undefined, entryDate: new Date().toISOString(), balance: parseFloat(sForm.balance) || 0, payment: parseFloat(sForm.payment) || 0, rate: parseFloat(sForm.rate) || 0, fixedYears: parseInt(sForm.fixedYears) || 0, fixedStart: sForm.fixedStart, createdAt: new Date().toISOString() }
     saveData({ ...data, schulden: [...schulden, s], vermogenTs: new Date().toISOString() })
     const totalDebt = [...schulden, s].reduce((a, sc) => a + sc.balance, 0)
     addToast({ message: `${s.naam} toegevoegd — totale schuld is nu ${fmt(totalDebt, 0)}`, variant: 'success' })
-    setSForm({ naam: '', type: 'overig', wie: 'user1', balance: '', payment: '', rate: '', fixedYears: '0', fixedStart: '' })
-    setShowAdd(false)
+    setSForm(blankSForm)
+    setOpenSchuldCol(null)
   }
   function deleteSchuld(id: string) {
     const sc = schulden.find(s => s.id === id)
@@ -343,13 +462,52 @@ export default function Vermogen() {
     pendingTimers.current.set(id, timer)
   }
   function editSchuld(id: string, field: string, val: string) {
-    saveData({ ...data, schulden: schulden.map(s => s.id === id ? { ...s, [field]: ['balance', 'payment', 'rate', 'fixedYears'].includes(field) ? parseFloat(val) || 0 : val } : s), vermogenTs: new Date().toISOString() })
+    const intFields = ['fixedYears', 'looptijdMaanden']
+    const floatFields = ['balance', 'payment', 'rate']
+    saveData({ ...data, schulden: schulden.map(s => s.id === id ? { ...s, [field]: intFields.includes(field) ? (parseInt(val) || undefined) : floatFields.includes(field) ? parseFloat(val) || 0 : val } : s), vermogenTs: new Date().toISOString() })
   }
+  function addRentePeriode(schuldId: string) {
+    const sc = schulden.find(s => s.id === schuldId)
+    if (!sc) return
+    const sorted = [...(sc.rentePeriodes || [])].sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())
+    const lastEnd = sorted.length > 0 && sorted[sorted.length - 1].endDate
+      ? sorted[sorted.length - 1].endDate as string
+      : (sc.entryDate?.split('T')[0] || new Date().toISOString().split('T')[0])
+    const newP: RentePeriode = { id: 'rp' + Date.now(), startDate: lastEnd, rate: 0 }
+    saveData({ ...data, schulden: schulden.map(s => s.id === schuldId ? { ...s, rentePeriodes: [...(s.rentePeriodes || []), newP] } : s), vermogenTs: new Date().toISOString() })
+  }
+  function deleteRentePeriode(schuldId: string, periodeId: string) {
+    saveData({ ...data, schulden: schulden.map(s => s.id === schuldId ? { ...s, rentePeriodes: (s.rentePeriodes || []).filter(p => p.id !== periodeId) } : s), vermogenTs: new Date().toISOString() })
+  }
+  function editRentePeriode(schuldId: string, periodeId: string, field: string, val: string) {
+    saveData({ ...data, schulden: schulden.map(s => s.id === schuldId ? { ...s, rentePeriodes: (s.rentePeriodes || []).map(p => p.id === periodeId ? { ...p, [field]: field === 'rate' ? (parseFloat(val) || 0) : val } : p) } : s), vermogenTs: new Date().toISOString() })
+  }
+
+  useEffect(() => {
+    const needsMigration = schulden.some(sc =>
+      (sc.loanType === 'annuitair' || sc.loanType === 'lineair') &&
+      (sc.fixedYears || 0) > 0 && sc.fixedStart &&
+      (!sc.rentePeriodes || sc.rentePeriodes.length === 0)
+    )
+    if (!needsMigration) return
+    const migrated = schulden.map(sc => {
+      if ((sc.loanType === 'annuitair' || sc.loanType === 'lineair') &&
+          (sc.fixedYears || 0) > 0 && sc.fixedStart &&
+          (!sc.rentePeriodes || sc.rentePeriodes.length === 0)) {
+        const end = new Date(sc.fixedStart)
+        end.setFullYear(end.getFullYear() + (sc.fixedYears || 0))
+        return { ...sc, rentePeriodes: [{ id: 'rp' + Date.now(), startDate: sc.fixedStart, endDate: end.toISOString().split('T')[0], rate: sc.rate }] }
+      }
+      return sc
+    })
+    saveData({ ...data, schulden: migrated, vermogenTs: new Date().toISOString() })
+  }, [])
 
   const schuldenFiltered = schulden.filter(s => !pendingDeletionIds.has(s.id))
 
-  const totalBalance = schulden.reduce((a, s) => a + (s.balance || 0), 0)
-  const totalPayment = schulden.reduce((a, s) => a + (s.payment || 0), 0)
+  const now = new Date()
+  const totalBalance = schulden.reduce((a, s) => a + calcRemainingBalance(s, now), 0)
+  const totalPayment = schulden.reduce((a, s) => a + (calcMonthlyPayment(s) ?? s.payment ?? 0), 0)
   const totalInterest = schulden.reduce((a, s) => {
     const m = calcMonths(s.balance, s.payment, s.rate)
     if (m && m !== Infinity) return a + Math.max(0, m * s.payment - s.balance)
@@ -370,9 +528,12 @@ export default function Vermogen() {
       <div style={{ display: 'flex', gap: 4, marginBottom: 24 }}>
         {TABS.map(tab => {
           const isActive = activeTab === tab.id
+          const isHovered = hoveredTab === tab.id
           return (
             <button key={tab.id} onClick={() => handleTabChange(tab.id)}
-              style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 16px', borderRadius: 7, cursor: 'pointer', border: isActive ? 'none' : '1px solid var(--border)', background: isActive ? (isDark ? colors.bg : colors.light) : 'transparent', color: isActive ? (isDark ? colors.dark : '#FFFFFF') : 'var(--muted)', transition: 'all .15s' }}
+              onMouseEnter={() => setHoveredTab(tab.id)}
+              onMouseLeave={() => setHoveredTab(null)}
+              style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 16px', borderRadius: 8, cursor: 'pointer', transition: 'all .15s', border: isActive ? 'none' : isHovered ? `1px solid ${isDark ? colors.dark : colors.light}4D` : '1px solid var(--border)', background: isActive ? (isDark ? colors.dark : colors.light) : isHovered ? (isDark ? `${colors.dark}26` : `${colors.light}26`) : 'transparent', color: isActive ? '#FFFFFF' : isHovered ? (isDark ? colors.dark : colors.light) : 'var(--muted)' }}
             >{tab.label}</button>
           )
         })}
@@ -634,185 +795,341 @@ export default function Vermogen() {
 
       {activeTab === 'schulden' && (
         <>
-          <div style={panel}>
-            <div style={{ marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-              <div />
-              {editable && <button className="btn-add" onClick={() => setShowAdd(!showAdd)} style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 500, letterSpacing: '.04em', textTransform: 'uppercase', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', ...(isDark ? { background: colors.bg, color: colors.dark, border: `1px solid ${colors.dark}4D` } : { background: colors.light, color: '#FFFFFF', border: 'none' }) }}>{showAdd ? '− Toevoegen' : '+ Toevoegen'}</button>}
-            </div>
-            <div style={{ fontSize: 12, color: 'var(--muted2)', marginBottom: 14, lineHeight: 1.7 }}>DUO, hypotheek, autolening, etc. Stel rentevaste periode in voor een vervaldatummelding.</div>
-            {showAdd && (
-              <div style={{ background: 'var(--s2)', border: '1px solid var(--border)', borderRadius: 8, padding: '16px 18px', marginBottom: 20 }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '3fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
-                  <div>
-                    <div style={eyebrow}>Naam</div>
-                    <input autoFocus style={{ ...inp, textAlign: 'left' }} placeholder="Naam schuld" value={sForm.naam} onChange={e => setSForm({ ...sForm, naam: e.target.value })}
-                      onKeyDown={e => { if (e.key === 'Enter') addSchuld(); else if (e.key === 'Escape') setShowAdd(false) }} />
-                  </div>
-                  <div>
-                    <div style={eyebrow}>Type</div>
-                    <select style={{ ...inp, textAlign: 'left', cursor: 'pointer' } as React.CSSProperties} value={sForm.type} onChange={e => setSForm({ ...sForm, type: e.target.value })}>
-                      {STYPES.map(t => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <div style={eyebrow}>Van wie</div>
-                    <select style={{ ...inp, textAlign: 'left', cursor: 'pointer' } as React.CSSProperties} value={sForm.wie} onChange={e => setSForm({ ...sForm, wie: e.target.value })}>
-                      <option value="user1">{n1}</option>
-                      <option value="user2">{n2}</option>
-                      <option value="samen">Samen</option>
-                    </select>
-                  </div>
-                  <div style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: '2fr 2fr 1.5fr 1.5fr 1.5fr', gap: 12, alignItems: 'end' }}>
-                    <div>
-                      <div style={eyebrow}>Huidige schuld</div>
-                      <div style={{ position: 'relative' }}>
-                        <span style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', fontSize: 13, pointerEvents: 'none', userSelect: 'none' }}>€</span>
-                        <input style={{ ...inp, padding: '6px 9px 6px 22px' }} type="number" placeholder="Bedrag" value={sForm.balance} onChange={e => setSForm({ ...sForm, balance: e.target.value })}
-                          onKeyDown={e => { if (e.key === 'Enter') addSchuld(); else if (e.key === 'Escape') setShowAdd(false) }} />
-                      </div>
-                    </div>
-                    <div>
-                      <div style={eyebrow}>Maand. aflossing</div>
-                      <div style={{ position: 'relative' }}>
-                        <span style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', fontSize: 13, pointerEvents: 'none', userSelect: 'none' }}>€</span>
-                        <input style={{ ...inp, padding: '6px 9px 6px 22px' }} type="number" placeholder="Bedrag" value={sForm.payment} onChange={e => setSForm({ ...sForm, payment: e.target.value })}
-                          onKeyDown={e => { if (e.key === 'Enter') addSchuld(); else if (e.key === 'Escape') setShowAdd(false) }} />
-                      </div>
-                    </div>
-                    <div>
-                      <div style={eyebrow}>Jaarrente (%)</div>
-                      <input style={inp} type="number" step="0.01" placeholder="%" value={sForm.rate} onChange={e => setSForm({ ...sForm, rate: e.target.value })}
-                        onKeyDown={e => { if (e.key === 'Enter') addSchuld(); else if (e.key === 'Escape') setShowAdd(false) }} />
-                    </div>
-                    <div>
-                      <div style={eyebrow}>Rentevaste periode (jr)</div>
-                      <input style={inp} type="number" step="1" value={sForm.fixedYears} onChange={e => setSForm({ ...sForm, fixedYears: e.target.value })}
-                        onKeyDown={e => { if (e.key === 'Enter') addSchuld(); else if (e.key === 'Escape') setShowAdd(false) }} />
-                    </div>
-                    <div>
-                      <div style={eyebrow}>Startdatum rente</div>
-                      <input style={{ ...inp, textAlign: 'left', fontSize: 11 }} type="date" value={sForm.fixedStart} onChange={e => setSForm({ ...sForm, fixedStart: e.target.value })}
-                        onKeyDown={e => { if (e.key === 'Enter') addSchuld(); else if (e.key === 'Escape') setShowAdd(false) }} />
-                    </div>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                  <button className="btn-cancel" onClick={() => setShowAdd(false)} style={{ fontFamily: 'var(--font-body)', fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 5, cursor: 'pointer', background: 'transparent', color: 'var(--cancel-fg)', border: '1px solid var(--cancel-border)' }}>Annuleren</button>
-                  <button className="btn-submit" onClick={addSchuld} style={{ fontFamily: 'var(--font-body)', fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 5, cursor: 'pointer', border: 'none', background: c, color: '#FFFFFF' }}>Toevoegen</button>
-                </div>
-              </div>
-            )}
-            {schuldenFiltered.length === 0 && !showAdd && (
-              <div style={{ padding: '32px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, textAlign: 'center' }}>
-                <div style={{ width: 44, height: 44, borderRadius: '50%', background: `${c}1A`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M2 17 L12 3 L22 17 Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-                  </svg>
-                </div>
-                <div style={{ fontSize: 12, color: 'var(--muted2)', lineHeight: 1.6, maxWidth: 220 }}>
-                  Geen schulden geregistreerd. Voeg een lening of studieschuld toe voor inzicht.
-                </div>
-                {editable && (
-                  <button className="btn-submit" onClick={() => setShowAdd(true)}
-                    style={{ fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 5, cursor: 'pointer', border: 'none', background: c, color: '#FFFFFF', fontFamily: 'var(--font-body)' }}>
-                    + Schuld toevoegen
-                  </button>
-                )}
-              </div>
-            )}
-            {schuldenFiltered.map(sc => {
-              const months = calcMonths(sc.balance, sc.payment, sc.rate)
-              const wieLabel = sc.wie === 'user1' ? n1 : sc.wie === 'user2' ? n2 : 'Samen'
-              const endDate = months && months !== Infinity ? (() => { const d = new Date(); d.setMonth(d.getMonth() + months); return d.toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' }) })() : null
-              const totalInterestSc = months && months !== Infinity ? Math.max(0, months * sc.payment - sc.balance) : 0
-              const yr = months && months !== Infinity ? Math.floor(months / 12) : 0
-              const rm = months && months !== Infinity ? months % 12 : 0
-              let fixedBadge = null
-              if (sc.fixedYears > 0 && sc.fixedStart) {
-                const e = new Date(sc.fixedStart)
-                e.setFullYear(e.getFullYear() + sc.fixedYears)
-                const dl = Math.ceil((e.getTime() - new Date().getTime()) / 86400000)
-                const cls = dl < 0 ? { bg: 'rgba(224,80,80,.12)', color: 'var(--danger)' } : dl < 180 ? { bg: 'rgba(212,160,23,.12)', color: 'var(--warn)' } : { bg: 'rgba(76,175,130,.12)', color: 'var(--ok)' }
-                fixedBadge = { text: dl < 0 ? 'Rentevaste periode verlopen' : `Rente vast tot ${e.toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' })} (${Math.round(dl / 30)} mnd)`, ...cls }
-              }
+          <div style={{ display: 'grid', gridTemplateColumns: isSingleUser ? '1fr' : '1fr 1fr 1fr', gap: 16, alignItems: 'stretch', marginBottom: 22 }}>
+            {(isSingleUser
+              ? [{ colWie: 'user1', title: n1, can: editable }]
+              : [
+                  { colWie: 'samen', title: 'Gezamenlijk', can: editable },
+                  { colWie: 'user1', title: n1, can: canEdit('user1') },
+                  { colWie: 'user2', title: n2, can: canEdit('user2') },
+                ]
+            ).map(({ colWie, title, can }) => {
+              const colSchulden = isSingleUser ? schuldenFiltered : schuldenFiltered.filter(sc => sc.wie === colWie)
+              const isFormOpen = openSchuldCol === colWie
               return (
-                <div key={sc.id} style={{ background: 'var(--s3)', border: '1px solid var(--border)', borderRadius: 6, padding: '18px 20px', marginBottom: 16 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-                    <div>
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '2px 7px', borderRadius: 999, background: 'rgba(255,255,255,.04)', fontSize: 10, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--text)', border: '1px solid var(--border)' }}>
-                        {sc.naam}<span style={{ opacity: 0.45, fontWeight: 400 }}> – </span>{wieLabel}{endDate && <span style={{ opacity: 0.6, fontWeight: 400, letterSpacing: 0, textTransform: 'none' }}> – afgelost {endDate}</span>}
-                      </span>
-                    </div>
-                    {editable && <button className="btn-delete" onClick={() => deleteSchuld(sc.id)} style={{ width: 26, height: 26, background: 'rgba(200,60,60,.1)', color: 'var(--danger)', border: '1px solid rgba(200,60,60,.2)', borderRadius: 4, cursor: 'pointer', fontSize: 14, fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0, flexShrink: 0 }}>×</button>}
+                <div key={colWie} style={{ ...panel, display: 'flex', flexDirection: 'column', marginBottom: 0 }}>
+                  <div style={{ marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: 18, fontWeight: 700, color: c, fontFamily: 'var(--font-heading)' }}>{title}</span>
+                    {can && <button className="btn-add" onClick={() => { if (isFormOpen) { setOpenSchuldCol(null) } else { setSForm(blankSForm); setOpenSchuldCol(colWie) } }} style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 500, letterSpacing: '.04em', textTransform: 'uppercase', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', ...(isDark ? { background: colors.bg, color: colors.dark, border: `1px solid ${colors.dark}4D` } : { background: colors.light, color: '#FFFFFF', border: 'none' }) }}>{isFormOpen ? '− Schuld' : '+ Schuld'}</button>}
                   </div>
-                  {(() => {
-                    const cols = '2fr 2fr 1.5fr 1.5fr 1.5fr'
-                    const gap = 10
-                    return (
-                      <>
-                        <div style={{ display: 'grid', gridTemplateColumns: cols, gap, marginBottom: 4 }}>
-                          <div style={eyebrow}>Huidige schuld</div>
-                          <div style={eyebrow}>Maand. aflossing</div>
-                          <div style={eyebrow}>Jaarrente (%){fixedBadge && <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 600, color: fixedBadge.color }}>{fixedBadge.text.replace(/^Rente vast /i, '').replace(/^Rentevaste /i, '')}</span>}</div>
-                          <div style={eyebrow}>Rentevaste periode (jr)</div>
-                          <div style={eyebrow}>Startdatum rente</div>
+                  {isFormOpen && (
+                    <div style={{ background: 'var(--s2)', border: '1px solid var(--border)', borderRadius: 8, padding: '14px 16px', marginBottom: 14 }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 8 }}>
+                        <div>
+                          <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.07em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 4 }}>Type lening</div>
+                          <select style={{ ...inp, textAlign: 'left', cursor: 'pointer', width: '100%' } as React.CSSProperties} value={sForm.loanType} onChange={e => setSForm({ ...sForm, loanType: e.target.value as LoanType })}>
+                            {LOAN_TYPES.map(lt => <option key={lt.value} value={lt.value}>{lt.label}</option>)}
+                          </select>
                         </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: cols, gap, marginBottom: 12 }}>
+                        <div>
+                          <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.07em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 4 }}>Naam</div>
+                          <input autoFocus style={{ ...inp, textAlign: 'left', width: '100%' }} placeholder="Naam schuld" value={sForm.naam} onChange={e => setSForm({ ...sForm, naam: e.target.value })}
+                            onKeyDown={e => { if (e.key === 'Enter') addSchuld(colWie); else if (e.key === 'Escape') setOpenSchuldCol(null) }} />
+                        </div>
+                        <div>
+                          <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.07em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 4 }}>Type schuld</div>
+                          <select style={{ ...inp, textAlign: 'left', cursor: 'pointer', width: '100%' } as React.CSSProperties} value={sForm.type} onChange={e => setSForm({ ...sForm, type: e.target.value })}>
+                            {STYPES.map(t => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
+                          </select>
+                        </div>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 8 }}>
+                        <div>
+                          <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.07em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 4 }}>Beginschuld</div>
                           <div style={{ position: 'relative' }}>
                             <span style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', fontSize: 13, pointerEvents: 'none', userSelect: 'none' }}>€</span>
-                            <input type="number" step="100" defaultValue={sc.balance} onBlur={e => editSchuld(sc.id, 'balance', e.target.value)} onKeyDown={onEnterBlur} disabled={!editable}
-                              style={{ ...inp, width: '100%', background: editable ? 'var(--s2)' : 'transparent', border: editable ? '1px solid var(--input-border)' : 'none', padding: '6px 9px 6px 22px' }} />
+                            <input style={{ ...inp, padding: '6px 9px 6px 22px', width: '100%' }} type="number" placeholder="0" value={sForm.balance} onChange={e => setSForm({ ...sForm, balance: e.target.value })}
+                              onKeyDown={e => { if (e.key === 'Enter') addSchuld(colWie); else if (e.key === 'Escape') setOpenSchuldCol(null) }} />
                           </div>
-                          <div style={{ position: 'relative' }}>
-                            <span style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', fontSize: 13, pointerEvents: 'none', userSelect: 'none' }}>€</span>
-                            <input type="number" step="1" defaultValue={sc.payment} onBlur={e => editSchuld(sc.id, 'payment', e.target.value)} onKeyDown={onEnterBlur} disabled={!editable}
-                              style={{ ...inp, width: '100%', background: editable ? 'var(--s2)' : 'transparent', border: editable ? '1px solid var(--input-border)' : 'none', padding: '6px 9px 6px 22px' }} />
+                        </div>
+                        <div>
+                          <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.07em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 4 }}>Looptijd (mnd)</div>
+                          <input style={{ ...inp, width: '100%' }} type="number" step="1" placeholder={sForm.loanType === 'annuitair' || sForm.loanType === 'lineair' ? 'Verplicht' : 'Optioneel'} value={sForm.looptijdMaanden} onChange={e => setSForm({ ...sForm, looptijdMaanden: e.target.value })}
+                            onKeyDown={e => { if (e.key === 'Enter') addSchuld(colWie); else if (e.key === 'Escape') setOpenSchuldCol(null) }} />
+                        </div>
+                        {(sForm.loanType === 'aflossingsvrij' || sForm.loanType === 'overig') && (
+                          <div>
+                            <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.07em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 4 }}>Maand. aflossing</div>
+                            <div style={{ position: 'relative' }}>
+                              <span style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', fontSize: 13, pointerEvents: 'none', userSelect: 'none' }}>€</span>
+                              <input style={{ ...inp, padding: '6px 9px 6px 22px', width: '100%' }} type="number" placeholder="0" value={sForm.payment} onChange={e => setSForm({ ...sForm, payment: e.target.value })}
+                                onKeyDown={e => { if (e.key === 'Enter') addSchuld(colWie); else if (e.key === 'Escape') setOpenSchuldCol(null) }} />
+                            </div>
                           </div>
-                          <input type="number" step="0.01" defaultValue={sc.rate} onBlur={e => editSchuld(sc.id, 'rate', e.target.value)} onKeyDown={onEnterBlur} disabled={!editable}
-                            style={{ ...inp, width: '100%', background: editable ? 'var(--s2)' : 'transparent', border: editable ? '1px solid var(--input-border)' : 'none' }} />
-                          <input type="number" step="1" defaultValue={sc.fixedYears} onBlur={e => editSchuld(sc.id, 'fixedYears', e.target.value)} onKeyDown={onEnterBlur} disabled={!editable}
-                            style={{ ...inp, width: '100%', background: editable ? 'var(--s2)' : 'transparent', border: editable ? '1px solid var(--input-border)' : 'none' }} />
-                          <input type="date" defaultValue={sc.fixedStart} onBlur={e => editSchuld(sc.id, 'fixedStart', e.target.value)} onKeyDown={onEnterBlur} disabled={!editable}
-                            style={{ ...inp, width: '100%', textAlign: 'left', fontSize: 11, background: editable ? 'var(--s3)' : 'transparent', border: editable ? '1px solid var(--input-border)' : 'none' }} />
+                        )}
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 12 }}>
+                        <div>
+                          <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.07em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 4 }}>Jaarrente (%)</div>
+                          <input style={{ ...inp, width: '100%' }} type="number" step="0.01" placeholder="%" value={sForm.rate} onChange={e => setSForm({ ...sForm, rate: e.target.value })}
+                            onKeyDown={e => { if (e.key === 'Enter') addSchuld(colWie); else if (e.key === 'Escape') setOpenSchuldCol(null) }} />
                         </div>
-                      </>
-                    )
-                  })()}
-                  <div style={{ background: colors.bgCard, border: `1px solid ${colors.bdCard}`, borderRadius: 8, padding: '10px 14px', marginTop: 12 }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, alignItems: 'stretch' }}>
-                      {[
-                        { label: 'Resterende schuld', val: fmtK(sc.balance), color: c },
-                        { label: 'Maanden resterend', val: months === Infinity ? '∞' : months ? `${months}` : '—', color: 'var(--text)' },
-                        { label: 'In jaren', val: months && months !== Infinity ? `${yr}j ${rm}m` : '—', color: 'var(--text)' },
-                        { label: 'Totale rente', val: fmtK(totalInterestSc), color: 'var(--danger)' },
-                      ].map((s, i) => (
-                        <div key={i}>
-                          <div style={{ ...eyebrow, fontSize: 10, fontWeight: 600, letterSpacing: '.07em', textTransform: 'uppercase', color: 'var(--muted)' }}>{s.label}</div>
-                          <div style={{ fontSize: 18, fontWeight: 700, lineHeight: 1, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)', marginTop: 3, color: s.color }}>{s.val}</div>
+                        <div>
+                          <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.07em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 4 }}>Rentevaste periode (jr)</div>
+                          <input style={{ ...inp, width: '100%' }} type="number" step="1" value={sForm.fixedYears} onChange={e => setSForm({ ...sForm, fixedYears: e.target.value })}
+                            onKeyDown={e => { if (e.key === 'Enter') addSchuld(colWie); else if (e.key === 'Escape') setOpenSchuldCol(null) }} />
                         </div>
-                      ))}
+                        <div>
+                          <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.07em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 4 }}>Startdatum rente</div>
+                          <input style={{ ...inp, textAlign: 'left', fontSize: 11, width: '100%' }} type="date" value={sForm.fixedStart} onChange={e => setSForm({ ...sForm, fixedStart: e.target.value })}
+                            onKeyDown={e => { if (e.key === 'Enter') addSchuld(colWie); else if (e.key === 'Escape') setOpenSchuldCol(null) }} />
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                        <button className="btn-cancel" onClick={() => setOpenSchuldCol(null)} style={{ fontFamily: 'var(--font-body)', fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 5, cursor: 'pointer', background: 'transparent', color: 'var(--cancel-fg)', border: '1px solid var(--cancel-border)' }}>Annuleren</button>
+                        <button className="btn-submit" onClick={() => addSchuld(colWie)} style={{ fontFamily: 'var(--font-body)', fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 5, cursor: 'pointer', border: 'none', background: c, color: '#FFFFFF' }}>Toevoegen</button>
+                      </div>
                     </div>
-                  </div>
+                  )}
+                  {colSchulden.length === 0 && !isFormOpen ? (
+                    <div style={{ padding: '28px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, textAlign: 'center', flex: 1 }}>
+                      <div style={{ width: 44, height: 44, borderRadius: '50%', background: `${c}1A`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M2 17 L12 3 L22 17 Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                        </svg>
+                      </div>
+                      <div style={{ fontSize: 12, color: 'var(--muted2)', lineHeight: 1.6, maxWidth: 220 }}>Geen schulden geregistreerd.</div>
+                      {can && <button className="btn-submit" onClick={() => { setSForm(blankSForm); setOpenSchuldCol(colWie) }} style={{ fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 5, cursor: 'pointer', border: 'none', background: c, color: '#FFFFFF', fontFamily: 'var(--font-body)' }}>+ Schuld toevoegen</button>}
+                    </div>
+                  ) : (
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                      {colSchulden.map(sc => {
+                        const months = calcMonths(sc.balance, sc.payment, sc.rate)
+                        const wieLabel = sc.wie === 'user1' ? n1 : sc.wie === 'user2' ? n2 : 'Samen'
+                        const endDate = months && months !== Infinity ? (() => { const d = new Date(); d.setMonth(d.getMonth() + months); return d.toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' }) })() : null
+                        const totalInterestSc = months && months !== Infinity ? Math.max(0, months * sc.payment - sc.balance) : 0
+                        const yr = months && months !== Infinity ? Math.floor(months / 12) : 0
+                        const rm = months && months !== Infinity ? months % 12 : 0
+                        let fixedBadge = null
+                        if (sc.fixedYears > 0 && sc.fixedStart) {
+                          const e = new Date(sc.fixedStart)
+                          e.setFullYear(e.getFullYear() + sc.fixedYears)
+                          const dl = Math.ceil((e.getTime() - new Date().getTime()) / 86400000)
+                          const cls = dl < 0 ? { bg: 'rgba(224,80,80,.12)', color: 'var(--danger)' } : dl < 180 ? { bg: 'rgba(212,160,23,.12)', color: 'var(--warn)' } : { bg: 'rgba(76,175,130,.12)', color: 'var(--ok)' }
+                          fixedBadge = { text: dl < 0 ? 'Rentevaste periode verlopen' : `Rente vast tot ${e.toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' })} (${Math.round(dl / 30)} mnd)`, ...cls }
+                        }
+                        const isEditing = editingSchuldId === sc.id
+                        return (
+                          <div key={sc.id} style={{ background: 'var(--s3)', border: `1px solid ${isEditing ? c : 'var(--card-border)'}`, borderRadius: 10, padding: '16px 18px', marginBottom: 12, display: 'flex', flexDirection: 'column', flex: 1 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
+                              <div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: endDate ? 3 : 0 }}>
+                                  <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{sc.naam}</span>
+                                  <span style={{ padding: '2px 8px', borderRadius: 10, background: 'var(--s2)', fontSize: 10, fontWeight: 600, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--muted)' }}>{LOAN_TYPES.find(lt => lt.value === (sc.loanType || 'overig'))?.label || 'Overig'}</span>
+                                </div>
+                                {endDate && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>Afgelost {endDate}</div>}
+                              </div>
+                              {editable && (
+                                <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
+                                  <button onClick={() => setEditingSchuldId(isEditing ? null : sc.id)} style={{ width: 26, height: 26, background: isEditing ? `${c}20` : 'transparent', color: isEditing ? c : 'var(--muted)', border: `1px solid ${isEditing ? c + '60' : 'var(--border)'}`, borderRadius: 4, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
+                                    <PencilIcon />
+                                  </button>
+                                  <button className="btn-delete" onClick={() => deleteSchuld(sc.id)} style={{ width: 26, height: 26, background: 'rgba(200,60,60,.1)', color: 'var(--danger)', border: '1px solid rgba(200,60,60,.2)', borderRadius: 4, cursor: 'pointer', fontSize: 14, fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>×</button>
+                                </div>
+                              )}
+                            </div>
+                            {isEditing ? (
+                              <>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 10 }}>
+                                  <div>
+                                    <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.07em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 4 }}>Type lening</div>
+                                    <select value={sc.loanType || 'overig'} onChange={e => editSchuld(sc.id, 'loanType', e.target.value)}
+                                      style={{ ...inp, textAlign: 'left', cursor: 'pointer', width: '100%', background: 'var(--s2)', border: '1px solid var(--input-border)' } as React.CSSProperties}>
+                                      {LOAN_TYPES.map(lt => <option key={lt.value} value={lt.value}>{lt.label}</option>)}
+                                    </select>
+                                  </div>
+                                  <div>
+                                    <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.07em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 4 }}>Beginschuld</div>
+                                    <div style={{ position: 'relative' }}>
+                                      <span style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', fontSize: 13, pointerEvents: 'none', userSelect: 'none' }}>€</span>
+                                      <input type="number" step="100" defaultValue={sc.balance} onBlur={e => editSchuld(sc.id, 'balance', e.target.value)} onKeyDown={onEnterBlur}
+                                        style={{ ...inp, width: '100%', background: 'var(--s2)', border: '1px solid var(--input-border)', padding: '6px 9px 6px 22px' }} />
+                                    </div>
+                                  </div>
+                                </div>
+                                <div style={{ display: 'grid', gridTemplateColumns: `1fr${(sc.loanType === 'aflossingsvrij' || sc.loanType === 'overig' || !sc.loanType) ? ' 1fr' : ''}`, gap: 12, marginBottom: 10 }}>
+                                  <div>
+                                    <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.07em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 4 }}>Looptijd (mnd)</div>
+                                    <input type="number" step="1" defaultValue={sc.looptijdMaanden ?? ''} onBlur={e => editSchuld(sc.id, 'looptijdMaanden', e.target.value)} onKeyDown={onEnterBlur}
+                                      style={{ ...inp, width: '100%', background: 'var(--s2)', border: '1px solid var(--input-border)' }} />
+                                  </div>
+                                  {(sc.loanType === 'aflossingsvrij' || sc.loanType === 'overig' || !sc.loanType) && (
+                                    <div>
+                                      <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.07em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 4 }}>Maand. aflossing</div>
+                                      <div style={{ position: 'relative' }}>
+                                        <span style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', fontSize: 13, pointerEvents: 'none', userSelect: 'none' }}>€</span>
+                                        <input type="number" step="1" defaultValue={sc.payment} onBlur={e => editSchuld(sc.id, 'payment', e.target.value)} onKeyDown={onEnterBlur}
+                                          style={{ ...inp, width: '100%', background: 'var(--s2)', border: '1px solid var(--input-border)', padding: '6px 9px 6px 22px' }} />
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: (sc.loanType === 'annuitair' || sc.loanType === 'lineair') ? 4 : 12 }}>
+                                  <div>
+                                    <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.07em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 4 }}>Jaarrente (%)</div>
+                                    <input type="number" step="0.01" defaultValue={sc.rate} onBlur={e => editSchuld(sc.id, 'rate', e.target.value)} onKeyDown={onEnterBlur}
+                                      style={{ ...inp, width: '100%', background: 'var(--s2)', border: '1px solid var(--input-border)' }} />
+                                  </div>
+                                  <div>
+                                    <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.07em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 4 }}>Looptijd ingangsdatum</div>
+                                    <input type="date" defaultValue={sc.entryDate?.split('T')[0] || ''} onBlur={e => editSchuld(sc.id, 'entryDate', e.target.value)} onKeyDown={onEnterBlur}
+                                      style={{ ...inp, width: '100%', textAlign: 'left', fontSize: 11, background: 'var(--s2)', border: '1px solid var(--input-border)' }} />
+                                  </div>
+                                </div>
+                                {(sc.loanType === 'annuitair' || sc.loanType === 'lineair') && (() => {
+                                  const sortedPeriodes = [...(sc.rentePeriodes || [])].sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())
+                                  return (
+                                    <div style={{ marginTop: 12, marginBottom: 12, background: 'var(--s1)', border: '1px solid var(--border)', borderRadius: 8, padding: '12px 14px' }}>
+                                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                                        <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.07em', textTransform: 'uppercase', color: 'var(--muted)' }}>Rentevaste periodes</div>
+                                        {editable && <button onClick={() => addRentePeriode(sc.id)} style={{ fontFamily: 'var(--font-body)', fontSize: 10, fontWeight: 600, letterSpacing: '.05em', textTransform: 'uppercase', padding: '4px 10px', borderRadius: 5, cursor: 'pointer', background: 'transparent', color: c, border: `1px solid ${c}50` }}>+ Periode</button>}
+                                      </div>
+                                      {sortedPeriodes.length > 0 ? (
+                                        <>
+                                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 72px 28px', gap: 6, marginBottom: 4 }}>
+                                            {['Van', 'Jaren', 'Rente', ''].map((h, i) => (
+                                              <div key={i} style={{ fontSize: 10, fontWeight: 600, color: 'var(--muted)', letterSpacing: '.06em', textTransform: 'uppercase' }}>{h}</div>
+                                            ))}
+                                          </div>
+                                          {sortedPeriodes.map((p, idx) => {
+                                            const derivedYears = p.endDate ? Math.round((new Date(p.endDate).getFullYear() - new Date(p.startDate).getFullYear()) + (new Date(p.endDate).getMonth() - new Date(p.startDate).getMonth()) / 12) : undefined
+                                            return (
+                                              <div key={p.id} style={{ display: 'grid', gridTemplateColumns: '1fr 80px 72px 28px', gap: 6, alignItems: 'center', marginBottom: 5 }}>
+                                                <div style={{ fontSize: 12, color: 'var(--muted)', padding: '5px 0' }}>
+                                                  {new Date(p.startDate).toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                                                </div>
+                                                <input type="number" step="1" min="1" key={`${p.id}-yrs`} defaultValue={derivedYears ?? ''} placeholder="jr"
+                                                  onBlur={e => {
+                                                    const yrs = parseInt(e.target.value)
+                                                    if (!yrs) return
+                                                    const end = new Date(p.startDate)
+                                                    end.setFullYear(end.getFullYear() + yrs)
+                                                    editRentePeriode(sc.id, p.id, 'endDate', end.toISOString().split('T')[0])
+                                                  }}
+                                                  onKeyDown={onEnterBlur}
+                                                  style={{ ...inp, width: '100%', background: 'var(--s2)', border: '1px solid var(--input-border)' }} />
+                                                <input type="number" step="0.01" key={`${p.id}-rate`} defaultValue={p.rate || ''} onBlur={e => editRentePeriode(sc.id, p.id, 'rate', e.target.value)} onKeyDown={onEnterBlur}
+                                                  placeholder="%" style={{ ...inp, width: '100%', background: 'var(--s2)', border: '1px solid var(--input-border)' }} />
+                                                {idx === sortedPeriodes.length - 1 && editable
+                                                  ? <button onClick={() => deleteRentePeriode(sc.id, p.id)} style={{ width: 26, height: 26, background: 'rgba(200,60,60,.1)', color: 'var(--danger)', border: '1px solid rgba(200,60,60,.2)', borderRadius: 4, cursor: 'pointer', fontSize: 14, fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0, flexShrink: 0 }}>×</button>
+                                                  : <div />}
+                                              </div>
+                                            )
+                                          })}
+                                        </>
+                                      ) : (
+                                        <div style={{ fontSize: 12, color: 'var(--muted)', padding: '4px 0' }}>Nog geen periodes — klik "+ Periode" om te beginnen</div>
+                                      )}
+                                    </div>
+                                  )
+                                })()}
+                              </>
+                            ) : (() => {
+                                const calcBal = calcRemainingBalance(sc, now)
+                                const calcPay = calcMonthlyPayment(sc)
+                                const loanLabel = LOAN_TYPES.find(lt => lt.value === (sc.loanType || 'overig'))?.label || 'Overig'
+                                const entryLabel = sc.entryDate ? new Date(sc.entryDate).toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' }) : null
+                                return (
+                                  <>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 4 }}>
+                                      {[
+                                        { label: 'Beginschuld', val: fmtK(sc.balance, 2) },
+                                        { label: 'Maand. aflossing', val: calcPay != null ? fmtK(calcPay, 2) : fmtK(sc.payment, 2) },
+                                        { label: 'Jaarrente', val: `${sc.rate}%` },
+                                        { label: 'Rentevaste jaren', val: sc.fixedYears > 0 ? `${sc.fixedYears} jaar` : '—' },
+                                      ].map((f, i) => (
+                                        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
+                                          <span style={{ fontSize: 12, color: 'var(--muted2)' }}>{f.label}</span>
+                                          <span style={{ fontSize: 12, fontWeight: 600, fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums' }}>{f.val}</span>
+                                        </div>
+                                      ))}
+                                      {(() => {
+                                        const periodes = [...(sc.rentePeriodes || [])].sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())
+                                        const today = now
+                                        const activePeriode = periodes.find(p => { const s = new Date(p.startDate); const e = p.endDate ? new Date(p.endDate) : null; return today >= s && (!e || today < e) })
+                                        const nextPeriode = periodes.find(p => new Date(p.startDate) > today)
+                                        if (periodes.length === 0) {
+                                          if (sc.fixedStart && sc.fixedYears > 0) {
+                                            const end = new Date(sc.fixedStart)
+                                            end.setFullYear(end.getFullYear() + sc.fixedYears)
+                                            return (
+                                              <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
+                                                <span style={{ fontSize: 12, color: 'var(--muted2)' }}>Rentevaste periode tot</span>
+                                                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>{end.toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                                              </div>
+                                            )
+                                          }
+                                          return null
+                                        }
+                                        return (
+                                          <>
+                                            {activePeriode?.endDate && (() => {
+                                              const end = new Date(activePeriode.endDate)
+                                              const monthsLeft = Math.round((end.getTime() - today.getTime()) / (86400000 * 365.25 / 12))
+                                              return (
+                                                <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
+                                                  <span style={{ fontSize: 12, color: 'var(--muted2)' }}>Rentevaste periode tot</span>
+                                                  <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>{end.toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' })} <span style={{ fontWeight: 400, color: 'var(--muted)' }}>(nog {monthsLeft} mnd)</span></span>
+                                                </div>
+                                              )
+                                            })()}
+                                            {nextPeriode ? (
+                                              <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
+                                                <span style={{ fontSize: 12, color: 'var(--muted2)' }}>Daarna</span>
+                                                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>
+                                                  {nextPeriode.rate ? `nieuwe rente: ${String(nextPeriode.rate).replace('.', ',')}%` : <span style={{ color: 'var(--muted)' }}>nog niet ingevuld</span>}
+                                                  {nextPeriode.endDate ? ` t/m ${new Date(nextPeriode.endDate).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}
+                                                </span>
+                                              </div>
+                                            ) : activePeriode?.endDate ? (
+                                              <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
+                                                <span style={{ fontSize: 12, color: 'var(--muted2)' }}>Volgende periode</span>
+                                                <span style={{ fontSize: 12, color: 'var(--muted)' }}>nog niet ingevuld</span>
+                                              </div>
+                                            ) : null}
+                                          </>
+                                        )
+                                      })()}
+                                    </div>
+                                    {entryLabel && (
+                                      <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 10 }}>Berekend op basis van {loanLabel.toLowerCase()} · ingevoerd op {entryLabel}</div>
+                                    )}
+                                  </>
+                                )
+                              })()}
+                            {(() => {
+                              const entry = sc.entryDate ? new Date(sc.entryDate) : null
+                              const loanEnd = entry && sc.looptijdMaanden ? (() => { const d = new Date(entry); d.setMonth(d.getMonth() + sc.looptijdMaanden!); return d })() : null
+                              const remBal = calcRemainingBalance(sc, now)
+                              const maandenRest = loanEnd
+                                ? maandenTussen(now, loanEnd)
+                                : (() => { const m = calcMonths(remBal, sc.payment, sc.rate); return m && m !== Infinity ? m : null })()
+                              const restJr = maandenRest !== null ? Math.floor(maandenRest / 12) : null
+                              const restMnd = maandenRest !== null ? maandenRest % 12 : null
+                              return (
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginTop: 'auto' }}>
+                                  {[
+                                    { label: 'Resterende schuld', val: fmtK(remBal), color: c },
+                                    { label: 'Maanden resterend', val: maandenRest !== null ? `${maandenRest}` : '—', color: 'var(--text)' },
+                                    { label: 'In jaren', val: restJr !== null ? `${restJr}j ${restMnd}m` : '—', color: 'var(--text)' },
+                                    { label: 'Totale rente', val: fmtK(totalInterestSc), color: 'var(--danger)' },
+                                  ].map((s, i) => (
+                                    <div key={i} style={totalBox}>
+                                      <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.07em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 4, minHeight: 28, lineHeight: 1.4 }}>{s.label}</div>
+                                      <div style={{ fontSize: 18, fontWeight: 700, lineHeight: 1, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)', color: s.color }}>{s.val}</div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )
+                            })()}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
                 </div>
               )
             })}
-          </div>
-          <div style={panel}>
-            <div style={{ marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid var(--border)' }}>
-              <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>Gecombineerd</span>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, alignItems: 'stretch' }}>
-              {[
-                { label: 'Totale schuld', val: fmtK(totalBalance), bg: colors.bgCard, bd: colors.bdCard },
-                { label: 'Totale maandlast', val: fmtK(totalPayment), bg: colors.bgCard, bd: colors.bdCard },
-                { label: 'Totale verwachte rente', val: fmtK(totalInterest), color: 'var(--danger)', bg: 'rgba(239,68,68,0.06)', bd: 'rgba(239,68,68,0.2)' },
-              ].map((s, i) => (
-                <div key={i} style={{ background: s.bg, border: `1px solid ${s.bd}`, borderRadius: 8, padding: '15px 17px' }}>
-                  <div style={{ ...eyebrow, color: 'var(--muted)' }}>{s.label}</div>
-                  <div style={{ fontSize: 28, fontWeight: 700, lineHeight: 1, margin: '6px 0 4px', fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)', color: s.color || c }}>{s.val}</div>
-                </div>
-              ))}
-            </div>
           </div>
         </>
       )}
