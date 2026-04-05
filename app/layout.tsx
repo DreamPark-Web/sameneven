@@ -16,7 +16,12 @@ export default function RootLayout({
       <head>
         <meta name="theme-color" content="#EFEFEF" />
         <title>Get Clear</title>
-        <script dangerouslySetInnerHTML={{ __html: `(function(){var r=document.documentElement;var t=localStorage.getItem('se_theme');if(t==='dark'){r.setAttribute('data-theme','dark');r.style.backgroundColor='#121212';r.style.setProperty('--accent','#E8C49A');r.style.setProperty('--accent2','#EBCCA9');r.style.setProperty('--accent-rgb','232, 196, 154');}else{r.style.setProperty('--accent','#6366F1');r.style.setProperty('--accent2','#818CF8');r.style.setProperty('--accent-rgb','99, 102, 241');}})();` }} />
+        <script dangerouslySetInnerHTML={{ __html: `(function(){var r=document.documentElement;var t=localStorage.getItem('se_theme');if(t==='dark'){r.setAttribute('data-theme','dark');r.style.backgroundColor='#121212';r.style.setProperty('--accent','#818CF8');r.style.setProperty('--accent2','#A5B4FC');r.style.setProperty('--accent-rgb','129, 140, 248');}else{r.style.setProperty('--accent','#6366F1');r.style.setProperty('--accent2','#818CF8');r.style.setProperty('--accent-rgb','99, 102, 241');}})();` }} />
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-title" content="Get Clear" />
+        <link rel="apple-touch-icon" href="/icon-192.png" />
       </head>
       <body>{children}</body>
     </html>

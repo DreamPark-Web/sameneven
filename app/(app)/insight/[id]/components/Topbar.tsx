@@ -5,6 +5,7 @@ import { useInsight } from '@/lib/insight-context'
 import { useUser } from '@/lib/user-context'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
+import { useBreakpoint } from '@/lib/hooks'
 import Leden from './pages/Leden'
 
 const NAV_ITEMS: { id: string; label: string }[] = [
@@ -12,7 +13,7 @@ const NAV_ITEMS: { id: string; label: string }[] = [
   { id: 'inkomsten', label: 'Inkomsten' },
   { id: 'kosten', label: 'Kosten' },
   { id: 'vermogen', label: 'Vermogen' },
-  { id: 'advies', label: 'Advies' },
+  { id: 'tips', label: 'Tips' },
 ]
 
 function getNavPrefsKey(householdId?: string) {
@@ -436,6 +437,10 @@ export default function Topbar({
   const [confirmDeleteInsight, setConfirmDeleteInsight] = useState(false)
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
 
+  const { width: screenWidth } = useBreakpoint()
+  const isVerySmall = screenWidth < 600
+  const isMobile = screenWidth < 480
+
   const [isDark, setIsDark] = useState(() => {
     if (typeof window === 'undefined') return false
     const stored = localStorage.getItem('se_theme')
@@ -520,20 +525,20 @@ export default function Topbar({
     background: 'rgba(0,0,0,.75)',
     zIndex: 500,
     display: 'flex',
-    alignItems: 'center',
+    alignItems: isMobile ? 'flex-end' : 'center',
     justifyContent: 'center',
-    padding: 20,
+    padding: isMobile ? 0 : 20,
   }
 
   const modal: CSSProperties = {
     background: 'var(--s1)',
     border: '1px solid var(--border)',
-    borderRadius: 14,
-    padding: 28,
+    borderRadius: isMobile ? '14px 14px 0 0' : 14,
+    padding: isMobile ? '20px 16px 32px' : 28,
     width: '100%',
     maxWidth: 960,
     position: 'relative',
-    maxHeight: '92vh',
+    maxHeight: isMobile ? '92dvh' : '92vh',
     overflowY: 'auto',
     boxShadow: '0 24px 60px rgba(0,0,0,.42)',
   }
@@ -1016,19 +1021,21 @@ export default function Topbar({
                 lineHeight: 1,
               }}
             >
-              <svg width="32" height="32" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0, display: 'block' }}>
+              <svg width={isVerySmall ? 20 : 32} height={isVerySmall ? 20 : 32} viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0, display: 'block' }}>
                 <polygon points="65,18 135,18 192,62 100,175 8,62" fill="#6366F1" />
                 <polygon points="65,18 135,18 100,62" fill="#A5B4FC" />
               </svg>
-              <span style={{ fontSize: 22, fontWeight: 700, fontFamily: 'var(--font-heading)', letterSpacing: '-0.3px', lineHeight: 1 }}>
-                <span style={{ color: '#6366F1' }}>Get&nbsp;</span><span style={{ color: 'var(--text)' }}>Clear</span>
-              </span>
+              {!isVerySmall && (
+                <span style={{ fontSize: 22, fontWeight: 700, fontFamily: 'var(--font-heading)', letterSpacing: '-0.3px', lineHeight: 1 }}>
+                  <span style={{ color: '#6366F1' }}>Get&nbsp;</span><span style={{ color: 'var(--text)' }}>Clear</span>
+                </span>
+              )}
             </div>
 
           </div>
         </div>
 
-        {household && (
+        {household && !isVerySmall && (
           <span
             style={{
               position: 'absolute',
@@ -1056,6 +1063,7 @@ export default function Topbar({
             flexShrink: 0,
           }}
         >
+          {!isMobile && (
           <div
             style={{
               display: 'flex',
@@ -1083,6 +1091,7 @@ export default function Topbar({
               {syncLabel}
             </span>
           </div>
+          )}
 
           <button
             onClick={() => setIsDark((d) => !d)}
@@ -1281,7 +1290,7 @@ export default function Topbar({
             {settingsTab === 'leden' ? (
               <Leden />
             ) : isOwner ? (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, alignItems: 'stretch', marginBottom: 14 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 14, alignItems: 'stretch', marginBottom: 14 }}>
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
               <div style={{ ...modalSection, flex: 1 }}>
                 <div

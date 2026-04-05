@@ -6,6 +6,7 @@ import type { CSSProperties } from 'react'
 import { fmtK, sum } from '@/lib/format'
 import { PAGE_COLORS } from '@/lib/pageColors'
 import { buildAutoKosten, AutoKostSplits } from '@/lib/schuld-calc'
+import { useBreakpoint } from '@/lib/hooks'
 
 type Sub = { id: string; name: string; date: string; amount: number; freq: string; person: string; split?: string; p1?: number; p2?: number }
 type SavItem = { id: string; label: string; value: number; split?: string; p1?: number; p2?: number }
@@ -72,7 +73,6 @@ const card: CSSProperties = {
   background: 'var(--s3)',
   border: '1px solid var(--card-border)',
   borderRadius: 10,
-  padding: '20px 22px',
   display: 'flex',
   flexDirection: 'column',
 }
@@ -81,6 +81,8 @@ export default function Dashboard() {
   const { data, isSingleUser, household, canEdit } = useInsight()
   const hid = household?.id || 'local'
 
+  const { isSmall, isMedium, isMobile } = useBreakpoint()
+  const cardPad = isMobile ? '14px 16px' : '20px 22px'
   const [prefs, setPrefs] = useState<DashPrefs>({ hidden: [] })
   const [showWidgetSettings, setShowWidgetSettings] = useState(false)
   const [activeFilter, setActiveFilter] = useState<ActiveFilter>('samen')
@@ -220,26 +222,6 @@ export default function Dashboard() {
   }
   const attentionSlice = attentionItems.slice(0, 4)
 
-  const sevenDaysAgo = Date.now() - 7 * 86400000
-  const recentChanges: string[] = []
-  for (const item of [...(data.user1?.income || []), ...(data.user2?.income || [])]) {
-    if (item.createdAt && new Date(item.createdAt).getTime() > sevenDaysAgo) recentChanges.push(`+ ${item.label} toegevoegd aan inkomsten`)
-  }
-  for (const item of [...(data.user1?.private || []), ...(data.user2?.private || []), ...(data.shared || [])]) {
-    if (item.createdAt && new Date(item.createdAt).getTime() > sevenDaysAgo) recentChanges.push(`+ ${item.label} toegevoegd aan kosten`)
-  }
-  for (const pot of potten) {
-    if ((pot as any).createdAt && new Date((pot as any).createdAt).getTime() > sevenDaysAgo) recentChanges.push(`+ ${pot.label} spaardoel toegevoegd`)
-    else if ((pot as any).updatedAt && new Date((pot as any).updatedAt).getTime() > sevenDaysAgo) recentChanges.push(`${pot.label} spaardoel bijgewerkt`)
-  }
-  for (const sc of schulden) {
-    if (sc.createdAt && new Date(sc.createdAt).getTime() > sevenDaysAgo) recentChanges.push(`+ ${sc.naam} schuld toegevoegd`)
-  }
-  for (const sub of subs) {
-    if ((sub as any).createdAt && new Date((sub as any).createdAt).getTime() > sevenDaysAgo) recentChanges.push(`+ ${sub.name} abonnement toegevoegd`)
-  }
-  const recentPills = recentChanges.slice(0, 3)
-
   const colors = PAGE_COLORS.dashboard
   const dashColor = isDark ? colors.dark : colors.light
 
@@ -297,13 +279,7 @@ export default function Dashboard() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: showWidgetSettings ? 10 : 18 }}>
         <div>
           <span style={{ fontSize: 18, fontWeight: 700, fontFamily: 'var(--font-heading)', color: dashColor }}>Dashboard</span>
-          {recentPills.length > 0 && (
-            <div style={{ display: 'flex', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
-              {recentPills.map((label, i) => (
-                <span key={i} style={{ fontSize: 11, color: 'var(--muted)', fontFamily: 'var(--font-body)' }}>{label}</span>
-              ))}
-            </div>
-          )}
+          <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4, lineHeight: 1.5 }}>{isSingleUser ? 'Je financiële overzicht in één oogopslag.' : 'Je financiële overzicht in één oogopslag. Gebruik de filterknoppen om te schakelen tussen jullie gezamenlijke situatie en die van één persoon.'}</div>
         </div>
         <button
           onClick={() => setShowWidgetSettings(s => !s)}
@@ -350,7 +326,7 @@ export default function Dashboard() {
 
       {/* Filter bar */}
       {!isSingleUser && (
-        <div style={{ display: 'flex', gap: 8, marginBottom: 18 }}>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 18, flexWrap: 'wrap', width: '100%' }}>
           {([
             { id: 'samen' as ActiveFilter, label: 'Gezamenlijk' },
             { id: 'user1' as ActiveFilter, label: n1 },
@@ -361,7 +337,7 @@ export default function Dashboard() {
               <button
                 key={f.id}
                 onClick={() => setActiveFilter(f.id)}
-                style={{ padding: '7px 16px', borderRadius: 8, fontSize: 13, fontWeight: 600, fontFamily: 'var(--font-body)', cursor: 'pointer', border: active ? '1px solid #6366F1' : '1px solid var(--border)', background: active ? 'rgba(99,102,241,0.2)' : 'transparent', color: active ? (isDark ? '#818CF8' : '#6366F1') : 'var(--muted)', transition: 'all .15s' }}
+                style={{ flex: isMobile ? 1 : undefined, padding: '7px 8px', borderRadius: 8, fontSize: isMobile ? 12 : 13, fontWeight: 600, fontFamily: 'var(--font-body)', cursor: 'pointer', border: active ? '1px solid #6366F1' : '1px solid var(--border)', background: active ? 'rgba(99,102,241,0.2)' : 'transparent', color: active ? (isDark ? '#818CF8' : '#6366F1') : 'var(--muted)', transition: 'all .15s', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}
               >
                 {f.label}
               </button>
@@ -371,12 +347,12 @@ export default function Dashboard() {
       )}
 
       {/* Hero — vrij besteedbaar */}
-      <div style={{ display: 'grid', gridTemplateColumns: heroUsers.length === 1 ? '1fr' : '1fr 1fr', gap: 14, marginBottom: 14 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: heroUsers.length === 1 ? '1fr' : isSmall ? '1fr' : '1fr 1fr', gap: 14, marginBottom: 14 }}>
         {heroUsers.map(u => {
           const pct = u.income > 0 ? Math.max(0, Math.min(100, (u.rest / u.income) * 100)) : 0
           const isNeg = u.rest < 0
           return (
-            <div key={u.slot} style={{ ...card }}>
+            <div key={u.slot} style={{ ...card, padding: cardPad }}>
               <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 4 }}>Vrij besteedbaar</div>
               <div style={{ fontSize: 13, fontWeight: 600, color: dashColor, marginBottom: 6 }}>{u.name}</div>
               <div style={{ fontSize: 36, fontWeight: 700, lineHeight: 1.1, color: isNeg ? 'var(--danger)' : 'var(--text)', fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)', marginBottom: 8 }}>
@@ -395,9 +371,9 @@ export default function Dashboard() {
 
       {/* Middle row */}
       {midVisible.length > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: `repeat(${midVisible.length}, 1fr)`, gap: 14, marginBottom: 14 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isSmall ? '1fr' : `repeat(${midVisible.length}, 1fr)`, gap: 14, marginBottom: 14 }}>
           {midVisible.includes('over-te-maken') && (
-            <div style={{ ...card }}>
+            <div style={{ ...card, padding: cardPad }}>
               <div style={{ marginBottom: 14, paddingBottom: 12, borderBottom: '1px solid var(--border)' }}>
                 <div style={{ fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-heading)' }}>Over te maken</div>
                 <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 2 }}>naar gezamenlijke rekening</div>
@@ -425,7 +401,7 @@ export default function Dashboard() {
             const activePots = filteredPotten.filter(p => p.goal > 0)
             const barColor = isDark ? '#60A5FA' : '#3B82F6'
             return (
-              <div style={{ ...card }}>
+              <div style={{ ...card, padding: cardPad }}>
                 <div style={{ marginBottom: 14, paddingBottom: 12, borderBottom: '1px solid var(--border)' }}>
                   <div style={{ fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-heading)' }}>Spaardoelen</div>
                   {activePots.length > 0 && <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 2 }}>{activePots.length} actieve {activePots.length === 1 ? 'doel' : 'doelen'}</div>}
@@ -464,11 +440,11 @@ export default function Dashboard() {
 
       {/* Bottom row */}
       {botVisible.length > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: `repeat(${botVisible.length}, 1fr)`, gap: 14, alignItems: 'stretch' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isSmall ? '1fr' : isMedium ? `repeat(${Math.min(botVisible.length, 2)}, 1fr)` : `repeat(${botVisible.length}, 1fr)`, gap: 14, alignItems: 'stretch' }}>
           {botVisible.includes('inkomen') && (() => {
             const incColor = isDark ? '#34D399' : '#10B981'
             return (
-              <div style={{ ...card, height: '100%' }}>
+              <div style={{ ...card, padding: cardPad, height: '100%' }}>
                 <div style={{ marginBottom: 14, paddingBottom: 12, borderBottom: '1px solid var(--border)' }}>
                   <div style={{ fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-heading)' }}>Inkomen</div>
                 </div>
@@ -505,7 +481,7 @@ export default function Dashboard() {
             const maxMonths = filteredSchulden.reduce((max, d) => Math.max(max, d.payment > 0 ? Math.ceil(d.balance / d.payment) : 0), 0)
             const dangerColor = isDark ? '#F87171' : '#EF4444'
             return (
-              <div style={{ ...card, height: '100%' }}>
+              <div style={{ ...card, padding: cardPad, height: '100%' }}>
                 <div style={{ marginBottom: 14, paddingBottom: 12, borderBottom: '1px solid var(--border)' }}>
                   <div style={{ fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-heading)' }}>Schulden</div>
                 </div>
@@ -513,9 +489,9 @@ export default function Dashboard() {
                   <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.7, textAlign: 'center', padding: '12px 0' }}>Geen schulden geregistreerd.</div>
                 ) : (
                   <>
-                    <div style={{ background: 'rgba(239,68,68,0.06)', border: '0.5px solid rgba(239,68,68,0.15)', borderRadius: 8, padding: '12px 16px', marginBottom: 12, height: '96px', display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 16, boxSizing: 'border-box' }}>
+                    <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
                       {[{ label: 'Openstaand', val: fmtK(totalBalance) }, { label: 'Maandlast', val: fmtK(totalPayment) }].map(s => (
-                        <div key={s.label} style={{ flex: 1 }}>
+                        <div key={s.label} style={{ flex: 1, background: 'rgba(239,68,68,0.06)', border: '0.5px solid rgba(239,68,68,0.15)', borderRadius: 8, padding: '12px 16px', height: '96px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                           <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 8 }}>{s.label}</div>
                           <div style={{ fontSize: 26, fontWeight: 700, color: dangerColor, lineHeight: 1 }}><Num v={s.val} /></div>
                         </div>
@@ -552,7 +528,7 @@ export default function Dashboard() {
           {botVisible.includes('abonnementen') && (() => {
             const subColor = isDark ? '#FBBF24' : '#D97706'
             return (
-              <div style={{ ...card, height: '100%' }}>
+              <div style={{ ...card, padding: cardPad, height: '100%' }}>
                 <div style={{ marginBottom: 14, paddingBottom: 12, borderBottom: '1px solid var(--border)' }}>
                   <div style={{ fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-heading)' }}>Abonnementen</div>
                 </div>

@@ -7,6 +7,8 @@ import { createClient } from '@/lib/supabase'
 import { useUser } from '@/lib/user-context'
 import { fmt } from '@/lib/format'
 import ImageCropperModal from '@/components/ImageCropperModal'
+import { useBreakpoint } from '@/lib/hooks'
+import { getMemberColor } from '@/lib/memberColors'
 
 // --- Types ---
 
@@ -15,6 +17,7 @@ interface Balance {
   name: string
   user_id: string
   created_at: string
+  cover?: string | { src: string; x: number; y: number; width: number; height: number; imageWidth: number; imageHeight: number } | null
 }
 
 interface BalanceMember {
@@ -172,11 +175,13 @@ export default function BalancePage() {
   const { currentUser: user, userLoading, profile, updateProfile, saveDisplayName } = useUser()
   const supabase = createClient()
 
+  const { isMobile } = useBreakpoint()
   const displayName = profile?.display_name || user?.user_metadata?.full_name || 'Gebruiker'
   const ownerAvatarUrl = profile?.avatar_url || user?.user_metadata?.avatar_url as string | undefined
 
   const [balance, setBalance] = useState<Balance | null>(null)
   const [members, setMembers] = useState<BalanceMember[]>([])
+  const [memberProfileNames, setMemberProfileNames] = useState<Record<string, string>>({})
   const [entries, setEntries] = useState<BalanceEntry[]>([])
   const [closings, setClosings] = useState<BalanceClosing[]>([])
   const [approvals, setApprovals] = useState<BalanceApproval[]>([])
@@ -225,13 +230,14 @@ export default function BalancePage() {
   // History
   const [showHistory, setShowHistory] = useState(false)
   const [selectedClosing, setSelectedClosing] = useState<BalanceClosing | null>(null)
+  const [activeView, setActiveView] = useState<'overzicht' | 'geschiedenis'>('overzicht')
 
   // Receipt preview
   const [previewReceipt, setPreviewReceipt] = useState<string | null>(null)
 
   const scanLibraryRef = useRef<HTMLInputElement>(null)
 
-  // Swipe navigation
+  // Swipe navigation (balance-to-balance, desktop/tablet only)
   const [allBalances, setAllBalances] = useState<{ id: string; name: string }[]>([])
   const [allBalanceIds, setAllBalanceIds] = useState<string[]>([])
   const allBalanceIdsRef = useRef<string[]>([])
@@ -242,6 +248,15 @@ export default function BalancePage() {
   const pageRef = useRef<HTMLDivElement>(null)
   const prevGhostRef = useRef<HTMLDivElement>(null)
   const nextGhostRef = useRef<HTMLDivElement>(null)
+
+  // View swipe (mobile: overzicht ↔ geschiedenis) — zelfde aanpak als Insight
+  const [swipeEl, setSwipeEl] = useState<HTMLDivElement | null>(null)
+  const swipeRef = useCallback((el: HTMLDivElement | null) => { setSwipeEl(el) }, [])
+  const sliderRef = useRef<HTMLDivElement>(null)
+  const touchStartX = useRef(0)
+  const touchStartY = useRef(0)
+  const isHorizontal = useRef<boolean | null>(null)
+  const activeIndexRef = useRef(0)
 
   // Account modal
   const [showAccount, setShowAccount] = useState(false)
@@ -313,6 +328,21 @@ export default function BalancePage() {
       setApprovals((apps as BalanceApproval[]) || [])
       setLoading(false)
 
+      const linkedUserIds = loadedMembers.filter(m => m.user_id).map(m => m.user_id as string)
+      if (linkedUserIds.length > 0) {
+        const { data: profs } = await supabase.from('profiles').select('id, display_name').in('id', linkedUserIds)
+        if (profs) {
+          const nameMap: Record<string, string> = {}
+          for (const m of loadedMembers) {
+            if (m.user_id) {
+              const prof = (profs as { id: string; display_name: string | null }[]).find(p => p.id === m.user_id)
+              if (prof?.display_name) nameMap[m.id] = prof.display_name
+            }
+          }
+          setMemberProfileNames(nameMap)
+        }
+      }
+
       // Load sibling balances for swipe navigation
       const { data: siblingBalances } = await supabase
         .from('balances')
@@ -360,9 +390,78 @@ export default function BalancePage() {
     if (idx < ids.length - 1) router.prefetch(`/balance/${ids[idx + 1]}`)
   }, [allBalanceIds, id, router])
 
-  // --- Native swipe listeners (passive: false allows preventDefault) ---
-  // Re-runs whenever loading finishes (pageRef gets attached) or id/router changes
+  // --- View slider sync (exact Insight pattern) ---
+  const activeIndex = activeView === 'geschiedenis' ? 1 : 0
+
   useEffect(() => {
+    activeIndexRef.current = activeIndex
+    if (!sliderRef.current) return
+    sliderRef.current.style.transition = 'transform .38s cubic-bezier(0.25, 0.46, 0.45, 0.94)'
+    sliderRef.current.style.transform = `translateX(${-activeIndex * 50}%)`
+  }, [activeIndex])
+
+  // --- View swipe (exact Insight pattern) ---
+  useEffect(() => {
+    if (!isMobile) return
+    const el = swipeEl
+    if (!el) return
+
+    const onTouchStart = (e: TouchEvent) => {
+      touchStartX.current = e.touches[0].clientX
+      touchStartY.current = e.touches[0].clientY
+      isHorizontal.current = null
+    }
+
+    const onTouchMove = (e: TouchEvent) => {
+      const dx = e.touches[0].clientX - touchStartX.current
+      const dy = e.touches[0].clientY - touchStartY.current
+      if (isHorizontal.current === null) {
+        if (Math.abs(dx) > Math.abs(dy) + 5) isHorizontal.current = true
+        else if (Math.abs(dy) > Math.abs(dx) + 5) isHorizontal.current = false
+        else return
+      }
+      if (!isHorizontal.current) return
+      e.preventDefault()
+      const idx = activeIndexRef.current
+      const n = 2
+      const offset = (idx === 0 && dx > 0) || (idx === n - 1 && dx < 0) ? dx * 0.25 : dx
+      if (sliderRef.current) {
+        sliderRef.current.style.transition = 'none'
+        sliderRef.current.style.transform = `translateX(calc(${-idx * 50}% + ${offset}px))`
+      }
+    }
+
+    const onTouchEnd = (e: TouchEvent) => {
+      if (!isHorizontal.current) return
+      const dx = e.changedTouches[0].clientX - touchStartX.current
+      const threshold = window.innerWidth * 0.25
+      const idx = activeIndexRef.current
+      const n = 2
+      const newIdx = dx < -threshold && idx < n - 1 ? idx + 1 : dx > threshold && idx > 0 ? idx - 1 : idx
+      if (sliderRef.current) {
+        sliderRef.current.style.transition = 'transform .38s cubic-bezier(0.25, 0.46, 0.45, 0.94)'
+        sliderRef.current.style.transform = `translateX(${-newIdx * 50}%)`
+      }
+      if (newIdx !== idx) {
+        setActiveView(newIdx === 0 ? 'overzicht' : 'geschiedenis')
+        if (newIdx === 1) setSelectedClosing(null)
+      }
+      isHorizontal.current = null
+    }
+
+    el.addEventListener('touchstart', onTouchStart, { passive: true })
+    el.addEventListener('touchmove', onTouchMove, { passive: false })
+    el.addEventListener('touchend', onTouchEnd, { passive: true })
+    return () => {
+      el.removeEventListener('touchstart', onTouchStart)
+      el.removeEventListener('touchmove', onTouchMove)
+      el.removeEventListener('touchend', onTouchEnd)
+    }
+  }, [isMobile, setActiveView, swipeEl])
+
+  // --- Native swipe listeners (balance-to-balance, desktop/tablet only) ---
+  useEffect(() => {
+    if (isMobile) return
     const node = pageRef.current
     if (!node) return
     const n = node
@@ -370,8 +469,8 @@ export default function BalancePage() {
     const W = window.innerWidth
 
     function resetGhosts() {
-      if (prevGhostRef.current) { prevGhostRef.current.style.transition = ''; prevGhostRef.current.style.transform = `translateX(${-W}px)` }
-      if (nextGhostRef.current) { nextGhostRef.current.style.transition = ''; nextGhostRef.current.style.transform = `translateX(${W}px)` }
+      if (prevGhostRef.current) { prevGhostRef.current.style.transition = ''; prevGhostRef.current.style.transform = 'translateX(-200vw)' }
+      if (nextGhostRef.current) { nextGhostRef.current.style.transition = ''; nextGhostRef.current.style.transform = 'translateX(200vw)' }
     }
 
     function onTouchStart(e: TouchEvent) {
@@ -402,10 +501,10 @@ export default function BalancePage() {
       n.style.transform = `translateX(${dx}px)`
 
       if (goingLeft && nextGhostRef.current) {
-        nextGhostRef.current.style.transform = `translateX(${W + dx}px)`
+        nextGhostRef.current.style.transform = `translateX(calc(100vw + ${dx}px))`
       }
       if (goingRight && prevGhostRef.current) {
-        prevGhostRef.current.style.transform = `translateX(${-W + dx}px)`
+        prevGhostRef.current.style.transform = `translateX(calc(-100vw + ${dx}px))`
       }
     }
 
@@ -447,8 +546,8 @@ export default function BalancePage() {
       } else {
         n.style.transition = trans
         n.style.transform = 'translateX(0)'
-        if (nextGhostRef.current) { nextGhostRef.current.style.transition = trans; nextGhostRef.current.style.transform = `translateX(${W}px)` }
-        if (prevGhostRef.current) { prevGhostRef.current.style.transition = trans; prevGhostRef.current.style.transform = `translateX(${-W}px)` }
+        if (nextGhostRef.current) { nextGhostRef.current.style.transition = trans; nextGhostRef.current.style.transform = 'translateX(200vw)' }
+        if (prevGhostRef.current) { prevGhostRef.current.style.transition = trans; prevGhostRef.current.style.transform = 'translateX(-200vw)' }
         setTimeout(() => { n.style.transition = ''; resetGhosts() }, 300)
       }
     }
@@ -462,7 +561,7 @@ export default function BalancePage() {
       n.removeEventListener('touchmove', onTouchMove)
       n.removeEventListener('touchend', onTouchEnd)
     }
-  }, [id, router, loading])
+  }, [id, router, loading, isMobile])
 
   // --- Realtime ---
 
@@ -770,6 +869,10 @@ export default function BalancePage() {
 
   const memberById = Object.fromEntries(members.map(m => [m.id, m]))
 
+  // Sorted by created_at → stable color index per member
+  const sortedMembers = [...members].sort((a, b) => a.created_at.localeCompare(b.created_at))
+  const memberColorIndex = Object.fromEntries(sortedMembers.map((m, i) => [m.id, i]))
+
   // --- Derived: adjacent balance names for ghost pages ---
   const currentIdx = allBalances.findIndex(b => b.id === id)
   const prevBalance = currentIdx > 0 ? allBalances[currentIdx - 1] : null
@@ -779,14 +882,14 @@ export default function BalancePage() {
 
   return (
     <>
-      {prevBalance && (
-        <div ref={prevGhostRef} style={{ position: 'fixed', inset: 0, background: 'var(--bg)', zIndex: 48, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, pointerEvents: 'none', transform: `translateX(-${typeof window !== 'undefined' ? window.innerWidth : 9999}px)` }}>
+      {!isMobile && prevBalance && (
+        <div ref={prevGhostRef} style={{ position: 'fixed', inset: 0, background: 'var(--bg)', zIndex: 48, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, pointerEvents: 'none', transform: 'translateX(-200vw)' }}>
           <div style={{ fontSize: 20, fontWeight: 700, fontFamily: 'var(--font-heading)', color: 'var(--text)' }}>{prevBalance.name}</div>
           <div style={{ fontSize: 13, color: 'var(--muted)' }}>← vorige balans</div>
         </div>
       )}
-      {nextBalance && (
-        <div ref={nextGhostRef} style={{ position: 'fixed', inset: 0, background: 'var(--bg)', zIndex: 48, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, pointerEvents: 'none', transform: `translateX(${typeof window !== 'undefined' ? window.innerWidth : 9999}px)` }}>
+      {!isMobile && nextBalance && (
+        <div ref={nextGhostRef} style={{ position: 'fixed', inset: 0, background: 'var(--bg)', zIndex: 48, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, pointerEvents: 'none', transform: 'translateX(200vw)' }}>
           <div style={{ fontSize: 20, fontWeight: 700, fontFamily: 'var(--font-heading)', color: 'var(--text)' }}>{nextBalance.name}</div>
           <div style={{ fontSize: 13, color: 'var(--muted)' }}>volgende balans →</div>
         </div>
@@ -799,185 +902,323 @@ export default function BalancePage() {
     ) : (<>
 
       {/* ── Header ── */}
-      <div style={{ position: 'sticky', top: 0, zIndex: 100, background: 'var(--s1)', borderBottom: '1px solid var(--border)', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
-        <button
-          onClick={() => router.push('/picker')}
-          style={{ width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--muted)', flexShrink: 0 }}
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-        </button>
-        <div style={{ flex: 1, fontWeight: 700, fontSize: 16, fontFamily: 'var(--font-heading)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{balance?.name}</div>
-        <button
-          onClick={() => setShowClose(true)}
-          style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '6px 14px', borderRadius: 6, border: '1px solid var(--accent)', background: 'rgba(var(--accent-rgb),0.08)', color: 'var(--accent)', cursor: 'pointer', flexShrink: 0, transition: 'background .15s' }}
-          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(var(--accent-rgb),0.18)' }}
-          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(var(--accent-rgb),0.08)' }}
-        >
-          Balans opmaken
-        </button>
-      </div>
+      {(() => {
+        const cover = balance?.cover
+        const coverSrc = cover && typeof cover === 'object' ? cover.src : cover as string | undefined
+        const coverBgSize = cover && typeof cover === 'object'
+          ? `${cover.imageWidth / cover.width * 100}% ${cover.imageHeight / cover.height * 100}%`
+          : 'cover'
+        const coverBgPos = cover && typeof cover === 'object'
+          ? `${cover.width >= cover.imageWidth ? 0 : cover.x / (cover.imageWidth - cover.width) * 100}% ${cover.height >= cover.imageHeight ? 0 : cover.y / (cover.imageHeight - cover.height) * 100}%`
+          : 'center'
+
+        if (isMobile && coverSrc) {
+          return (
+            <>
+              <div style={{ position: 'relative', height: 200, backgroundImage: `url(${coverSrc})`, backgroundSize: coverBgSize, backgroundPosition: coverBgPos, flexShrink: 0 }}>
+                <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(0,0,0,0.2), rgba(0,0,0,0.5))' }} />
+                <button
+                  onClick={() => router.push('/picker')}
+                  style={{ position: 'absolute', top: 12, left: 12, width: 36, height: 36, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.3)', border: 'none', cursor: 'pointer', color: '#fff', zIndex: 2, WebkitTapHighlightColor: 'transparent' }}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                </button>
+                <button
+                  onClick={() => setShowClose(true)}
+                  style={{ position: 'absolute', top: 12, right: 12, fontSize: 13, fontWeight: 700, padding: '10px 18px', borderRadius: 8, border: 'none', background: '#6366F1', color: '#fff', cursor: 'pointer', zIndex: 2, WebkitTapHighlightColor: 'transparent' }}
+                >
+                  Balans opmaken
+                </button>
+                <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 2, background: 'rgba(0,0,0,0.18)', padding: '6px 16px', textAlign: 'center' }}>
+                  <div style={{ fontSize: 16, fontWeight: 500, color: '#fff', fontFamily: 'var(--font-body)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{balance?.name}</div>
+                </div>
+              </div>
+            </>
+          )
+        }
+
+        return (
+          <div style={{ position: 'sticky', top: 0, zIndex: 100, background: 'var(--s1)', borderBottom: '1px solid var(--border)', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+            <button
+              onClick={() => router.push('/picker')}
+              style={{ width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--muted)', flexShrink: 0 }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            <div style={{ flex: 1, fontWeight: 700, fontSize: 16, fontFamily: 'var(--font-heading)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{balance?.name}</div>
+            <button
+              onClick={() => setShowClose(true)}
+              style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '6px 14px', borderRadius: 6, border: '1px solid var(--accent)', background: 'rgba(var(--accent-rgb),0.08)', color: 'var(--accent)', cursor: 'pointer', flexShrink: 0, transition: 'background .15s' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(var(--accent-rgb),0.18)' }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(var(--accent-rgb),0.08)' }}
+            >
+              Balans opmaken
+            </button>
+          </div>
+        )
+      })()}
 
       {/* ── Content ── */}
-      <div style={{ maxWidth: 520, margin: '0 auto', padding: '20px 16px 100px' }}>
-
-        {/* Members */}
-        <div style={{ marginBottom: 28 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 24 }}>Leden</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px 8px' }}>
-            {[...members].sort((a, b) => (b.user_id === user?.id ? 1 : 0) - (a.user_id === user?.id ? 1 : 0)).map(m => {
-              const isOwner = m.user_id === user?.id
-              const avatarSrc = isOwner ? ownerAvatarUrl : undefined
-              const avatarEl = (
-                <div style={{ width: 56, height: 56, borderRadius: '50%', border: isOwner ? '2px solid var(--accent)' : 'none', overflow: 'hidden', flexShrink: 0, background: memberColor(m.display_name), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 17, fontWeight: 700, color: '#fff' }}>
-                  {avatarSrc
-                    ? <img src={avatarSrc} referrerPolicy="no-referrer" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} alt={m.display_name} />
-                    : initials(m.display_name)
-                  }
-                </div>
-              )
-              return (
-                <div key={m.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-                  {isOwner
-                    ? <button onClick={openAccount} style={{ padding: 0, background: 'none', border: 'none', cursor: 'pointer', borderRadius: '50%', transition: 'opacity .15s' }} onMouseEnter={e => (e.currentTarget as HTMLElement).style.opacity = '0.8'} onMouseLeave={e => (e.currentTarget as HTMLElement).style.opacity = '1'}>{avatarEl}</button>
-                    : avatarEl
-                  }
-                  <div style={{ fontSize: 12, color: isOwner ? 'var(--accent)' : 'var(--muted2)', width: '100%', textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: isOwner ? 600 : 400 }}>{isOwner ? displayName : m.display_name}</div>
-                </div>
-              )
-            })}
-            {members.length < 8 && (
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-                <button
-                  onClick={() => {
-                    const text = encodeURIComponent(`Doe mee aan onze balance "${balance?.name}": ${window.location.href}`)
-                    window.open(`https://wa.me/?text=${text}`, '_blank')
-                  }}
-                  style={{ width: 56, height: 56, borderRadius: '50%', border: '2px dashed rgba(var(--accent-rgb),0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)', fontSize: 24, lineHeight: 1, background: 'transparent', cursor: 'pointer', transition: 'border-color .15s, background .15s' }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(var(--accent-rgb),0.8)'; (e.currentTarget as HTMLElement).style.background = 'rgba(var(--accent-rgb),0.07)' }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(var(--accent-rgb),0.4)'; (e.currentTarget as HTMLElement).style.background = 'transparent' }}
-                  onMouseDown={e => (e.currentTarget as HTMLElement).style.background = 'rgba(var(--accent-rgb),0.14)'}
-                  onMouseUp={e => (e.currentTarget as HTMLElement).style.background = 'rgba(var(--accent-rgb),0.07)'}
-                  title="Uitnodigen via WhatsApp"
-                >
-                  +
-                </button>
-                <div style={{ fontSize: 12, color: 'var(--muted)', textAlign: 'center' }}>Uitnodigen</div>
+      {(() => {
+        const overzichtContent = (
+          <>
+            {/* Members */}
+            <div style={{ marginBottom: 28 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px 8px' }}>
+                {[...members].sort((a, b) => (b.user_id === user?.id ? 1 : 0) - (a.user_id === user?.id ? 1 : 0)).map(m => {
+                  const isOwner = m.user_id === user?.id
+                  const avatarSrc = isOwner ? ownerAvatarUrl : undefined
+                  const colorIdx = memberColorIndex[m.id] ?? 0
+                  const mc = getMemberColor(colorIdx)
+                  const avatarEl = (
+                    <div style={{ width: 56, height: 56, borderRadius: '50%', border: isOwner ? '2px solid #6366F1' : '2px solid transparent', overflow: 'hidden', flexShrink: 0, background: mc.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 17, fontWeight: 700, color: '#fff' }}>
+                      {avatarSrc
+                        ? <img src={avatarSrc} referrerPolicy="no-referrer" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} alt={m.display_name} />
+                        : initials(m.display_name)
+                      }
+                    </div>
+                  )
+                  return (
+                    <div key={m.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                      {isOwner
+                        ? <button onClick={openAccount} style={{ padding: 0, background: 'none', border: 'none', cursor: 'pointer', borderRadius: '50%', transition: 'opacity .15s' }} onMouseEnter={e => (e.currentTarget as HTMLElement).style.opacity = '0.8'} onMouseLeave={e => (e.currentTarget as HTMLElement).style.opacity = '1'}>{avatarEl}</button>
+                        : avatarEl
+                      }
+                      <div style={{ fontSize: 12, color: 'var(--muted2)', width: '100%', textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 400 }}>{isOwner ? displayName : m.display_name}</div>
+                    </div>
+                  )
+                })}
+                {members.length < 8 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                    <button
+                      onClick={() => { const text = encodeURIComponent(`Doe mee aan onze balance "${balance?.name}": ${window.location.href}`); window.open(`https://wa.me/?text=${text}`, '_blank') }}
+                      style={{ width: 56, height: 56, borderRadius: '50%', border: '2px dashed rgba(var(--accent-rgb),0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)', fontSize: 24, lineHeight: 1, background: 'transparent', cursor: 'pointer', transition: 'border-color .15s, background .15s' }}
+                      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(var(--accent-rgb),0.8)'; (e.currentTarget as HTMLElement).style.background = 'rgba(var(--accent-rgb),0.07)' }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(var(--accent-rgb),0.4)'; (e.currentTarget as HTMLElement).style.background = 'transparent' }}
+                      onMouseDown={e => (e.currentTarget as HTMLElement).style.background = 'rgba(var(--accent-rgb),0.14)'}
+                      onMouseUp={e => (e.currentTarget as HTMLElement).style.background = 'rgba(var(--accent-rgb),0.07)'}
+                      title="Uitnodigen via WhatsApp"
+                    >+</button>
+                    <div style={{ fontSize: 12, color: 'var(--muted)', textAlign: 'center' }}>Uitnodigen</div>
+                  </div>
+                )}
+              </div>
+            </div>
+            {/* Day total widget */}
+            {todayTotal > 0 && (
+              <div style={{ background: 'var(--s2)', border: '1px solid var(--border)', borderRadius: 10, padding: '14px 18px', marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ fontSize: 13, color: 'var(--muted)' }}>Vandaag uitgegeven</div>
+                <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--accent)' }}>{fmt(todayTotal)}</div>
               </div>
             )}
-          </div>
-        </div>
-
-        {/* Day total widget */}
-        {todayTotal > 0 && (
-          <div style={{ background: 'var(--s2)', border: '1px solid var(--border)', borderRadius: 10, padding: '14px 18px', marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ fontSize: 13, color: 'var(--muted)' }}>Vandaag uitgegeven</div>
-            <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--accent)' }}>{fmt(todayTotal)}</div>
-          </div>
-        )}
-
-        {/* Summary per person */}
-        {members.length > 0 && totalAll > 0 && (
-          <div style={{ marginBottom: 28 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 12 }}>Overzicht</div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(136px,1fr))', gap: 10 }}>
-              {members.map(m => {
-                const paid = paidByMember[m.id] || 0
-                const net = paid - sharePerMember
-                return (
-                  <div key={m.id} style={{ background: 'var(--s2)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 14px' }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.display_name}</div>
-                    <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 3 }}>{fmt(paid)}</div>
-                    <div style={{ fontSize: 11, color: net >= -0.005 ? 'var(--ok)' : 'var(--danger)' }}>
-                      {net >= -0.005 ? `+${fmt(net)} terug` : `${fmt(Math.abs(net))} schuld`}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Entries grouped by day */}
-        {entries.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '52px 0', color: 'var(--muted)', fontSize: 13 }}>
-            Nog geen uitgaven. Tik + om te beginnen.
-          </div>
-        ) : (
-          sortedDays.map(day => {
-            const dayEntries = entriesByDay[day]
-            const dayTotal = dayEntries.reduce((s, e) => s + Number(e.amount), 0)
-            const isToday = day === today
-            return (
-              <div key={day} style={{ marginBottom: 28 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
-                  <div style={{ fontSize: isToday ? 17 : 13, fontWeight: isToday ? 700 : 600, color: isToday ? 'var(--text)' : 'var(--muted)' }}>
-                    {formatDayLabel(day)}
-                  </div>
-                  <div style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 600 }}>{fmt(dayTotal)}</div>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {dayEntries.map(entry => {
-                    const payer = memberById[entry.paid_by]
+            {/* Summary per person */}
+            {members.length > 0 && totalAll > 0 && (
+              <div style={{ marginBottom: 28 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(136px,1fr))', gap: 10 }}>
+                  {members.map(m => {
+                    const paid = paidByMember[m.id] || 0
+                    const net = paid - sharePerMember
+                    const mc = getMemberColor(memberColorIndex[m.id] ?? 0)
                     return (
-                      <div
-                        key={entry.id}
-                        style={{ background: 'var(--s2)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 12 }}
-                      >
-                        <div style={{ width: 36, height: 36, borderRadius: '50%', background: payer ? memberColor(payer.display_name) : 'var(--s3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
-                          {payer ? initials(payer.display_name) : '?'}
-                        </div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 14, fontWeight: 700 }}>{fmt(Number(entry.amount))}</div>
-                          <div style={{ fontSize: 11, color: 'var(--muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {payer?.display_name}{entry.description ? ` · ${entry.description}` : ''}
-                            {entry.via_scan && <span style={{ marginLeft: 6, fontSize: 10, color: 'var(--accent)', fontWeight: 600 }}>scan</span>}
-                          </div>
-                        </div>
-                        {entry.receipt_url && (
-                          <button
-                            onClick={() => setPreviewReceipt(entry.receipt_url)}
-                            style={{ width: 42, height: 42, borderRadius: 6, overflow: 'hidden', border: '1px solid var(--border)', background: 'none', padding: 0, cursor: 'pointer', flexShrink: 0 }}
-                          >
-                            <img src={entry.receipt_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Bon" />
-                          </button>
-                        )}
-                        <button
-                          onClick={() => setDeleteEntryId(entry.id)}
-                          style={{ width: 28, height: 28, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--muted)', flexShrink: 0, transition: 'color .15s' }}
-                          onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'var(--danger)'}
-                          onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'var(--muted)'}
-                        >
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
-                          </svg>
-                        </button>
+                      <div key={m.id} style={{ background: mc.light, border: `1px solid ${mc.border}`, borderRadius: 10, padding: '12px 14px' }}>
+                        <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: mc.bg }}>{memberProfileNames[m.id] || (m.user_id === user?.id ? displayName : m.display_name)}</div>
+                        <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 3 }}>{fmt(paid)}</div>
+                        <div style={{ fontSize: 11, color: net >= -0.005 ? 'var(--ok)' : 'var(--danger)' }}>{net >= -0.005 ? `+${fmt(net)} terug` : `${fmt(Math.abs(net))} schuld`}</div>
                       </div>
                     )
                   })}
                 </div>
               </div>
-            )
-          })
-        )}
+            )}
+            {/* Entries grouped by day */}
+            {entries.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '52px 0', color: 'var(--muted)', fontSize: 13 }}>Nog geen uitgaven. Tik + om te beginnen.</div>
+            ) : sortedDays.map(day => {
+              const dayEntries = entriesByDay[day]
+              const dayTotal = dayEntries.reduce((s, e) => s + Number(e.amount), 0)
+              const isToday = day === today
+              return (
+                <div key={day} style={{ marginBottom: 28 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
+                    <div style={{ fontSize: isToday ? 17 : 13, fontWeight: isToday ? 700 : 600, color: isToday ? 'var(--text)' : 'var(--muted)' }}>{formatDayLabel(day)}</div>
+                    <div style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 600 }}>{fmt(dayTotal)}</div>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {dayEntries.map(entry => {
+                      const payer = memberById[entry.paid_by]
+                      const payerMc = getMemberColor(payer ? (memberColorIndex[payer.id] ?? 0) : 0)
+                      return (
+                        <div key={entry.id} style={{ background: 'var(--s2)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 12 }}>
+                          <div style={{ width: 36, height: 36, borderRadius: '50%', background: payer ? payerMc.bg : 'var(--s3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
+                            {payer ? initials(payer.display_name) : '?'}
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 14, fontWeight: 700 }}>{fmt(Number(entry.amount))}</div>
+                            <div style={{ fontSize: 11, color: 'var(--muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {payer ? (memberProfileNames[payer.id] || (payer.user_id === user?.id ? displayName : payer.display_name)) : ''}{entry.description ? ` · ${entry.description}` : ''}
+                              {entry.via_scan && <span style={{ marginLeft: 6, fontSize: 10, color: 'var(--accent)', fontWeight: 600 }}>scan</span>}
+                            </div>
+                          </div>
+                          {entry.receipt_url && (
+                            <button onClick={() => setPreviewReceipt(entry.receipt_url)} style={{ width: 42, height: 42, borderRadius: 6, overflow: 'hidden', border: '1px solid var(--border)', background: 'none', padding: 0, cursor: 'pointer', flexShrink: 0 }}>
+                              <img src={entry.receipt_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Bon" />
+                            </button>
+                          )}
+                          <button onClick={() => setDeleteEntryId(entry.id)} style={{ width: 28, height: 28, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--muted)', flexShrink: 0, transition: 'color .15s' }} onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'var(--danger)'} onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'var(--muted)'}>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+                          </button>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            })}
+          </>
+        )
 
-        {/* History button */}
-        {closings.length > 0 && (
-          <button
-            onClick={() => setShowHistory(true)}
-            style={{ width: '100%', padding: '12px', borderRadius: 10, border: '1px solid var(--border)', background: 'transparent', color: 'var(--muted)', fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'border-color .15s' }}
-            onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = 'var(--accent)'}
-            onMouseLeave={e => (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)'}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-            Geschiedenis ({closings.length})
-          </button>
-        )}
-      </div>
+        const geschiedenisContent = (
+          <>
+            {selectedClosing ? (
+              <>
+                <button onClick={() => setSelectedClosing(null)} style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--muted)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600, marginBottom: 20, padding: 0, WebkitTapHighlightColor: 'transparent' }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                  Terug naar lijst
+                </button>
+                <div style={{ fontWeight: 700, fontSize: 15, fontFamily: 'var(--font-heading)' }}>{new Date(selectedClosing.closed_at).toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
+                <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 20 }}>{fmt(Number(selectedClosing.total_amount))} totaal</div>
+                <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 12 }}>Afrekening</div>
+                {(selectedClosing.settlements || []).length === 0 ? (
+                  <div style={{ background: 'rgba(76,175,130,0.1)', border: '1px solid rgba(76,175,130,0.25)', borderRadius: 10, padding: '14px 16px', marginBottom: 24, color: 'var(--ok)', fontSize: 14, fontWeight: 600, textAlign: 'center' }}>Iedereen stond gelijk — niks te betalen!</div>
+                ) : (
+                  <div style={{ marginBottom: 24 }}>
+                    {(selectedClosing.settlements || []).map((s, i) => (
+                      <div key={i} style={{ background: 'var(--s2)', border: '1px solid var(--border)', borderRadius: 10, padding: '14px 16px', marginBottom: 8 }}>
+                        <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>Betaling {i + 1}</div>
+                        <div style={{ fontSize: 15 }}><span style={{ fontWeight: 700 }}>{s.from}</span><span style={{ color: 'var(--muted)' }}> betaalt </span><span style={{ fontWeight: 700, color: 'var(--accent)', fontSize: 17 }}>{fmt(s.amount)}</span><span style={{ color: 'var(--muted)' }}> aan </span><span style={{ fontWeight: 700 }}>{s.to}</span></div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {(selectedClosing.entries_snapshot || []).length > 0 && (() => {
+                  const snapshot = selectedClosing.entries_snapshot || []
+                  const byDay = snapshot.reduce<Record<string, BalanceEntry[]>>((acc, e) => { if (!acc[e.date]) acc[e.date] = []; acc[e.date].push(e); return acc }, {})
+                  const days = Object.keys(byDay).sort((a, b) => b.localeCompare(a))
+                  return (
+                    <>
+                      <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 12 }}>Uitgaven</div>
+                      {days.map(day => {
+                        const dayEntries = byDay[day]
+                        const dayTotal = dayEntries.reduce((s, e) => s + Number(e.amount), 0)
+                        return (
+                          <div key={day} style={{ marginBottom: 20 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}>
+                              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--muted)' }}>{formatDayLabel(day)}</div>
+                              <div style={{ fontSize: 12, color: 'var(--muted)' }}>{fmt(dayTotal)}</div>
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                              {dayEntries.map((e, i) => (
+                                <div key={e.id ?? i} style={{ background: 'var(--s2)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 12 }}>
+                                  <div style={{ flex: 1, minWidth: 0 }}>
+                                    <div style={{ fontSize: 14, fontWeight: 700 }}>{fmt(Number(e.amount))}</div>
+                                    <div style={{ fontSize: 11, color: 'var(--muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.description || '—'}{e.via_scan && <span style={{ marginLeft: 6, fontSize: 10, color: 'var(--accent)', fontWeight: 600 }}>scan</span>}</div>
+                                  </div>
+                                  {e.receipt_url && (
+                                    <button onClick={() => setPreviewReceipt(e.receipt_url)} style={{ width: 52, height: 52, borderRadius: 8, overflow: 'hidden', border: '1px solid var(--border)', background: 'none', padding: 0, cursor: 'pointer', flexShrink: 0 }}>
+                                      <img src={e.receipt_url} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} alt="Bon" />
+                                    </button>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </>
+                  )
+                })()}
+              </>
+            ) : (
+              <>
+                {closings.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '52px 0', color: 'var(--muted)', fontSize: 13 }}>Nog geen afgesloten balansen.</div>
+                ) : closings.map(c => {
+                  const date = new Date(c.closed_at).toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' })
+                  const snapshot = c.entries_snapshot || []
+                  const receipts = snapshot.filter(e => e.receipt_url)
+                  return (
+                    <button key={c.id} onClick={() => setSelectedClosing(c)} style={{ width: '100%', textAlign: 'left', background: 'var(--s2)', border: '1px solid var(--border)', borderRadius: 12, padding: '16px', marginBottom: 12, cursor: 'pointer', transition: 'border-color .15s', display: 'block' }} onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = 'var(--accent)'} onMouseLeave={e => (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)'}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
+                        <div style={{ fontSize: 12, color: 'var(--muted)' }}>{date}</div>
+                        <div style={{ fontSize: 16, fontWeight: 700 }}>{fmt(Number(c.total_amount))}</div>
+                      </div>
+                      {(c.settlements || []).length === 0 ? (
+                        <div style={{ fontSize: 12, color: 'var(--ok)', marginBottom: 8 }}>Iedereen stond gelijk</div>
+                      ) : (c.settlements || []).map((s, i) => (
+                        <div key={i} style={{ fontSize: 13, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ fontWeight: 600 }}>{s.from}</span>
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--muted)', flexShrink: 0 }}><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+                          <span style={{ fontWeight: 600 }}>{s.to}</span>
+                          <span style={{ marginLeft: 'auto', fontWeight: 700, color: 'var(--accent)' }}>{fmt(s.amount)}</span>
+                        </div>
+                      ))}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10 }}>
+                        {receipts.slice(0, 4).map((e, i) => (
+                          <div key={i} style={{ width: 36, height: 36, borderRadius: 6, overflow: 'hidden', border: '1px solid var(--border)', flexShrink: 0 }}>
+                            <img src={e.receipt_url!} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} alt="" />
+                          </div>
+                        ))}
+                        {receipts.length > 4 && <div style={{ fontSize: 11, color: 'var(--muted)' }}>+{receipts.length - 4} foto's</div>}
+                        <div style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--muted)' }}>{snapshot.length} uitgave{snapshot.length !== 1 ? 'n' : ''}</div>
+                      </div>
+                    </button>
+                  )
+                })}
+              </>
+            )}
+          </>
+        )
 
-      {/* ── FAB ── */}
+        if (isMobile) {
+          return (
+            <div ref={swipeRef} style={{ flex: 1, overflow: 'hidden', minWidth: 0 }}>
+              <div
+                ref={sliderRef}
+                style={{
+                  display: 'flex',
+                  width: '200%',
+                  transform: `translateX(${-activeIndex * 50}%)`,
+                  willChange: 'transform',
+                  alignItems: 'flex-start',
+                }}
+              >
+                <div style={{ width: '50%', flexShrink: 0, boxSizing: 'border-box', padding: 16, paddingBottom: 76, height: 'calc(100dvh - 56px)', overflowY: 'auto', WebkitOverflowScrolling: 'touch' as never }}>
+                  {overzichtContent}
+                </div>
+                <div style={{ width: '50%', flexShrink: 0, boxSizing: 'border-box', padding: 16, paddingBottom: 76, height: 'calc(100dvh - 56px)', overflowY: 'auto', WebkitOverflowScrolling: 'touch' as never }}>
+                  {geschiedenisContent}
+                </div>
+              </div>
+            </div>
+          )
+        }
+        return (
+          <div style={{ maxWidth: 520, margin: '0 auto', padding: '20px 16px 100px' }}>
+            {overzichtContent}
+            {closings.length > 0 && (
+              <button onClick={() => setShowHistory(true)} style={{ width: '100%', padding: '12px', borderRadius: 10, border: '1px solid var(--border)', background: 'transparent', color: 'var(--muted)', fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'border-color .15s', marginTop: 8 }} onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = 'var(--accent)'} onMouseLeave={e => (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)'}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                Geschiedenis ({closings.length})
+              </button>
+            )}
+          </div>
+        )
+      })()}
+
+      {/* ── FAB menu (desktop) / bottom nav (mobile) ── */}
       {fabOpen && <div style={{ position: 'fixed', inset: 0, zIndex: 199 }} onClick={() => setFabOpen(false)} />}
       {fabOpen && (
-        <div style={{ position: 'fixed', bottom: 92, right: 24, zIndex: 200, display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'flex-end' }}>
+        <div style={{ position: 'fixed', bottom: isMobile ? 90 : 148, right: isMobile ? '50%' : 20, transform: isMobile ? 'translateX(50%)' : undefined, zIndex: 200, display: 'flex', flexDirection: 'column', gap: 10, alignItems: isMobile ? 'stretch' : 'flex-end' }}>
           <button
             onClick={openLiveCamera}
             style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', borderRadius: 20, background: 'var(--s2)', border: '1px solid var(--border)', color: 'var(--text)', fontSize: 13, fontWeight: 600, cursor: 'pointer', boxShadow: '0 4px 16px rgba(0,0,0,0.3)', whiteSpace: 'nowrap' }}
@@ -1001,12 +1242,43 @@ export default function BalancePage() {
           </button>
         </div>
       )}
-      <button
-        onClick={() => setFabOpen(o => !o)}
-        style={{ position: 'fixed', bottom: 24, right: 24, width: 56, height: 56, borderRadius: '50%', background: 'var(--accent)', border: 'none', color: 'var(--accent-fg)', fontSize: 26, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 20px rgba(0,0,0,0.4)', zIndex: 200, transition: 'transform 0.2s', transform: fabOpen ? 'rotate(45deg)' : 'rotate(0deg)' }}
-      >
-        +
-      </button>
+      {isMobile ? (
+        <nav style={{ position: 'fixed', bottom: 0, left: 0, right: 0, height: 60, background: 'var(--s1)', borderTop: '0.5px solid var(--border)', display: 'flex', alignItems: 'center', zIndex: 200, transform: 'translateZ(0)', willChange: 'transform' }}>
+          <button
+            onClick={() => { setActiveView('overzicht'); setSelectedClosing(null); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
+            style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, border: 'none', background: 'transparent', color: activeView === 'overzicht' ? '#6366F1' : 'var(--muted)', cursor: 'pointer', padding: '4px 0', WebkitTapHighlightColor: 'transparent' }}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+            </svg>
+            <span style={{ fontSize: 10, fontWeight: activeView === 'overzicht' ? 700 : 500, fontFamily: 'var(--font-body)', lineHeight: 1 }}>Overzicht</span>
+          </button>
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <button
+              onClick={() => setFabOpen(o => !o)}
+              style={{ width: 56, height: 56, borderRadius: '50%', background: '#6366F1', border: 'none', color: '#fff', fontSize: 28, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 20px rgba(99,102,241,0.5)', marginTop: -20, WebkitTapHighlightColor: 'transparent', transition: 'transform .2s', transform: fabOpen ? 'rotate(45deg)' : 'rotate(0deg)' }}
+            >
+              +
+            </button>
+          </div>
+          <button
+            onClick={() => { window.scrollTo(0, 0); setActiveView('geschiedenis'); setSelectedClosing(null) }}
+            style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, border: 'none', background: 'transparent', color: activeView === 'geschiedenis' ? '#6366F1' : 'var(--muted)', cursor: 'pointer', padding: '4px 0', WebkitTapHighlightColor: 'transparent' }}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+            </svg>
+            <span style={{ fontSize: 10, fontWeight: activeView === 'geschiedenis' ? 700 : 500, fontFamily: 'var(--font-body)', lineHeight: 1 }}>Geschiedenis</span>
+          </button>
+        </nav>
+      ) : (
+        <button
+          onClick={() => setFabOpen(o => !o)}
+          style={{ position: 'fixed', bottom: 80, right: 20, width: 56, height: 56, borderRadius: '50%', background: 'var(--accent)', border: 'none', color: 'var(--accent-fg)', fontSize: 26, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 20px rgba(0,0,0,0.4)', zIndex: 200, transition: 'transform 0.2s', transform: fabOpen ? 'rotate(45deg)' : 'rotate(0deg)' }}
+        >
+          +
+        </button>
+      )}
 
       {/* Hidden scan input */}
       <input
@@ -1240,8 +1512,8 @@ export default function BalancePage() {
         </Modal>
       )}
 
-      {/* ── Geschiedenis lijst (full-screen) ── */}
-      {showHistory && !selectedClosing && (
+      {/* ── Geschiedenis lijst (full-screen, desktop only) ── */}
+      {!isMobile && showHistory && !selectedClosing && (
         <div style={{ position: 'fixed', inset: 0, background: 'var(--bg)', zIndex: 400, display: 'flex', flexDirection: 'column', fontFamily: 'var(--font-body)' }}>
           <div style={{ position: 'sticky', top: 0, background: 'var(--s1)', borderBottom: '1px solid var(--border)', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12, zIndex: 1 }}>
             <button onClick={() => setShowHistory(false)} style={{ width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--muted)', flexShrink: 0 }}>
@@ -1295,8 +1567,8 @@ export default function BalancePage() {
         </div>
       )}
 
-      {/* ── Geschiedenis detail (full-screen) ── */}
-      {selectedClosing && (
+      {/* ── Geschiedenis detail (full-screen, desktop only) ── */}
+      {!isMobile && selectedClosing && (
         <div style={{ position: 'fixed', inset: 0, background: 'var(--bg)', zIndex: 410, display: 'flex', flexDirection: 'column', fontFamily: 'var(--font-body)' }}>
           <div style={{ position: 'sticky', top: 0, background: 'var(--s1)', borderBottom: '1px solid var(--border)', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12, zIndex: 1 }}>
             <button onClick={() => setSelectedClosing(null)} style={{ width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--muted)', flexShrink: 0 }}>

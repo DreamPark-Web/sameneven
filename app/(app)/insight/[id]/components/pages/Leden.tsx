@@ -5,6 +5,7 @@ import { useInsight } from '@/lib/insight-context'
 import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import { PAGE_COLORS } from '@/lib/pageColors'
+import { useBreakpoint } from '@/lib/hooks'
 
 function WhatsAppIcon() {
   return (
@@ -53,6 +54,7 @@ function NativeShareIcon() {
 
 export default function Leden() {
   const { members, household, currentUser, myRole, isOwner, data, isSingleUser, updateMemberRole, updateMemberSlot } = useInsight()
+  const { isMobile } = useBreakpoint()
   const [isDark, setIsDark] = useState(false)
   const colors = PAGE_COLORS.leden
   const c = isDark ? colors.dark : colors.light
@@ -181,7 +183,10 @@ export default function Leden() {
 
   return (
     <div style={{ position: 'relative', overflow: 'hidden' }}>
-      <div style={{ fontSize: 18, fontWeight: 700, color: c, fontFamily: 'var(--font-heading)', marginBottom: 20 }}>Leden</div>
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ fontSize: 18, fontWeight: 700, color: c, fontFamily: 'var(--font-heading)', marginBottom: 4 }}>Leden</div>
+        <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.5 }}>{isSingleUser ? 'Dit is jouw persoonlijke Insight. Je kunt iemand uitnodigen om samen je financiën bij te houden.' : 'Iedereen die toegang heeft tot dit Insight. De eigenaar kan leden uitnodigen en hun rechten beheren.'}</div>
+      </div>
     <div style={panel}>
       <div style={{ marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         {isOwner && (
@@ -219,7 +224,7 @@ export default function Leden() {
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 16, alignItems: 'stretch' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))', gap: 16, alignItems: 'stretch' }}>
         {members.map(member => {
           const isMe = member.user_id === currentUser?.id
           const isOwnerMember = member.role === 'owner' || member.role === 'admin'
@@ -298,7 +303,7 @@ export default function Leden() {
               <div style={{ fontSize: 12, color: 'var(--danger)', lineHeight: 1.6, marginBottom: 12 }}>
                 Weet je zeker dat je deze Insight wilt verlaten? Je verliest je toegang.
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 8 }}>
                 <button
                   onClick={() => setConfirmLeave(false)}
                   disabled={isLeaving}

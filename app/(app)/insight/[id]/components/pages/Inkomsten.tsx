@@ -5,11 +5,11 @@ import { useInsight } from '@/lib/insight-context'
 import { useToast } from '@/lib/toast-context'
 import { fmt, sum } from '@/lib/format'
 import { PAGE_COLORS } from '@/lib/pageColors'
+import { useBreakpoint } from '@/lib/hooks'
 
 type Item = { id: string; label: string; value: number; excludeFromRatio?: boolean; createdAt?: string }
 
-const panel: React.CSSProperties = { background: 'var(--s3)', border: '1px solid var(--card-border)', borderRadius: 8, padding: '22px 26px', marginBottom: 22, display: 'flex', flexDirection: 'column' }
-const panelHd: React.CSSProperties = { marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }
+const panelHd: React.CSSProperties = { marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, width: '100%', overflow: 'hidden' }
 
 function GripIcon() {
   return (
@@ -38,6 +38,8 @@ function PersonPanel({ name, items, onAdd, onDelete, onEdit, onReorder, canEdit 
   onReorder: (items: Item[]) => void
   canEdit: boolean
 }) {
+  const { isMobile } = useBreakpoint()
+  const panel: React.CSSProperties = { background: 'var(--s3)', border: '1px solid var(--card-border)', borderRadius: 8, padding: isMobile ? '14px 16px' : '22px 26px', marginBottom: 22, display: 'flex', flexDirection: 'column' }
   const [open, setOpen] = useState(false)
   const [label, setLabel] = useState('')
   const [value, setValue] = useState('')
@@ -94,16 +96,23 @@ function PersonPanel({ name, items, onAdd, onDelete, onEdit, onReorder, canEdit 
 
   return (
     <div style={panel}>
-      <div style={panelHd}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <span style={{ fontSize: 18, fontWeight: 700, color: c, fontFamily: 'var(--font-heading)' }}>{name}</span>
+      {isMobile ? (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, width: '100%' }}>
+          <span style={{ fontSize: 16, fontWeight: 700, color: c }}>{name}</span>
+          {canEdit && <button onClick={() => setOpen(!open)} style={{ fontSize: 12, fontWeight: 700, padding: '6px 12px', borderRadius: 6, background: c, color: '#fff', border: 'none', cursor: 'pointer', flexShrink: 0 }}>{open ? '− Post' : '+ Post'}</button>}
         </div>
-        {canEdit && (
-          <button className="btn-add" onClick={() => setOpen(!open)} style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 500, letterSpacing: '.04em', textTransform: 'uppercase', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', ...(isDark ? { background: colors.bg, color: colors.dark, border: `1px solid ${colors.dark}4D` } : { background: colors.light, color: '#FFFFFF', border: 'none' }) }}>
-            {open ? '− Post' : '+ Post'}
-          </button>
-        )}
-      </div>
+      ) : (
+        <div style={panelHd}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <span style={{ fontSize: 18, fontWeight: 700, color: c, fontFamily: 'var(--font-heading)' }}>{name}</span>
+          </div>
+          {canEdit && (
+            <button className="btn-add" onClick={() => setOpen(!open)} style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 500, letterSpacing: '.04em', textTransform: 'uppercase', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', flexShrink: 0, ...(isDark ? { background: colors.bg, color: colors.dark, border: `1px solid ${colors.dark}4D` } : { background: colors.light, color: '#FFFFFF', border: 'none' }) }}>
+              {open ? '− Post' : '+ Post'}
+            </button>
+          )}
+        </div>
+      )}
 
       {open && (
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', background: 'var(--s2)', border: '1px solid var(--border)', borderRadius: 8, padding: '14px 16px', marginBottom: 14 }}>
@@ -131,8 +140,8 @@ function PersonPanel({ name, items, onAdd, onDelete, onEdit, onReorder, canEdit 
           <label style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, color: 'var(--muted)', cursor: 'pointer', width: '100%', marginTop: 4 }}>
             <input type="checkbox" checked={excludeFromRatio} onChange={e => setExcludeFromRatio(e.target.checked)}
               style={{ width: 14, height: 14, accentColor: c, cursor: 'pointer', flexShrink: 0 }} />
-            Niet meerekenen in aandeelverdeling
-            <span title="Gebruik dit voor vergoedingen, toeslagen of andere inkomsten die de 'naar rato'-verdeling niet mogen beïnvloeden. Het bedrag telt wel mee in het totaal inkomen." style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 15, height: 15, borderRadius: '50%', border: '1px solid var(--muted)', fontSize: 10, color: 'var(--muted)', cursor: 'help', flexShrink: 0, userSelect: 'none' }}>i</span>
+            Telt niet mee voor de verdeling
+            <span title="Dit inkomen telt niet mee bij het berekenen hoe de gezamenlijke kosten verdeeld worden." style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 15, height: 15, borderRadius: '50%', border: '1px solid var(--muted)', fontSize: 10, color: 'var(--muted)', cursor: 'help', flexShrink: 0, userSelect: 'none' }}>i</span>
           </label>
         </div>
       )}
@@ -181,9 +190,21 @@ function PersonPanel({ name, items, onAdd, onDelete, onEdit, onReorder, canEdit 
                 <button onClick={() => setEditingId(null)} style={{ fontFamily: 'var(--font-body)', fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 5, cursor: 'pointer', background: 'transparent', color: 'var(--cancel-fg)', border: '1px solid var(--cancel-border)' }}>Annuleren</button>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, color: 'var(--muted)', cursor: 'pointer', width: '100%', marginTop: 4 }}>
                   <input type="checkbox" checked={editExclude} onChange={e => setEditExclude(e.target.checked)} style={{ width: 14, height: 14, accentColor: c, cursor: 'pointer', flexShrink: 0 }} />
-                  Niet meerekenen in aandeelverdeling
-                  <span title="Gebruik dit voor vergoedingen, toeslagen of andere inkomsten die de 'naar rato'-verdeling niet mogen beïnvloeden." style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 15, height: 15, borderRadius: '50%', border: '1px solid var(--muted)', fontSize: 10, color: 'var(--muted)', cursor: 'help', flexShrink: 0, userSelect: 'none' }}>i</span>
+                  Telt niet mee voor de verdeling
+                  <span title="Dit inkomen telt niet mee bij het berekenen hoe de gezamenlijke kosten verdeeld worden." style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 15, height: 15, borderRadius: '50%', border: '1px solid var(--muted)', fontSize: 10, color: 'var(--muted)', cursor: 'help', flexShrink: 0, userSelect: 'none' }}>i</span>
                 </label>
+              </div>
+            ) : isMobile ? (
+              <div style={{ padding: '10px 0', borderBottom: '0.5px solid var(--border)', cursor: canEdit ? 'pointer' : 'default' }} onClick={() => { if (canEdit) startEdit(item) }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--text)', flex: 1, paddingRight: 8 }}>
+                    {item.label}{item.excludeFromRatio && <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--muted)', background: 'var(--s2)', border: '1px solid var(--border)', borderRadius: 4, padding: '1px 5px', marginLeft: 6 }}>excl.</span>}
+                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                    <span style={{ fontSize: 14, color: 'var(--text)', fontFamily: 'var(--font-mono)' }}>{fmt(item.value, 0)}</span>
+                    {canEdit && <button onClick={e => { e.stopPropagation(); onDelete(item.id) }} style={{ color: 'var(--danger)', background: 'transparent', border: 'none', fontSize: 16, cursor: 'pointer', padding: '4px 8px', minWidth: 32, minHeight: 32 }}>×</button>}
+                  </div>
+                </div>
               </div>
             ) : (
               <div
@@ -232,7 +253,7 @@ function PersonPanel({ name, items, onAdd, onDelete, onEdit, onReorder, canEdit 
 
       <div style={{ marginTop: 'auto', paddingTop: 14 }}>
         <div style={{ background: colors.bgCard, border: `1px solid ${colors.bdCard}`, borderRadius: 8, padding: '15px 17px', marginTop: 14 }}>
-          <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--muted)' }}>Totaal netto per maand</div>
+          <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--muted)' }}>Totaal per maand</div>
           <div style={{ fontSize: 22, fontWeight: 700, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)', marginTop: 4, color: c }}>{fmt(total, 0)}</div>
         </div>
       </div>
@@ -248,6 +269,8 @@ export default function Inkomsten() {
   const [isDarkMain, setIsDarkMain] = useState(false)
   const colors = PAGE_COLORS.inkomsten
   const c = isDarkMain ? colors.dark : colors.light
+  const { isSmall, isMobile } = useBreakpoint()
+  const panel: React.CSSProperties = { background: 'var(--s3)', border: '1px solid var(--card-border)', borderRadius: 8, padding: isMobile ? '14px 16px' : '22px 26px', marginBottom: 22, display: 'flex', flexDirection: 'column' }
   useEffect(() => {
     const check = () => setIsDarkMain(document.documentElement.getAttribute('data-theme') === 'dark')
     check()
@@ -314,22 +337,25 @@ export default function Inkomsten() {
 
   return (
     <div style={{ position: 'relative', overflow: 'hidden' }}>
-      <div style={{ fontSize: 18, fontWeight: 700, color: c, fontFamily: 'var(--font-heading)', marginBottom: 20 }}>Inkomsten</div>
-      <div style={{ display: 'grid', gridTemplateColumns: isSingleUser ? '1fr' : '1fr 1fr', gap: 16, alignItems: 'stretch' }}>
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ fontSize: 18, fontWeight: 700, color: c, fontFamily: 'var(--font-heading)', marginBottom: 4 }}>Inkomsten</div>
+        <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.5 }}>{isSingleUser ? 'Vul hier je netto maandinkomen in. Vakantiegeld en bonussen alleen toevoegen als je die maandelijks ontvangt.' : 'Vul hier het netto maandinkomen in van elke persoon. Vakantiegeld en bonussen alleen toevoegen als je die maandelijks ontvangt. De verdeling van gezamenlijke kosten wordt automatisch berekend op basis van deze inkomens.'}</div>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: isSingleUser ? '1fr' : isSmall ? '1fr' : '1fr 1fr', gap: 16, alignItems: 'stretch' }}>
         <PersonPanel name={n1} items={u1Filtered} onAdd={(l, v, excl) => addIncome('user1', l, v, excl)} onDelete={id => deleteIncome('user1', id)} onEdit={(id, l, v, excl) => editIncome('user1', id, l, v, excl)} onReorder={items => reorderIncome('user1', items)} canEdit={canEdit('user1')} />
         {!isSingleUser && <PersonPanel name={n2} items={u2Filtered} onAdd={(l, v, excl) => addIncome('user2', l, v, excl)} onDelete={id => deleteIncome('user2', id)} onEdit={(id, l, v, excl) => editIncome('user2', id, l, v, excl)} onReorder={items => reorderIncome('user2', items)} canEdit={canEdit('user2')} />}
       </div>
       {!isSingleUser && <div style={panel}>
         <div style={panelHd}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-            <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>Gecombineerd inkomen</span>
+            <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>Gezamenlijk inkomen</span>
           </div>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, alignItems: 'stretch' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isSmall ? '1fr' : '1fr 1fr 1fr', gap: 16, alignItems: 'stretch' }}>
           {[
             { label: 'Totaal gezamenlijk', val: fmt(total, 0), sub: 'per maand', color: c },
-            { label: `Aandeel ${n1}`, val: r1, color: c },
-            { label: `Aandeel ${n2}`, val: r2, color: c },
+            { label: n1, val: r1, color: c },
+            { label: n2, val: r2, color: c },
           ].map((s, i) => (
             <div key={i} style={{ background: colors.bgCard, border: `1px solid ${colors.bdCard}`, borderRadius: 8, padding: '15px 17px' }}>
               <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--muted)' }}>{s.label}</div>

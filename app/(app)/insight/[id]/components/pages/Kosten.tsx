@@ -6,6 +6,7 @@ import { fmt, sum } from '@/lib/format'
 import { PAGE_COLORS } from '@/lib/pageColors'
 import { useToast } from '@/lib/toast-context'
 import { buildAutoKosten, AutoKostItem, AutoKostSplits } from '@/lib/schuld-calc'
+import { useBreakpoint } from '@/lib/hooks'
 
 type CostItem = { id: string; label: string; value: number; split: string; p1?: number; p2?: number }
 type Item = { id: string; label: string; value: number }
@@ -56,7 +57,7 @@ type Colors = typeof PAGE_COLORS.kosten
 
 const SUB_SPLITS: Record<string, string> = { ratio: 'Naar rato', '5050': '50/50', percent: 'Percentage', user1: '→ persoon 1', user2: '→ persoon 2' }
 
-function SubList({ items, editable, c, onDelete, onEdit, onEditAmount, onEditFreq, onReorder, showSplit, n1, n2, r1, onEditSplit }: {
+function SubList({ items, editable, c, onDelete, onEdit, onEditAmount, onEditFreq, onReorder, showSplit, n1, n2, r1, onEditSplit, isMobile }: {
   items: Sub[]
   editable: boolean
   c: string
@@ -70,6 +71,7 @@ function SubList({ items, editable, c, onDelete, onEdit, onEditAmount, onEditFre
   n2?: string
   r1?: number
   onEditSplit?: (id: string, split: string, p1?: number, p2?: number) => void
+  isMobile?: boolean
 }) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
@@ -150,38 +152,51 @@ function SubList({ items, editable, c, onDelete, onEdit, onEditAmount, onEditFre
               <button onClick={() => saveEdit(sub)} style={{ fontFamily: 'var(--font-body)', fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 5, cursor: 'pointer', border: 'none', background: c, color: '#FFFFFF' }}>Opslaan</button>
               <button onClick={() => setEditingId(null)} style={{ fontFamily: 'var(--font-body)', fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 5, cursor: 'pointer', background: 'transparent', color: 'var(--cancel-fg)', border: '1px solid var(--cancel-border)' }}>Annuleren</button>
             </div>
-          ) : (
-            <div
-              draggable={editable}
-              onDragStart={() => setDragging(idx)}
-              onDragEnd={() => { setDragging(null); setDragOver(null) }}
-              onDragOver={e => { e.preventDefault(); setDragOver(idx) }}
-              onDragLeave={() => setDragOver(d => d === idx ? null : d)}
-              onDrop={() => handleDrop(idx)}
-              style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 0', borderBottom: '1px solid rgba(255,255,255,.04)', borderTop: dragOver === idx && dragging !== idx ? `2px solid ${c}` : '2px solid transparent', opacity: dragging === idx ? 0.4 : 1, transition: 'opacity .15s' }}
-            >
-              {editable && <span style={{ color: 'var(--muted)', cursor: 'grab', display: 'flex', alignItems: 'center', flexShrink: 0 }}><GripIcon /></span>}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <span style={{ fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block' }}>{sub.name}</span>
-                <span style={{ fontSize: 10, color: 'var(--muted)', marginTop: 1, display: 'block' }}>
+          ) : isMobile ? (
+              <div style={{ padding: '10px 0', borderBottom: '0.5px solid var(--border)', cursor: editable ? 'pointer' : 'default' }} onClick={() => { if (editable) startEdit(sub) }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--text)', flex: 1, paddingRight: 8 }}>{sub.name}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                    <span style={{ fontSize: 14, color: 'var(--text)', fontFamily: 'var(--font-mono)' }}>{fmt(sub.amount, 0)}</span>
+                    {editable && <button onClick={e => { e.stopPropagation(); onDelete(sub.id) }} style={{ color: 'var(--danger)', background: 'transparent', border: 'none', fontSize: 16, cursor: 'pointer', padding: '4px 8px', minWidth: 32, minHeight: 32 }}>×</button>}
+                  </div>
+                </div>
+                <span style={{ fontSize: 10, color: 'var(--muted)', marginTop: 2, display: 'block' }}>
                   {FREQL[sub.freq] || 'p/mnd'}{sub.freq !== 'maandelijks' && sub.date ? ` · ${new Date(sub.date).toLocaleDateString('nl-NL', { day: '2-digit', month: 'short' })}` : ''}
                 </span>
               </div>
-              <div style={{ position: 'relative', display: 'inline-block' }}>
-                <span style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', fontSize: 13, pointerEvents: 'none', userSelect: 'none' }}>€</span>
-                <input type="number" key={sub.id + '-' + sub.amount} defaultValue={sub.amount} disabled
-                  style={{ width: 100, background: 'transparent', border: 'none', borderRadius: 5, color: 'var(--text)', padding: '6px 9px 6px 22px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }} />
+          ) : (
+              <div
+                draggable={editable}
+                onDragStart={() => setDragging(idx)}
+                onDragEnd={() => { setDragging(null); setDragOver(null) }}
+                onDragOver={e => { e.preventDefault(); setDragOver(idx) }}
+                onDragLeave={() => setDragOver(d => d === idx ? null : d)}
+                onDrop={() => handleDrop(idx)}
+                style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 0', borderBottom: '1px solid rgba(255,255,255,.04)', borderTop: dragOver === idx && dragging !== idx ? `2px solid ${c}` : '2px solid transparent', opacity: dragging === idx ? 0.4 : 1, transition: 'opacity .15s' }}
+              >
+                {editable && <span style={{ color: 'var(--muted)', cursor: 'grab', display: 'flex', alignItems: 'center', flexShrink: 0 }}><GripIcon /></span>}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <span style={{ fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block' }}>{sub.name}</span>
+                  <span style={{ fontSize: 10, color: 'var(--muted)', marginTop: 1, display: 'block' }}>
+                    {FREQL[sub.freq] || 'p/mnd'}{sub.freq !== 'maandelijks' && sub.date ? ` · ${new Date(sub.date).toLocaleDateString('nl-NL', { day: '2-digit', month: 'short' })}` : ''}
+                  </span>
+                </div>
+                <div style={{ position: 'relative', display: 'inline-block' }}>
+                  <span style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', fontSize: 13, pointerEvents: 'none', userSelect: 'none' }}>€</span>
+                  <input type="number" key={sub.id + '-' + sub.amount} defaultValue={sub.amount} disabled
+                    style={{ width: 100, background: 'transparent', border: 'none', borderRadius: 5, color: 'var(--text)', padding: '6px 9px 6px 22px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }} />
+                </div>
+                {showSplit && (
+                  <span style={{ fontSize: 11, color: 'var(--muted)', whiteSpace: 'nowrap', flexShrink: 0, width: 90, textAlign: 'right', display: 'inline-block', overflow: 'hidden', textOverflow: 'ellipsis' }}>{SUB_SPLITS[sub.split || '5050']}</span>
+                )}
+                {editable && (
+                  <>
+                    <button onClick={() => startEdit(sub)} style={{ width: 26, height: 26, background: 'transparent', color: 'var(--muted)', border: '1px solid var(--border)', borderRadius: 4, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0, flexShrink: 0 }}><PencilIcon /></button>
+                    <button className="btn-delete" onClick={() => onDelete(sub.id)} style={{ width: 26, height: 26, background: 'rgba(200,60,60,.1)', color: 'var(--danger)', border: '1px solid rgba(200,60,60,.2)', borderRadius: 4, cursor: 'pointer', fontSize: 14, fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>×</button>
+                  </>
+                )}
               </div>
-              {showSplit && (
-                <span style={{ fontSize: 11, color: 'var(--muted)', whiteSpace: 'nowrap', flexShrink: 0, width: 90, textAlign: 'right', display: 'inline-block', overflow: 'hidden', textOverflow: 'ellipsis' }}>{SUB_SPLITS[sub.split || '5050']}</span>
-              )}
-              {editable && (
-                <>
-                  <button onClick={() => startEdit(sub)} style={{ width: 26, height: 26, background: 'transparent', color: 'var(--muted)', border: '1px solid var(--border)', borderRadius: 4, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0, flexShrink: 0 }}><PencilIcon /></button>
-                  <button className="btn-delete" onClick={() => onDelete(sub.id)} style={{ width: 26, height: 26, background: 'rgba(200,60,60,.1)', color: 'var(--danger)', border: '1px solid rgba(200,60,60,.2)', borderRadius: 4, cursor: 'pointer', fontSize: 14, fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>×</button>
-                </>
-              )}
-            </div>
           )}
         </div>
       ))}
@@ -189,7 +204,7 @@ function SubList({ items, editable, c, onDelete, onEdit, onEditAmount, onEditFre
   )
 }
 
-function PersonPanel({ name, items, onAdd, onDelete, onEdit, onReorder, canEdit, colors, c, isDark }: {
+function PersonPanel({ name, items, onAdd, onDelete, onEdit, onReorder, canEdit, colors, c, isDark, isMobile }: {
   name: string; items: Item[]
   onAdd: (label: string, value: number) => void
   onDelete: (id: string) => void
@@ -199,6 +214,7 @@ function PersonPanel({ name, items, onAdd, onDelete, onEdit, onReorder, canEdit,
   colors: Colors
   c: string
   isDark: boolean
+  isMobile?: boolean
 }) {
   const [open, setOpen] = useState(false)
   const [label, setLabel] = useState('')
@@ -237,15 +253,22 @@ function PersonPanel({ name, items, onAdd, onDelete, onEdit, onReorder, canEdit,
   }
 
   return (
-    <div style={{ background: 'var(--s3)', border: '1px solid var(--card-border)', borderRadius: 8, padding: '22px 26px', marginBottom: 22, display: 'flex', flexDirection: 'column' }}>
-      <div style={{ marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <span style={{ fontSize: 18, fontWeight: 700, color: c, fontFamily: 'var(--font-heading)' }}>{name}</span>
+    <div style={{ background: 'var(--s3)', border: '1px solid var(--card-border)', borderRadius: 8, padding: isMobile ? '14px 16px' : '22px 26px', marginBottom: 22, display: 'flex', flexDirection: 'column' }}>
+      {isMobile ? (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, width: '100%' }}>
+          <span style={{ fontSize: 16, fontWeight: 700, color: c }}>{name}</span>
+          {canEdit && <button onClick={() => setOpen(!open)} style={{ fontSize: 12, fontWeight: 700, padding: '6px 12px', borderRadius: 6, background: c, color: '#fff', border: 'none', cursor: 'pointer', flexShrink: 0 }}>{open ? '− Post' : '+ Post'}</button>}
         </div>
-        {canEdit && (
-          <button className="btn-add" onClick={() => setOpen(!open)} style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 500, letterSpacing: '.04em', textTransform: 'uppercase', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', ...(isDark ? { background: colors.bg, color: colors.dark, border: `1px solid ${colors.dark}4D` } : { background: colors.light, color: '#FFFFFF', border: 'none' }) }}>{open ? '− Post' : '+ Post'}</button>
-        )}
-      </div>
+      ) : (
+        <div style={{ marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <span style={{ fontSize: 18, fontWeight: 700, color: c, fontFamily: 'var(--font-heading)' }}>{name}</span>
+          </div>
+          {canEdit && (
+            <button className="btn-add" onClick={() => setOpen(!open)} style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 500, letterSpacing: '.04em', textTransform: 'uppercase', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', ...(isDark ? { background: colors.bg, color: colors.dark, border: `1px solid ${colors.dark}4D` } : { background: colors.light, color: '#FFFFFF', border: 'none' }) }}>{open ? '− Post' : '+ Post'}</button>
+          )}
+        </div>
+      )}
       {open && (
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', background: 'var(--s2)', border: '1px solid var(--border)', borderRadius: 8, padding: '14px 16px', marginBottom: 14 }}>
           <input autoFocus style={{ flex: 1, minWidth: 80, background: 'var(--s3)', border: '1px solid var(--input-border)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'left' }}
@@ -296,6 +319,16 @@ function PersonPanel({ name, items, onAdd, onDelete, onEdit, onReorder, canEdit,
                 <button onClick={() => saveEdit(item)} style={{ fontFamily: 'var(--font-body)', fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 5, cursor: 'pointer', border: 'none', background: c, color: '#FFFFFF' }}>Opslaan</button>
                 <button onClick={() => setEditingId(null)} style={{ fontFamily: 'var(--font-body)', fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 5, cursor: 'pointer', background: 'transparent', color: 'var(--cancel-fg)', border: '1px solid var(--cancel-border)' }}>Annuleren</button>
               </div>
+            ) : isMobile ? (
+              <div style={{ padding: '10px 0', borderBottom: '0.5px solid var(--border)', cursor: canEdit ? 'pointer' : 'default' }} onClick={() => { if (canEdit) startEdit(item) }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--text)', flex: 1, paddingRight: 8 }}>{item.label}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                    <span style={{ fontSize: 14, color: 'var(--text)', fontFamily: 'var(--font-mono)' }}>{fmt(item.value, 0)}</span>
+                    {canEdit && <button onClick={e => { e.stopPropagation(); onDelete(item.id) }} style={{ color: 'var(--danger)', background: 'transparent', border: 'none', fontSize: 16, cursor: 'pointer', padding: '4px 8px', minWidth: 32, minHeight: 32 }}>×</button>}
+                  </div>
+                </div>
+              </div>
             ) : (
               <div draggable={canEdit}
                 onDragStart={() => setDragging(idx)}
@@ -342,6 +375,7 @@ const TABS = [
 export default function Kosten() {
   const { data, saveData, canEdit, isSingleUser, household } = useInsight()
   const { addToast, removeToast } = useToast()
+  const { isSmall, isMobile } = useBreakpoint()
   const [pendingDeletionIds, setPendingDeletionIds] = useState<Set<string>>(new Set())
   const pendingTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
   const colors = PAGE_COLORS.kosten
@@ -629,14 +663,21 @@ export default function Kosten() {
   }
 
   // ─── Shared styles ──────────────────────────────────────────────────────────
-  const panel: React.CSSProperties = { background: 'var(--s3)', border: '1px solid var(--card-border)', borderRadius: 8, padding: '22px 26px', marginBottom: 22 }
+  const panel: React.CSSProperties = { background: 'var(--s3)', border: '1px solid var(--card-border)', borderRadius: 8, padding: isMobile ? '14px 16px' : '22px 26px', marginBottom: 22 }
   const inputBase: React.CSSProperties = { background: 'var(--s2)', border: '1px solid var(--input-border)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none' }
   const selectBase: React.CSSProperties = { ...inputBase, cursor: 'pointer', padding: '6px 8px' }
   const pctInput: React.CSSProperties = { ...inputBase, width: 52, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }
 
   return (
     <div style={{ position: 'relative', overflow: 'hidden' }}>
-      <div style={{ fontSize: 18, fontWeight: 700, color: c, fontFamily: 'var(--font-heading)', marginBottom: 20 }}>Kosten</div>
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ fontSize: 18, fontWeight: 700, color: c, fontFamily: 'var(--font-heading)', marginBottom: 4 }}>Kosten</div>
+        <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.5 }}>
+          {activeTab === 'gezamenlijk' && (isSingleUser ? 'Je vaste lasten zoals energie, boodschappen en verzekeringen. Hypotheekrente en aflossing worden automatisch overgenomen vanuit Schulden. Abonnementen voer je in bij het tabblad Abonnementen.' : 'Vaste lasten die jullie samen delen zoals energie, boodschappen en verzekeringen. Hypotheekrente en aflossing worden automatisch overgenomen vanuit Schulden — voer die daar in. Abonnementen zoals Netflix voer je in bij het tabblad Abonnementen.')}
+          {activeTab === 'prive' && (isSingleUser ? 'Persoonlijke vaste lasten zoals zorgverzekering of autoverzekering. Leningen en hypotheken voer je in bij Vermogen.' : 'Persoonlijke vaste lasten die voor eigen rekening komen zoals zorgverzekering of autoverzekering. Studieleningen en hypotheken voer je in bij Vermogen.')}
+          {activeTab === 'abonnementen' && 'Terugkerende kosten zoals streamingdiensten, sportschool of ANWB. Je krijgt automatisch een melding als een abonnement bijna verloopt.'}
+        </div>
+      </div>
 
       <div style={{ display: 'flex', gap: 4, marginBottom: 24 }}>
         {TABS.filter(tab => !isSingleUser || tab.id !== 'gezamenlijk').map(tab => {
@@ -654,14 +695,21 @@ export default function Kosten() {
 
       {activeTab === 'gezamenlijk' && (
         <div style={panel}>
-          <div style={{ marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-            <span style={{ fontSize: 18, fontWeight: 700, color: c, fontFamily: 'var(--font-heading)' }}>Gezamenlijk</span>
-            {editable && (
-              <button className="btn-add" onClick={() => setGOpen(!gOpen)} style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 500, letterSpacing: '.04em', textTransform: 'uppercase', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', ...(isDark ? { background: colors.bg, color: colors.dark, border: `1px solid ${colors.dark}4D` } : { background: colors.light, color: '#FFFFFF', border: 'none' }) }}>
-                {gOpen ? '− Post' : '+ Post'}
-              </button>
-            )}
-          </div>
+          {isMobile ? (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, width: '100%' }}>
+              <span style={{ fontSize: 16, fontWeight: 700, color: c }}>Gezamenlijk</span>
+              {editable && <button onClick={() => setGOpen(!gOpen)} style={{ fontSize: 12, fontWeight: 700, padding: '6px 12px', borderRadius: 6, background: c, color: '#fff', border: 'none', cursor: 'pointer', flexShrink: 0 }}>{gOpen ? '− Post' : '+ Post'}</button>}
+            </div>
+          ) : (
+            <div style={{ marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+              <span style={{ fontSize: 18, fontWeight: 700, color: c, fontFamily: 'var(--font-heading)' }}>Gezamenlijk</span>
+              {editable && (
+                <button className="btn-add" onClick={() => setGOpen(!gOpen)} style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 500, letterSpacing: '.04em', textTransform: 'uppercase', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', ...(isDark ? { background: colors.bg, color: colors.dark, border: `1px solid ${colors.dark}4D` } : { background: colors.light, color: '#FFFFFF', border: 'none' }) }}>
+                  {gOpen ? '− Post' : '+ Post'}
+                </button>
+              )}
+            </div>
+          )}
           {gOpen && (
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', background: 'var(--s2)', border: '1px solid var(--border)', borderRadius: 8, padding: '14px 16px', marginBottom: 14 }}>
               <input autoFocus style={{ flex: 2, minWidth: 120, ...inputBase, background: 'var(--s3)', textAlign: 'left' }}
@@ -746,7 +794,17 @@ export default function Kosten() {
                   </div>
                 )
               }
-              return (
+              return isMobile ? (
+                <div key={item.id} style={{ padding: '10px 0', borderBottom: '0.5px solid var(--border)', cursor: editable ? 'pointer' : 'default' }} onClick={() => { if (editable) startAutoEdit(item.id) }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--text)', flex: 1, paddingRight: 8 }}>
+                      {item.label} <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: c, background: `${c}20`, border: `1px solid ${c}40`, borderRadius: 3, padding: '1px 5px' }}>AUTO</span>
+                    </span>
+                    <span style={{ fontSize: 14, color: 'var(--text)', fontFamily: 'var(--font-mono)', flexShrink: 0 }}>{fmt(item.value, 0)}</span>
+                  </div>
+                  <span style={{ fontSize: 10, color: 'var(--muted)', marginTop: 2, display: 'block' }}>Auto · maandelijks</span>
+                </div>
+              ) : (
                 <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 0', borderBottom: '1px solid rgba(255,255,255,.04)' }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -826,7 +884,17 @@ export default function Kosten() {
                   </div>
                 )
               }
-              return (
+              return isMobile ? (
+                <div key={item.id} style={{ padding: '10px 0', borderBottom: '0.5px solid var(--border)', cursor: editable ? 'pointer' : 'default' }} onClick={() => { if (editable) startGEdit(item) }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--text)', flex: 1, paddingRight: 8 }}>{item.label}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                      <span style={{ fontSize: 14, color: 'var(--text)', fontFamily: 'var(--font-mono)' }}>{fmt(item.value, 0)}</span>
+                      {editable && <button onClick={e => { e.stopPropagation(); deleteItem(item.id) }} style={{ color: 'var(--danger)', background: 'transparent', border: 'none', fontSize: 16, cursor: 'pointer', padding: '4px 8px', minWidth: 32, minHeight: 32 }}>×</button>}
+                    </div>
+                  </div>
+                </div>
+              ) : (
                 <div key={item.id} draggable={editable}
                   onDragStart={() => setGDragging(idx)}
                   onDragEnd={() => { setGDragging(null); setGDragOver(null) }}
@@ -853,7 +921,7 @@ export default function Kosten() {
               )
             })}
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: isSingleUser ? '1fr' : '1fr 1fr', gap: 12, marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--border)', alignItems: 'stretch' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isSingleUser ? '1fr' : isSmall ? '1fr' : '1fr 1fr', gap: 12, marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--border)', alignItems: 'stretch' }}>
             {isSingleUser ? (
               <div style={{ background: colors.bgCard, border: `1px solid ${colors.bdCard}`, borderRadius: 8, padding: '15px 17px' }}>
                 <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--muted)' }}>Totaal gezamenlijke lasten</div>
@@ -873,9 +941,9 @@ export default function Kosten() {
       )}
 
       {activeTab === 'prive' && (
-        <div style={{ display: 'grid', gridTemplateColumns: isSingleUser ? '1fr' : '1fr 1fr', gap: 16, alignItems: 'stretch' }}>
-          <PersonPanel name={n1} items={(data.user1?.private || []).filter((i: Item) => !pendingDeletionIds.has(i.id))} onAdd={(l, v) => addPriveItem('user1', l, v)} onDelete={id => deletePriveItem('user1', id)} onEdit={(id, l, v) => editPriveItem('user1', id, l, v)} onReorder={newItems => reorderPriveItem('user1', newItems)} canEdit={canEdit('user1')} colors={colors} c={c} isDark={isDark} />
-          {!isSingleUser && <PersonPanel name={n2} items={(data.user2?.private || []).filter((i: Item) => !pendingDeletionIds.has(i.id))} onAdd={(l, v) => addPriveItem('user2', l, v)} onDelete={id => deletePriveItem('user2', id)} onEdit={(id, l, v) => editPriveItem('user2', id, l, v)} onReorder={newItems => reorderPriveItem('user2', newItems)} canEdit={canEdit('user2')} colors={colors} c={c} isDark={isDark} />}
+        <div style={{ display: 'grid', gridTemplateColumns: isSingleUser ? '1fr' : isSmall ? '1fr' : '1fr 1fr', gap: 16, alignItems: 'stretch' }}>
+          <PersonPanel name={n1} items={(data.user1?.private || []).filter((i: Item) => !pendingDeletionIds.has(i.id))} onAdd={(l, v) => addPriveItem('user1', l, v)} onDelete={id => deletePriveItem('user1', id)} onEdit={(id, l, v) => editPriveItem('user1', id, l, v)} onReorder={newItems => reorderPriveItem('user1', newItems)} canEdit={canEdit('user1')} colors={colors} c={c} isDark={isDark} isMobile={isMobile} />
+          {!isSingleUser && <PersonPanel name={n2} items={(data.user2?.private || []).filter((i: Item) => !pendingDeletionIds.has(i.id))} onAdd={(l, v) => addPriveItem('user2', l, v)} onDelete={id => deletePriveItem('user2', id)} onEdit={(id, l, v) => editPriveItem('user2', id, l, v)} onReorder={newItems => reorderPriveItem('user2', newItems)} canEdit={canEdit('user2')} colors={colors} c={c} isDark={isDark} isMobile={isMobile} />}
         </div>
       )}
 
@@ -885,17 +953,24 @@ export default function Kosten() {
           : [{ key: 'gezamenlijk', title: 'Gezamenlijk' }, { key: 'user1', title: n1 }, { key: 'user2', title: n2 }]
         return (
           <>
-            <div style={{ display: 'grid', gridTemplateColumns: isSingleUser ? '1fr' : '1fr 1fr 1fr', gap: 16, alignItems: 'stretch' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isSingleUser ? '1fr' : isSmall ? '1fr' : '1fr 1fr 1fr', gap: 16, alignItems: 'stretch' }}>
               {aGroups.map(g => {
                 const groupItems = subsFiltered.filter(s => s.person === g.key)
                 return (
                   <div key={g.key} style={{ ...panel, display: 'flex', flexDirection: 'column' }}>
-                    <div style={{ marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-                      <span style={{ fontSize: 18, fontWeight: 700, color: c, fontFamily: 'var(--font-heading)' }}>{g.title}</span>
-                      {editable && (
-                        <button className="btn-add" onClick={() => { if (aOpenForm && aForm.person === g.key) { setAOpenForm(false) } else { setAForm({ ...aForm, person: g.key }); setAOpenForm(true) } }} style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 500, letterSpacing: '.04em', textTransform: 'uppercase', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', ...(isDark ? { background: colors.bg, color: colors.dark, border: `1px solid ${colors.dark}4D` } : { background: colors.light, color: '#FFFFFF', border: 'none' }) }}>{aOpenForm && aForm.person === g.key ? '− Post' : '+ Post'}</button>
-                      )}
-                    </div>
+                    {isMobile ? (
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, width: '100%' }}>
+                        <span style={{ fontSize: 16, fontWeight: 700, color: c }}>{g.title}</span>
+                        {editable && <button onClick={() => { if (aOpenForm && aForm.person === g.key) { setAOpenForm(false) } else { setAForm({ ...aForm, person: g.key }); setAOpenForm(true) } }} style={{ fontSize: 12, fontWeight: 700, padding: '6px 12px', borderRadius: 6, background: c, color: '#fff', border: 'none', cursor: 'pointer', flexShrink: 0 }}>{aOpenForm && aForm.person === g.key ? '− Post' : '+ Post'}</button>}
+                      </div>
+                    ) : (
+                      <div style={{ marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                        <span style={{ fontSize: 18, fontWeight: 700, color: c, fontFamily: 'var(--font-heading)' }}>{g.title}</span>
+                        {editable && (
+                          <button className="btn-add" onClick={() => { if (aOpenForm && aForm.person === g.key) { setAOpenForm(false) } else { setAForm({ ...aForm, person: g.key }); setAOpenForm(true) } }} style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 500, letterSpacing: '.04em', textTransform: 'uppercase', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', ...(isDark ? { background: colors.bg, color: colors.dark, border: `1px solid ${colors.dark}4D` } : { background: colors.light, color: '#FFFFFF', border: 'none' }) }}>{aOpenForm && aForm.person === g.key ? '− Post' : '+ Post'}</button>
+                        )}
+                      </div>
+                    )}
                     {aOpenForm && aForm.person === g.key && (
                       <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', background: 'var(--s2)', border: '1px solid var(--border)', borderRadius: 8, padding: '14px 16px', marginBottom: 14 }}>
                         <input autoFocus style={{ flex: 2, minWidth: 100, background: 'var(--s3)', border: '1px solid var(--input-border)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none' }}
@@ -933,7 +1008,7 @@ export default function Kosten() {
                         {editable && <button className="btn-submit" onClick={() => { setAForm({ ...aForm, person: g.key }); setAOpenForm(true) }} style={{ fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 5, cursor: 'pointer', border: 'none', background: c, color: '#FFFFFF', fontFamily: 'var(--font-body)' }}>+ Abonnement toevoegen</button>}
                       </div>
                     )}
-                    <SubList items={groupItems} editable={editable} c={c} onDelete={deleteSub} onEdit={editSub} onEditAmount={editSubAmount} onEditFreq={editSubFreq} onReorder={newItems => reorderSubs(g.key, newItems)} showSplit={g.key === 'gezamenlijk' && !isSingleUser} n1={n1} n2={n2} r1={r1} onEditSplit={editSubSplit} />
+                    <SubList items={groupItems} editable={editable} c={c} onDelete={deleteSub} onEdit={editSub} onEditAmount={editSubAmount} onEditFreq={editSubFreq} onReorder={newItems => reorderSubs(g.key, newItems)} showSplit={g.key === 'gezamenlijk' && !isSingleUser} n1={n1} n2={n2} r1={r1} onEditSplit={editSubSplit} isMobile={isMobile} />
                     <div style={{ marginTop: 'auto', paddingTop: 14 }}>
                       {g.key === 'gezamenlijk' && !isSingleUser ? (() => {
                         const gU1 = groupItems.reduce((a, s) => a + subSplitMonthly(s).u1, 0)

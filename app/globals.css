@@ -47,11 +47,11 @@
   --card-border: rgba(255,255,255,0.06);
   --muted: #6B7280;
   --muted2: #9CA3AF;
-  --accent: #E8C49A;
-  --accent2: #EBCCA9;
-  --accent-rgb: 232, 196, 154;
-  --accent-fg: #0a0a0a;
-  --accent-dim: #6b4c28;
+  --accent: #818CF8;
+  --accent2: #A5B4FC;
+  --accent-rgb: 129, 140, 248;
+  --accent-fg: #FFFFFF;
+  --accent-dim: #6366F1;
   --input-border: #2E2E2E;
   --cancel-border: #2E2E2E;
   --cancel-fg: #9CA3AF;
@@ -248,4 +248,9 @@ svg {
 @keyframes diamondPulse {
   0%, 100% { transform: scale(0.95); }
   50% { transform: scale(1.05); }
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(20px); }
+  to   { opacity: 1; transform: translateX(0); }
 }

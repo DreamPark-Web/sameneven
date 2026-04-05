@@ -5,6 +5,7 @@ import { useInsight } from '@/lib/insight-context'
 import { fmt, fmtK, sum } from '@/lib/format'
 import { PAGE_COLORS } from '@/lib/pageColors'
 import { useToast } from '@/lib/toast-context'
+import { useBreakpoint } from '@/lib/hooks'
 
 type SavItem = { id: string; label: string; value: number; split?: string; p1?: number; p2?: number }
 type Pot = { id: string; label: string; current: number; goal: number; owner: string; createdAt?: string; updatedAt?: string }
@@ -154,7 +155,7 @@ type Colors = typeof PAGE_COLORS.vermogen
 
 const SAV_SPLITS: Record<string, string> = { ratio: 'Naar rato', '5050': '50/50', percent: 'Percentage', user1: '→ persoon 1', user2: '→ persoon 2' }
 
-function SavList({ items, can, c, onSaveEdit, onDelete, onReorder, showSplit, n1, n2, r1 }: {
+function SavList({ items, can, c, onSaveEdit, onDelete, onReorder, showSplit, n1, n2, r1, isMobile }: {
   items: SavItem[]
   can: boolean
   c: string
@@ -165,6 +166,7 @@ function SavList({ items, can, c, onSaveEdit, onDelete, onReorder, showSplit, n1
   n1?: string
   n2?: string
   r1?: number
+  isMobile?: boolean
 }) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editLabel, setEditLabel] = useState('')
@@ -243,6 +245,16 @@ function SavList({ items, can, c, onSaveEdit, onDelete, onReorder, showSplit, n1
               <button onClick={() => saveEdit(item)} style={{ fontFamily: 'var(--font-body)', fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 5, cursor: 'pointer', border: 'none', background: c, color: '#FFFFFF' }}>Opslaan</button>
               <button onClick={() => setEditingId(null)} style={{ fontFamily: 'var(--font-body)', fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 5, cursor: 'pointer', background: 'transparent', color: 'var(--cancel-fg)', border: '1px solid var(--cancel-border)' }}>Annuleren</button>
             </div>
+          ) : isMobile ? (
+            <div style={{ padding: '10px 0', borderBottom: '0.5px solid var(--border)', cursor: can ? 'pointer' : 'default' }} onClick={() => { if (can) startEdit(item) }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--text)', flex: 1, paddingRight: 8 }}>{item.label}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                  <span style={{ fontSize: 14, color: 'var(--text)', fontFamily: 'var(--font-mono)' }}>{fmt(item.value, 0)}</span>
+                  {can && <button onClick={e => { e.stopPropagation(); onDelete(item.id) }} style={{ color: 'var(--danger)', background: 'transparent', border: 'none', fontSize: 16, cursor: 'pointer', padding: '4px 8px', minWidth: 32, minHeight: 32 }}>×</button>}
+                </div>
+              </div>
+            </div>
           ) : (
             <div draggable={can}
               onDragStart={() => setDragging(idx)}
@@ -289,6 +301,8 @@ export default function Vermogen() {
   const colors = PAGE_COLORS.vermogen
   const [isDark, setIsDark] = useState(false)
   const c = isDark ? colors.dark : colors.light
+  const { isSmall, isMedium, isMobile } = useBreakpoint()
+  const cols3 = isSingleUser ? '1fr' : isSmall ? '1fr' : isMedium ? '1fr 1fr' : '1fr 1fr 1fr'
 
   const [activeTab, setActiveTab] = useState(() => {
     if (typeof window === 'undefined') return 'sparen'
@@ -515,7 +529,7 @@ export default function Vermogen() {
   }, 0)
 
   // ─── Shared styles ──────────────────────────────────────────────────────────
-  const panel: React.CSSProperties = { background: 'var(--s3)', border: '1px solid var(--card-border)', borderRadius: 8, padding: '22px 26px', marginBottom: 22 }
+  const panel: React.CSSProperties = { background: 'var(--s3)', border: '1px solid var(--card-border)', borderRadius: 8, padding: isMobile ? '14px 16px' : '22px 26px', marginBottom: 22 }
   const totalBox: React.CSSProperties = { background: colors.bgCard, border: `1px solid ${colors.bdCard}`, borderRadius: 8, padding: '10px 12px' }
   const inp: React.CSSProperties = { background: 'var(--s3)', border: '1px solid var(--input-border)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', textAlign: 'right', width: '100%', fontVariantNumeric: 'tabular-nums' }
   const eyebrow: React.CSSProperties = { fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 5 }
@@ -523,7 +537,13 @@ export default function Vermogen() {
 
   return (
     <div style={{ position: 'relative', overflow: 'hidden' }}>
-      <div style={{ fontSize: 18, fontWeight: 700, color: c, fontFamily: 'var(--font-heading)', marginBottom: 20 }}>Vermogen</div>
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ fontSize: 18, fontWeight: 700, color: c, fontFamily: 'var(--font-heading)', marginBottom: 4 }}>Vermogen</div>
+        <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.5 }}>
+          {activeTab === 'sparen' && (isSingleUser ? 'Je maandelijkse spaarbedragen en spaardoelen. Leningen en hypotheken voer je in bij het tabblad Schulden.' : 'Maandelijkse spaarbedragen en spaardoelen. Leningen en hypotheken voer je in bij het tabblad Schulden — die tellen niet als sparen.')}
+          {activeTab === 'schulden' && (isSingleUser ? 'Leningen, studieschulden en hypotheken. Bij annuïtaire en lineaire leningen berekent de app automatisch de actuele resterende schuld en de maandelijkse rente en aflossing.' : 'Leningen, studieschulden en hypotheken. Bij annuïtaire en lineaire leningen berekent de app automatisch de actuele resterende schuld en de maandelijkse rente en aflossing. Die verschijnen automatisch in Gezamenlijke Kosten.')}
+        </div>
+      </div>
 
       <div style={{ display: 'flex', gap: 4, marginBottom: 24 }}>
         {TABS.map(tab => {
@@ -541,7 +561,7 @@ export default function Vermogen() {
 
       {activeTab === 'sparen' && (
         <>
-          <div style={{ display: 'grid', gridTemplateColumns: isSingleUser ? '1fr' : '1fr 1fr 1fr', gap: 16, alignItems: 'stretch' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: cols3, gap: 16, alignItems: 'stretch' }}>
             {!isSingleUser && (() => {
               const isOpen = openSav === 'gezamenlijk'
               const gezCan = canEdit('user1') || canEdit('user2')
@@ -557,10 +577,17 @@ export default function Vermogen() {
               }
               return (
                 <div style={{ ...panel, display: 'flex', flexDirection: 'column' }}>
-                  <div style={{ marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: 18, fontWeight: 700, color: c, fontFamily: 'var(--font-heading)' }}>Gezamenlijk</span>
-                    {gezCan && <button className="btn-add" onClick={() => { if (isOpen) setOpenSav(null); else { setSavForm({ label: '', value: '', split: '5050', p1: '50', p2: '50' }); setOpenSav('gezamenlijk') } }} style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 500, letterSpacing: '.04em', textTransform: 'uppercase', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', ...(isDark ? { background: colors.bg, color: colors.dark, border: `1px solid ${colors.dark}4D` } : { background: colors.light, color: '#FFFFFF', border: 'none' }) }}>{isOpen ? '− Post' : '+ Post'}</button>}
-                  </div>
+                  {isMobile ? (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, width: '100%' }}>
+                      <span style={{ fontSize: 16, fontWeight: 700, color: c }}>Gezamenlijk</span>
+                      {gezCan && <button onClick={() => { if (isOpen) setOpenSav(null); else { setSavForm({ label: '', value: '', split: '5050', p1: '50', p2: '50' }); setOpenSav('gezamenlijk') } }} style={{ fontSize: 12, fontWeight: 700, padding: '6px 12px', borderRadius: 6, background: c, color: '#fff', border: 'none', cursor: 'pointer', flexShrink: 0 }}>{isOpen ? '− Post' : '+ Post'}</button>}
+                    </div>
+                  ) : (
+                    <div style={{ marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: 18, fontWeight: 700, color: c, fontFamily: 'var(--font-heading)' }}>Gezamenlijk</span>
+                      {gezCan && <button className="btn-add" onClick={() => { if (isOpen) setOpenSav(null); else { setSavForm({ label: '', value: '', split: '5050', p1: '50', p2: '50' }); setOpenSav('gezamenlijk') } }} style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 500, letterSpacing: '.04em', textTransform: 'uppercase', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', ...(isDark ? { background: colors.bg, color: colors.dark, border: `1px solid ${colors.dark}4D` } : { background: colors.light, color: '#FFFFFF', border: 'none' }) }}>{isOpen ? '− Post' : '+ Post'}</button>}
+                    </div>
+                  )}
                   {isOpen && (
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', background: 'var(--s2)', border: '1px solid var(--border)', borderRadius: 8, padding: '14px 16px', marginBottom: 14 }}>
                       <input autoFocus style={{ flex: 1, minWidth: 80, background: 'var(--s3)', border: '1px solid var(--input-border)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none' }}
@@ -608,14 +635,14 @@ export default function Vermogen() {
                     </div>
                   ) : (
                     <>
-                      <SavList items={u1sh} can={canEdit('user1')} c={c} onSaveEdit={(id, label, value, split, p1, p2) => editSavFull('user1', 'shared', id, label, value, split, p1, p2)} onDelete={id => deleteSavItem('user1', 'shared', id)} onReorder={newItems => reorderSavItems('user1', 'shared', newItems)} showSplit n1={n1} n2={n2} r1={r1} />
-                      <SavList items={u2sh} can={canEdit('user2')} c={c} onSaveEdit={(id, label, value, split, p1, p2) => editSavFull('user2', 'shared', id, label, value, split, p1, p2)} onDelete={id => deleteSavItem('user2', 'shared', id)} onReorder={newItems => reorderSavItems('user2', 'shared', newItems)} showSplit n1={n1} n2={n2} r1={r1} />
+                      <SavList items={u1sh} can={canEdit('user1')} c={c} onSaveEdit={(id, label, value, split, p1, p2) => editSavFull('user1', 'shared', id, label, value, split, p1, p2)} onDelete={id => deleteSavItem('user1', 'shared', id)} onReorder={newItems => reorderSavItems('user1', 'shared', newItems)} showSplit n1={n1} n2={n2} r1={r1} isMobile={isMobile} />
+                      <SavList items={u2sh} can={canEdit('user2')} c={c} onSaveEdit={(id, label, value, split, p1, p2) => editSavFull('user2', 'shared', id, label, value, split, p1, p2)} onDelete={id => deleteSavItem('user2', 'shared', id)} onReorder={newItems => reorderSavItems('user2', 'shared', newItems)} showSplit n1={n1} n2={n2} r1={r1} isMobile={isMobile} />
                     </>
                   )}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginTop: 'auto', paddingTop: 14 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : '1fr 1fr 1fr', gap: 8, marginTop: 'auto', paddingTop: 14 }}>
                     <div style={totalBox}><div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--muted)' }}>{n1}</div><div style={{ fontSize: 14, fontWeight: 700, marginTop: 3, color: c, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>{fmt(totSh1, 0)}</div></div>
                     <div style={totalBox}><div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--muted)' }}>{n2}</div><div style={{ fontSize: 14, fontWeight: 700, marginTop: 3, color: c, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>{fmt(totSh2, 0)}</div></div>
-                    <div style={totalBox}><div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--muted)' }}>Totaal</div><div style={{ fontSize: 14, fontWeight: 700, marginTop: 3, color: c, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>{fmt(total, 0)}</div></div>
+                    <div style={{ ...totalBox, gridColumn: isMobile ? 'span 2' : undefined }}><div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--muted)' }}>Totaal</div><div style={{ fontSize: 14, fontWeight: 700, marginTop: 3, color: c, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>{fmt(total, 0)}</div></div>
                   </div>
                 </div>
               )
@@ -633,10 +660,17 @@ export default function Vermogen() {
               }
               return (
                 <div key={slot} style={{ ...panel, display: 'flex', flexDirection: 'column' }}>
-                  <div style={{ marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: 18, fontWeight: 700, color: c, fontFamily: 'var(--font-heading)' }}>{name}</span>
-                    {can && <button className="btn-add" onClick={() => { if (isOpen) setOpenSav(null); else { setSavForm({ label: '', value: '', split: '5050', p1: '50', p2: '50' }); setOpenSav(slot) } }} style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 500, letterSpacing: '.04em', textTransform: 'uppercase', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', ...(isDark ? { background: colors.bg, color: colors.dark, border: `1px solid ${colors.dark}4D` } : { background: colors.light, color: '#FFFFFF', border: 'none' }) }}>{isOpen ? '− Post' : '+ Post'}</button>}
-                  </div>
+                  {isMobile ? (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, width: '100%' }}>
+                      <span style={{ fontSize: 16, fontWeight: 700, color: c }}>{name}</span>
+                      {can && <button onClick={() => { if (isOpen) setOpenSav(null); else { setSavForm({ label: '', value: '', split: '5050', p1: '50', p2: '50' }); setOpenSav(slot) } }} style={{ fontSize: 12, fontWeight: 700, padding: '6px 12px', borderRadius: 6, background: c, color: '#fff', border: 'none', cursor: 'pointer', flexShrink: 0 }}>{isOpen ? '− Post' : '+ Post'}</button>}
+                    </div>
+                  ) : (
+                    <div style={{ marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: 18, fontWeight: 700, color: c, fontFamily: 'var(--font-heading)' }}>{name}</span>
+                      {can && <button className="btn-add" onClick={() => { if (isOpen) setOpenSav(null); else { setSavForm({ label: '', value: '', split: '5050', p1: '50', p2: '50' }); setOpenSav(slot) } }} style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 500, letterSpacing: '.04em', textTransform: 'uppercase', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', ...(isDark ? { background: colors.bg, color: colors.dark, border: `1px solid ${colors.dark}4D` } : { background: colors.light, color: '#FFFFFF', border: 'none' }) }}>{isOpen ? '− Post' : '+ Post'}</button>}
+                    </div>
+                  )}
                   {isOpen && (
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', background: 'var(--s2)', border: '1px solid var(--border)', borderRadius: 8, padding: '14px 16px', marginBottom: 14 }}>
                       <input autoFocus style={{ flex: 1, minWidth: 80, background: 'var(--s3)', border: '1px solid var(--input-border)', borderRadius: 5, color: 'var(--text)', padding: '6px 9px', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none' }}
@@ -663,7 +697,7 @@ export default function Vermogen() {
                       {can && <button className="btn-submit" onClick={() => { setSavForm({ label: '', value: '', split: '5050', p1: '50', p2: '50' }); setOpenSav(slot) }} style={{ fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '7px 14px', borderRadius: 5, cursor: 'pointer', border: 'none', background: c, color: '#FFFFFF', fontFamily: 'var(--font-body)' }}>+ Post toevoegen</button>}
                     </div>
                   ) : (
-                    <SavList items={pr} can={can} c={c} onSaveEdit={(id, label, value) => editSavFull(slot, 'private', id, label, value)} onDelete={id => deleteSavItem(slot, 'private', id)} onReorder={newItems => reorderSavItems(slot, 'private', newItems)} />
+                    <SavList items={pr} can={can} c={c} onSaveEdit={(id, label, value) => editSavFull(slot, 'private', id, label, value)} onDelete={id => deleteSavItem(slot, 'private', id)} onReorder={newItems => reorderSavItems(slot, 'private', newItems)} isMobile={isMobile} />
                   )}
                   <div style={{ marginTop: 'auto', paddingTop: 14 }}>
                     <div style={totalBox}><div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--muted)' }}>Totaal privé</div><div style={{ fontSize: 14, fontWeight: 700, marginTop: 3, color: c, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>{fmt(sum(pr), 0)}</div></div>
@@ -739,7 +773,7 @@ export default function Vermogen() {
             }
             return (
               <>
-                <div style={{ display: 'grid', gridTemplateColumns: isSingleUser ? '1fr' : '1fr 1fr 1fr', gap: 16, alignItems: 'stretch' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: cols3, gap: 16, alignItems: 'stretch' }}>
                   {potGroups.map(({ key, title, canAdd }) => {
                     const groupPots = potsFiltered.filter(p => p.owner === key)
                     const isFormOpen = openPotForm === key
@@ -795,7 +829,7 @@ export default function Vermogen() {
 
       {activeTab === 'schulden' && (
         <>
-          <div style={{ display: 'grid', gridTemplateColumns: isSingleUser ? '1fr' : '1fr 1fr 1fr', gap: 16, alignItems: 'stretch', marginBottom: 22 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: cols3, gap: 16, alignItems: 'stretch', marginBottom: 22 }}>
             {(isSingleUser
               ? [{ colWie: 'user1', title: n1, can: editable }]
               : [
@@ -1107,7 +1141,7 @@ export default function Vermogen() {
                               const restJr = maandenRest !== null ? Math.floor(maandenRest / 12) : null
                               const restMnd = maandenRest !== null ? maandenRest % 12 : null
                               return (
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginTop: 'auto' }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: isSmall ? '1fr 1fr' : 'repeat(4, 1fr)', gap: 8, marginTop: 'auto' }}>
                                   {[
                                     { label: 'Resterende schuld', val: fmtK(remBal), color: c },
                                     { label: 'Maanden resterend', val: maandenRest !== null ? `${maandenRest}` : '—', color: 'var(--text)' },

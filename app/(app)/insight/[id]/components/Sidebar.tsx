@@ -12,7 +12,7 @@ function getNavPrefsKey() {
 
 function DashboardIcon() {
   return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
       <rect x="3" y="3" width="7" height="7" rx="1.5" />
       <rect x="14" y="3" width="7" height="7" rx="1.5" />
       <rect x="3" y="14" width="7" height="7" rx="1.5" />
@@ -23,17 +23,16 @@ function DashboardIcon() {
 
 function ArrowUpIcon() {
   return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M12 19V5" />
       <path d="M6 11l6-6 6 6" />
     </svg>
   )
 }
 
-
 function InfoIcon() {
   return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="12" cy="12" r="10" />
       <path d="M12 16v-4" />
       <path d="M12 8h.01" />
@@ -43,7 +42,7 @@ function InfoIcon() {
 
 function ReceiptIcon() {
   return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
       <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z" />
       <path d="M8 10h8" />
       <path d="M8 14h6" />
@@ -51,11 +50,12 @@ function ReceiptIcon() {
   )
 }
 
-function TrendUpIcon() {
+function WalletIcon() {
   return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M3 17l6-6 4 4 8-8" />
-      <path d="M21 7h-6v6" />
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 12V7H5a2 2 0 0 1 0-4h14v4" />
+      <path d="M3 5v14a2 2 0 0 0 2 2h16v-5" />
+      <path d="M18 12a2 2 0 0 0 0 4h4v-4Z" />
     </svg>
   )
 }
@@ -64,8 +64,8 @@ const NAV_ITEMS = [
   { id: 'dashboard',  label: 'Dashboard',  icon: <DashboardIcon /> },
   { id: 'inkomsten',  label: 'Inkomsten',  icon: <ArrowUpIcon />   },
   { id: 'kosten',     label: 'Kosten',     icon: <ReceiptIcon />   },
-  { id: 'vermogen',   label: 'Vermogen',   icon: <TrendUpIcon />   },
-  { id: 'advies',     label: 'Advies',     icon: <InfoIcon />      },
+  { id: 'vermogen',   label: 'Vermogen',   icon: <WalletIcon />   },
+  { id: 'tips',       label: 'Tips',       icon: <InfoIcon />      },
 ]
 
 export default function Sidebar({
@@ -73,11 +73,13 @@ export default function Sidebar({
   setActivePage,
   collapsed,
   setCollapsed,
+  forceCollapsed = false,
 }: {
   activePage: string
   setActivePage: (p: string) => void
   collapsed: boolean
   setCollapsed: (value: boolean) => void
+  forceCollapsed?: boolean
 }) {
   const [hiddenNavItems, setHiddenNavItems] = useState<string[]>([])
   const [navOrder, setNavOrder] = useState<string[]>(NAV_ITEMS.map((item) => item.id))
@@ -85,6 +87,7 @@ export default function Sidebar({
   const [dragOverNavId, setDragOverNavId] = useState<string | null>(null)
   const [isDark, setIsDark] = useState(false)
   const [hoveredId, setHoveredId] = useState<string | null>(null)
+  const [pressedId, setPressedId] = useState<string | null>(null)
 
   useEffect(() => {
     const check = () => setIsDark(document.documentElement.getAttribute('data-theme') === 'dark')
@@ -110,10 +113,10 @@ export default function Sidebar({
 
     try {
       const parsed = JSON.parse(raw)
-      setHiddenNavItems(Array.isArray(parsed?.hidden) ? parsed.hidden : [])
+      setHiddenNavItems((Array.isArray(parsed?.hidden) ? parsed.hidden : []).map((id: string) => id === 'advies' ? 'tips' : id))
 
       const defaultOrder = NAV_ITEMS.map((item) => item.id)
-      const savedOrder = Array.isArray(parsed?.order) ? parsed.order : []
+      const savedOrder = (Array.isArray(parsed?.order) ? parsed.order : []).map((id: string) => id === 'advies' ? 'tips' : id)
       const cleanedSavedOrder = savedOrder.filter((id: string) => defaultOrder.includes(id))
       const missingIds = defaultOrder.filter((id) => !cleanedSavedOrder.includes(id))
 
@@ -176,6 +179,8 @@ export default function Sidebar({
     })
   }
 
+  const isCollapsed = collapsed || forceCollapsed
+
   return (
     <aside
       style={{
@@ -183,7 +188,7 @@ export default function Sidebar({
         top: 56,
         left: 0,
         bottom: 0,
-        width: collapsed ? 64 : 240,
+        width: isCollapsed ? 64 : 240,
         background: 'var(--s1)',
         borderRight: '1px solid var(--border)',
         display: 'flex',
@@ -236,17 +241,20 @@ export default function Sidebar({
               }}
               onClick={() => setActivePage(item!.id)}
               onMouseEnter={() => setHoveredId(item!.id)}
-              onMouseLeave={() => setHoveredId(null)}
+              onMouseLeave={() => { setHoveredId(null); setPressedId(null) }}
+              onPointerDown={() => setPressedId(item!.id)}
+              onPointerUp={() => setPressedId(null)}
+              title={isCollapsed ? item!.label : undefined}
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: collapsed ? 0 : 10,
-                padding: collapsed ? '6px 0' : '6px 8px',
+                gap: isCollapsed ? 0 : 12,
+                padding: isCollapsed ? '8px 0' : '8px 10px',
                 borderRadius: 8,
                 cursor: 'pointer',
                 width: '100%',
-                textAlign: collapsed ? 'center' : 'left',
-                fontSize: 13,
+                textAlign: isCollapsed ? 'center' : 'left',
+                fontSize: 16,
                 fontWeight: 500,
                 fontFamily: 'var(--font-body)',
                 letterSpacing: '.01em',
@@ -254,8 +262,10 @@ export default function Sidebar({
                 background: (isActive || isHovered) ? colors.bg : 'transparent',
                 color: (isActive || isHovered) ? c : 'var(--muted)',
                 marginBottom: 2,
-                justifyContent: collapsed ? 'center' : 'flex-start',
-                transition: 'background .15s, color .15s',
+                justifyContent: isCollapsed ? 'center' : 'flex-start',
+                transition: 'background .15s, color .15s, transform .1s',
+                transform: pressedId === item!.id ? 'scale(0.93)' : 'scale(1)',
+                WebkitTapHighlightColor: 'transparent',
                 opacity: draggedNavId === item!.id ? 0.45 : 1,
                 position: 'relative',
               }}
@@ -277,13 +287,13 @@ export default function Sidebar({
 
               <span
                 style={{
-                  width: 28,
-                  height: 28,
-                  minWidth: 28,
+                  width: 36,
+                  height: 36,
+                  minWidth: 36,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  borderRadius: 7,
+                  borderRadius: 8,
                   background: (isActive || isHovered) ? c : `${colors.light}18`,
                   color: (isActive || isHovered) ? '#FFFFFF' : c,
                   flexShrink: 0,
@@ -292,13 +302,13 @@ export default function Sidebar({
               >
                 {item!.icon}
               </span>
-              {!collapsed && <span style={{ fontWeight: isActive ? 600 : 500 }}>{item!.label}</span>}
+              {!isCollapsed && <span style={{ fontWeight: isActive ? 600 : 500 }}>{item!.label}</span>}
             </button>
           )
         })}
       </nav>
 
-      <div
+      {!forceCollapsed && <div
         style={{
           padding: '12px 8px',
           borderTop: '1px solid var(--border)',
@@ -306,17 +316,17 @@ export default function Sidebar({
       >
         <button
           onClick={toggleCollapsed}
-          title={collapsed ? 'Uitklappen' : 'Inklappen'}
-          aria-label={collapsed ? 'Uitklappen' : 'Inklappen'}
+          title={isCollapsed ? 'Uitklappen' : 'Inklappen'}
+          aria-label={isCollapsed ? 'Uitklappen' : 'Inklappen'}
           style={{
             width: '100%',
             minHeight: 36,
-            borderRadius: 6,
+            borderRadius: 8,
             display: 'flex',
             alignItems: 'center',
-            justifyContent: collapsed ? 'center' : 'flex-start',
-            gap: collapsed ? 0 : 8,
-            padding: collapsed ? '8px 0' : '8px 10px',
+            justifyContent: isCollapsed ? 'center' : 'flex-start',
+            gap: isCollapsed ? 0 : 12,
+            padding: isCollapsed ? '8px 0' : '8px 10px',
             color: 'var(--muted)',
             cursor: 'pointer',
             transition: 'background .15s, color .15s',
@@ -332,16 +342,16 @@ export default function Sidebar({
         >
           <span
             style={{
-              width: 24,
-              minWidth: 24,
-              height: 24,
+              width: 36,
+              minWidth: 36,
+              height: 36,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               flexShrink: 0,
             }}
           >
-            {collapsed ? (
+            {isCollapsed ? (
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M13 7l5 5-5 5" />
                 <path d="M6 7l5 5-5 5" />
@@ -354,10 +364,10 @@ export default function Sidebar({
             )}
           </span>
 
-          {!collapsed && (
+          {!isCollapsed && (
             <span
               style={{
-                fontSize: 12,
+                fontSize: 16,
                 fontWeight: 600,
                 lineHeight: 1,
               }}
@@ -366,7 +376,7 @@ export default function Sidebar({
             </span>
           )}
         </button>
-      </div>
+      </div>}
     </aside>
   )
 }

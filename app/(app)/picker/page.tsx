@@ -3,13 +3,29 @@
 import { useEffect, useRef, useState } from 'react'
 import LoadingScreen from '@/components/LoadingScreen'
 import ImageCropperModal, { CropInfo } from '@/components/ImageCropperModal'
+import { useBreakpoint } from '@/lib/hooks'
 
 interface CoverData { src: string; x: number; y: number; width: number; height: number; imageWidth: number; imageHeight: number }
+interface Household { id: string; name: string; created_by: string; invite_code: string; cover_url: string | CoverData | null }
+interface Balance { id: string; name: string; user_id: string; created_at: string; cover?: string | CoverData | null }
 import { createClient } from '@/lib/supabase'
 import { useUser } from '@/lib/user-context'
 import { useRouter } from 'next/navigation'
 
 const BRAND_THEME = '#6366F1'
+const CACHE_KEY = 'gc_picker_cache'
+const CACHE_TTL = 5 * 60 * 1000
+
+function readCache(): { households: Household[]; balances: Balance[] } | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = localStorage.getItem(CACHE_KEY)
+    if (!raw) return null
+    const { data, timestamp } = JSON.parse(raw)
+    if (Date.now() - timestamp < CACHE_TTL) return data
+  } catch {}
+  return null
+}
 
 function lightenColor(hex: string, factor = 0.15) {
   const clean = (hex || BRAND_THEME).replace('#', '')
@@ -48,8 +64,8 @@ function applyThemeVars(color: string) {
 
 export default function PickerPage() {
   const { currentUser: user, profile, userLoading, updateProfile, saveDisplayName } = useUser()
-  const [households, setHouseholds] = useState<any[]>([])
-  const [householdsReady, setHouseholdsReady] = useState(false)
+  const [households, setHouseholds] = useState<Household[]>(() => readCache()?.households ?? [])
+  const [householdsReady, setHouseholdsReady] = useState(() => readCache() !== null)
   const [showAccount, setShowAccount] = useState(false)
   const [accountName, setAccountName] = useState('')
   const [isSavingAccount, setIsSavingAccount] = useState(false)
@@ -77,7 +93,7 @@ export default function PickerPage() {
   const [avatarHovered, setAvatarHovered] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const backdropRef = useRef(false)
-  const [balances, setBalances] = useState<any[]>([])
+  const [balances, setBalances] = useState<Balance[]>(() => readCache()?.balances ?? [])
   const [showCreateBalance, setShowCreateBalance] = useState(false)
   const [createBalanceName, setCreateBalanceName] = useState('')
   const [isCreatingBalance, setIsCreatingBalance] = useState(false)
@@ -91,6 +107,14 @@ export default function PickerPage() {
   const balanceCoverAspect = useRef(408 / 170)
   const supabase = createClient()
   const router = useRouter()
+  const { isMobile } = useBreakpoint()
+  const [mobileTab, setMobileTab] = useState<'insights' | 'balances'>('insights')
+  const [navPressed, setNavPressed] = useState<string | null>(null)
+  const pickerContentRef = useRef<HTMLDivElement>(null)
+  const pickerTouchStartX = useRef(0)
+  const pickerTouchStartY = useRef(0)
+  const pickerIsHorizontal = useRef<boolean | null>(null)
+  const pickerMobileTabRef = useRef<'insights' | 'balances'>('insights')
 
   useEffect(() => {
     if (isDark) {
@@ -158,10 +182,11 @@ export default function PickerPage() {
         .select('*, households(*)')
         .eq('user_id', userId)
 
-      const baseHouseholds =
-        memberships?.map((m: any) => m.households).filter(Boolean) || []
+      type MembershipRow = { role: string; household_id: string; households: Household }
+      const baseHouseholds: Household[] =
+        (memberships as MembershipRow[] | null)?.map((m) => m.households).filter(Boolean) || []
 
-      const ids = baseHouseholds.map((h: any) => h.id)
+      const ids = baseHouseholds.map((h) => h.id)
       const { data: hhData } = ids.length
         ? await supabase.from('household_data').select('household_id, data').in('household_id', ids)
         : { data: [] }
@@ -171,8 +196,9 @@ export default function PickerPage() {
         if (row.data?.cover) coverMap[row.household_id] = row.data.cover
       }
 
-      setHouseholds(baseHouseholds.map((h: any) => ({ ...h, cover_url: coverMap[h.id] || null })))
-      setOwnerOf(new Set(memberships?.filter((m: any) => m.role === 'owner').map((m: any) => m.household_id) || []))
+      const freshHouseholds = baseHouseholds.map((h) => ({ ...h, cover_url: coverMap[h.id] || null }))
+      setHouseholds(prev => JSON.stringify(prev) === JSON.stringify(freshHouseholds) ? prev : freshHouseholds)
+      setOwnerOf(new Set((memberships as MembershipRow[] | null)?.filter((m) => m.role === 'owner').map((m) => m.household_id) || []))
       applyThemeVars(BRAND_THEME)
       setHouseholdsReady(true)
     }
@@ -203,12 +229,12 @@ export default function PickerPage() {
         .from('household_data')
         .insert({
           household_id: hh.id,
-          data: { theme: '#E8C49A' },
+          data: { theme: '#6366F1' },
         })
 
       window.localStorage.setItem(
         `se_nav_${hh.id}`,
-        JSON.stringify({ order: ['dashboard', 'inkomsten', 'kosten', 'vermogen', 'advies'], hidden: [] })
+        JSON.stringify({ order: ['dashboard', 'inkomsten', 'kosten', 'vermogen', 'tips'], hidden: [] })
       )
       applyThemeVars(BRAND_THEME)
       router.push(`/insight/${hh.id}`)
@@ -376,7 +402,8 @@ export default function PickerPage() {
         .select('*')
         .eq('user_id', userId)
         .order('created_at', { ascending: true })
-      setBalances(data || [])
+      const fresh = data || []
+      setBalances(prev => JSON.stringify(prev) === JSON.stringify(fresh) ? prev : fresh)
     }
     loadBalances()
   }, [user?.id])
@@ -459,12 +486,98 @@ export default function PickerPage() {
     setBalances(prev => prev.map(b => b.id === id ? { ...b, cover: null } : b))
   }
 
+  useEffect(() => {
+    pickerMobileTabRef.current = mobileTab
+  }, [mobileTab])
+
+  useEffect(() => {
+    if (!householdsReady) return
+    try {
+      localStorage.setItem(CACHE_KEY, JSON.stringify({ data: { households, balances }, timestamp: Date.now() }))
+    } catch {}
+  }, [households, balances, householdsReady])
+
+  useEffect(() => {
+    households.forEach(h => {
+      const cover = h.cover_url
+      const src = cover && typeof cover === 'object' ? (cover as CoverData).src : cover as string | undefined
+      if (src) { const img = new Image(); img.src = src }
+    })
+    balances.forEach(b => {
+      const cover = b.cover
+      const src = cover && typeof cover === 'object' ? (cover as CoverData).src : cover as string | undefined
+      if (src) { const img = new Image(); img.src = src }
+    })
+  }, [households, balances])
+
+  useEffect(() => {
+    if (!isMobile) return
+    const el = pickerContentRef.current
+    if (!el) return
+
+    const onTouchStart = (e: TouchEvent) => {
+      pickerTouchStartX.current = e.touches[0].clientX
+      pickerTouchStartY.current = e.touches[0].clientY
+      pickerIsHorizontal.current = null
+    }
+
+    const onTouchMove = (e: TouchEvent) => {
+      const dx = e.touches[0].clientX - pickerTouchStartX.current
+      const dy = e.touches[0].clientY - pickerTouchStartY.current
+      if (pickerIsHorizontal.current === null) {
+        if (Math.abs(dx) > Math.abs(dy) + 5) pickerIsHorizontal.current = true
+        else if (Math.abs(dy) > Math.abs(dx) + 5) pickerIsHorizontal.current = false
+        else return
+      }
+      if (!pickerIsHorizontal.current) return
+      e.preventDefault()
+      const tab = pickerMobileTabRef.current
+      const offset = (tab === 'insights' && dx > 0) || (tab === 'balances' && dx < 0) ? dx * 0.25 : dx
+      el.style.transition = 'none'
+      el.style.transform = `translateX(${offset}px)`
+    }
+
+    const onTouchEnd = (e: TouchEvent) => {
+      if (!pickerIsHorizontal.current) return
+      const dx = e.changedTouches[0].clientX - pickerTouchStartX.current
+      const threshold = window.innerWidth * 0.25
+      const tab = pickerMobileTabRef.current
+      const shouldSwitch = (dx < -threshold && tab === 'insights') || (dx > threshold && tab === 'balances')
+      const dir = tab === 'insights' ? -1 : 1
+      if (shouldSwitch) {
+        el.style.transition = 'transform .28s cubic-bezier(0.25, 0.46, 0.45, 0.94)'
+        el.style.transform = `translateX(${dir * window.innerWidth}px)`
+        el.addEventListener('transitionend', () => {
+          setMobileTab(tab === 'insights' ? 'balances' : 'insights')
+          el.style.transition = 'none'
+          el.style.transform = 'translateX(0)'
+        }, { once: true })
+      } else {
+        el.style.transition = 'transform .28s cubic-bezier(0.25, 0.46, 0.45, 0.94)'
+        el.style.transform = 'translateX(0)'
+      }
+      pickerIsHorizontal.current = null
+    }
+
+    el.addEventListener('touchstart', onTouchStart, { passive: true })
+    el.addEventListener('touchmove', onTouchMove, { passive: false })
+    el.addEventListener('touchend', onTouchEnd, { passive: true })
+    return () => {
+      el.removeEventListener('touchstart', onTouchStart)
+      el.removeEventListener('touchmove', onTouchMove)
+      el.removeEventListener('touchend', onTouchEnd)
+    }
+  }, [isMobile, setMobileTab])
+
   const hour = new Date().getHours()
   const greeting = hour < 12 ? 'Goedemorgen' : hour < 18 ? 'Goedemiddag' : 'Goedenavond'
 
-  if (userLoading || !householdsReady) return <LoadingScreen />
+  if (userLoading) return <LoadingScreen />
+  const showSkeleton = !householdsReady
 
   return (
+    <>
+    <style>{`@keyframes gc-pulse{0%,100%{opacity:1}50%{opacity:0.45}}`}</style>
     <div
       style={{
         minHeight: '100vh',
@@ -803,10 +916,10 @@ export default function PickerPage() {
         </div>
       )}
 
-      <div style={{ padding: '36px 28px', maxWidth: 1320, margin: '0 auto', width: '100%', position: 'relative', zIndex: 1 }}>
+      <div ref={pickerContentRef} style={{ padding: isMobile ? '24px 16px' : '36px 28px', maxWidth: 1320, margin: '0 auto', width: '100%', position: 'relative', zIndex: 1, paddingBottom: isMobile ? 76 : undefined, willChange: 'transform' }}>
         <div
           style={{
-            fontSize: 44,
+            fontSize: isMobile ? 28 : 44,
             fontWeight: 800,
             fontFamily: 'var(--font-heading)',
             lineHeight: 1.15,
@@ -853,16 +966,19 @@ export default function PickerPage() {
           <div style={{ position: 'fixed', inset: 0, zIndex: 5 }} onClick={() => setMenuOpenBalanceId(null)} />
         )}
 
-        <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: '#6366F1', marginBottom: 14 }}>Insights</div>
+        {!isMobile && <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: '#6366F1', marginBottom: 14 }}>Insights</div>}
 
-        <div
+        {(!isMobile || mobileTab === 'insights') && <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-            gap: 20,
+            gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+            gap: isMobile ? 12 : 20,
             alignItems: 'stretch',
           }}
         >
+          {showSkeleton && households.length === 0 && [0,1,2].map(i => (
+            <div key={i} style={{ borderRadius: 10, background: 'var(--s2)', minHeight: isMobile ? undefined : 170, height: isMobile ? undefined : 170, aspectRatio: isMobile ? '408/170' : undefined, animation: 'gc-pulse 1.6s ease-in-out infinite', animationDelay: `${i * 0.15}s` }} />
+          ))}
           {households.map((hh) => {
             const isOwner = ownerOf.has(hh.id)
             const cover = hh.cover_url as string | CoverData | null
@@ -888,8 +1004,9 @@ export default function PickerPage() {
                     borderRadius: 10,
                     padding: 22,
                     cursor: 'pointer',
-                    minHeight: 170,
-                    height: 170,
+                    minHeight: isMobile ? undefined : 170,
+                    height: isMobile ? undefined : 170,
+                    aspectRatio: isMobile ? '408/170' : undefined,
                     width: '100%',
                     display: 'flex',
                     flexDirection: 'column',
@@ -1022,8 +1139,9 @@ export default function PickerPage() {
               border: '2px dashed rgba(99,102,241,0.35)',
               background: 'var(--s1)',
               borderRadius: 10,
-              minHeight: 170,
-              height: 170,
+              minHeight: isMobile ? undefined : 170,
+              height: isMobile ? undefined : 170,
+              aspectRatio: isMobile ? '408/170' : undefined,
               width: '100%',
               display: 'flex',
               flexDirection: 'column',
@@ -1045,18 +1163,21 @@ export default function PickerPage() {
             <span style={{ fontSize: 32, lineHeight: 1, color: '#6366F1' }}>+</span>
             <span style={{ fontSize: 13, fontWeight: 600, color: '#6366F1' }}>Nieuwe Insight</span>
           </button>
-        </div>
+        </div>}
 
-        <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: '#6366F1', marginTop: 52, marginBottom: 14 }}>Balances</div>
+        {!isMobile && <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: '#6366F1', marginTop: 52, marginBottom: 14 }}>Balances</div>}
 
-        <div
+        {(!isMobile || mobileTab === 'balances') && <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-            gap: 20,
+            gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+            gap: isMobile ? 12 : 20,
             alignItems: 'stretch',
           }}
         >
+          {showSkeleton && balances.length === 0 && [0,1].map(i => (
+            <div key={i} style={{ borderRadius: 10, background: 'var(--s2)', minHeight: isMobile ? undefined : 170, height: isMobile ? undefined : 170, aspectRatio: isMobile ? '408/170' : undefined, animation: 'gc-pulse 1.6s ease-in-out infinite', animationDelay: `${i * 0.15}s` }} />
+          ))}
           {balances.map((bal) => {
             const cover = bal.cover as string | CoverData | null
             const hasCover = !!cover
@@ -1081,8 +1202,9 @@ export default function PickerPage() {
                     borderRadius: 10,
                     padding: 22,
                     cursor: 'pointer',
-                    minHeight: 170,
-                    height: 170,
+                    minHeight: isMobile ? undefined : 170,
+                    height: isMobile ? undefined : 170,
+                    aspectRatio: isMobile ? '408/170' : undefined,
                     width: '100%',
                     display: 'flex',
                     flexDirection: 'column',
@@ -1197,7 +1319,9 @@ export default function PickerPage() {
             onClick={() => setShowCreateBalance(true)}
             style={{
               border: '2px dashed rgba(99,102,241,0.35)', background: 'var(--s1)', borderRadius: 10,
-              minHeight: 170, height: 170, width: '100%', display: 'flex', flexDirection: 'column',
+              minHeight: isMobile ? undefined : 170, height: isMobile ? undefined : 170,
+              aspectRatio: isMobile ? '408/170' : undefined,
+              width: '100%', display: 'flex', flexDirection: 'column',
               alignItems: 'center', justifyContent: 'center', gap: 8,
               cursor: 'pointer', transition: 'border-color .2s, background .2s',
             }}
@@ -1213,8 +1337,82 @@ export default function PickerPage() {
             <span style={{ fontSize: 32, lineHeight: 1, color: '#6366F1' }}>+</span>
             <span style={{ fontSize: 13, fontWeight: 600, color: '#6366F1' }}>Nieuwe Balance</span>
           </button>
-        </div>
+        </div>}
       </div>
+
+      {isMobile && (
+        <nav style={{
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: 60,
+          background: 'var(--s1)',
+          borderTop: '0.5px solid var(--border)',
+          display: 'flex',
+          alignItems: 'stretch',
+          zIndex: 200,
+        }}>
+          <button
+            onClick={() => setMobileTab('insights')}
+            onPointerDown={() => setNavPressed('insights')}
+            onPointerUp={() => setNavPressed(null)}
+            onPointerLeave={() => setNavPressed(null)}
+            style={{
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 3,
+              border: 'none',
+              background: 'transparent',
+              color: mobileTab === 'insights' ? '#6366F1' : 'var(--muted)',
+              cursor: 'pointer',
+              padding: '4px 0',
+              WebkitTapHighlightColor: 'transparent',
+              transform: navPressed === 'insights' ? 'scale(0.88)' : 'scale(1)',
+              transition: 'transform .1s',
+            }}
+          >
+            <svg width="20" height="20" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <polygon points="65,18 135,18 192,62 100,175 8,62" fill="currentColor" opacity="0.85" />
+              <polygon points="65,18 135,18 100,62" fill={mobileTab === 'insights' ? '#A5B4FC' : 'rgba(255,255,255,0.3)'} />
+            </svg>
+            <span style={{ fontSize: 10, fontWeight: mobileTab === 'insights' ? 700 : 500, fontFamily: 'var(--font-body)', lineHeight: 1 }}>Insights</span>
+          </button>
+          <button
+            onClick={() => setMobileTab('balances')}
+            onPointerDown={() => setNavPressed('balances')}
+            onPointerUp={() => setNavPressed(null)}
+            onPointerLeave={() => setNavPressed(null)}
+            style={{
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 3,
+              border: 'none',
+              background: 'transparent',
+              color: mobileTab === 'balances' ? '#6366F1' : 'var(--muted)',
+              cursor: 'pointer',
+              WebkitTapHighlightColor: 'transparent',
+              padding: '4px 0',
+              transform: navPressed === 'balances' ? 'scale(0.88)' : 'scale(1)',
+              transition: 'transform .1s',
+            }}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+            </svg>
+            <span style={{ fontSize: 10, fontWeight: mobileTab === 'balances' ? 700 : 500, fontFamily: 'var(--font-body)', lineHeight: 1 }}>Balances</span>
+          </button>
+        </nav>
+      )}
 
       {showCreateBalance && (
         <div
@@ -1293,5 +1491,6 @@ export default function PickerPage() {
         />
       )}
     </div>
+    </>
   )
 }
