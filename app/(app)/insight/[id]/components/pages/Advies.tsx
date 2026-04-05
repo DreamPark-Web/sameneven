@@ -136,12 +136,6 @@ export default function Advies() {
         </div>
       ))}
     </div>
-      <div style={{ position: 'absolute', bottom: -50, right: -50, pointerEvents: 'none', zIndex: 0 }}>
-        <svg width="300" height="300" viewBox="0 0 200 200">
-          <polygon points="65,18 135,18 192,62 100,175 8,62" fill={c} opacity="0.06" />
-          <polygon points="65,18 135,18 100,62" fill={c} opacity="0.1" />
-        </svg>
-      </div>
     </div>
   )
 }

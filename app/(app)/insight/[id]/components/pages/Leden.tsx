@@ -188,7 +188,7 @@ export default function Leden() {
           <div ref={shareRef} style={{ position: 'relative' }}>
             <button
               onClick={() => setShareOpen(v => !v)}
-              style={{ fontFamily: 'var(--font-body)', fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '6px 14px', borderRadius: 8, cursor: 'pointer', border: 'none', background: 'var(--accent)', color: 'var(--accent-fg)' }}
+              style={{ fontFamily: 'var(--font-body)', fontSize: 11.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '6px 14px', borderRadius: 8, cursor: 'pointer', border: 'none', background: c, color: '#FFFFFF' }}
             >
               Uitnodigen
             </button>
@@ -213,8 +213,8 @@ export default function Leden() {
       <div style={{ fontSize: 12, color: 'var(--muted2)', marginBottom: 14, lineHeight: 1.7 }}>Alle genodigde en gekoppelde leden van deze Insight blijven hier zichtbaar, ook wanneer ze offline zijn.</div>
 
       {isSingleUser && (
-        <div style={{ marginBottom: 22, padding: '18px 20px', background: 'rgba(var(--accent-rgb), 0.06)', border: '1px solid rgba(var(--accent-rgb), 0.3)', borderRadius: 8 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent)', marginBottom: 4, fontFamily: 'var(--font-heading)' }}>Nodig een partner uit</div>
+        <div style={{ marginBottom: 22, padding: '18px 20px', background: colors.bg, border: `1px solid ${c}4D`, borderRadius: 8 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: c, marginBottom: 4, fontFamily: 'var(--font-heading)' }}>Nodig een partner uit</div>
           <div style={{ fontSize: 12, color: 'var(--muted2)', lineHeight: 1.6 }}>Je gebruikt deze insight alleen. Gebruik de knop rechtsboven om samen te beginnen.</div>
         </div>
       )}
@@ -228,7 +228,7 @@ export default function Leden() {
           const initials = displayName.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase()
           return (
             <div key={member.user_id} style={{ background: 'var(--s1)', border: '1px solid var(--card-border)', borderRadius: 14, padding: 18, display: 'grid', gridTemplateColumns: '72px 1fr', gap: 14, alignItems: 'start' }}>
-              <div style={{ width: 64, height: 64, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 700, color: 'var(--accent-fg)', background: 'var(--accent)', overflow: 'hidden', flexShrink: 0, marginTop: 2 }}>
+              <div style={{ width: 64, height: 64, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 700, color: '#FFFFFF', background: c, overflow: 'hidden', flexShrink: 0, marginTop: 2 }}>
                 {member.avatar_url ? <img src={member.avatar_url} referrerPolicy="no-referrer" style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt={displayName} /> : initials}
               </div>
               <div>
@@ -248,7 +248,7 @@ export default function Leden() {
                           key={role}
                           onClick={() => !active && toggleRole(member.user_id, member.role)}
                           disabled={changingRole === member.user_id}
-                          style={{ display: 'inline-flex', alignItems: 'center', padding: '4px 10px', borderRadius: 999, fontSize: 10, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', cursor: active ? 'default' : 'pointer', background: active ? 'rgba(255,255,255,.04)' : 'transparent', color: active ? (role === 'editor' ? '#8B5CF6' : 'var(--muted)') : 'var(--muted)', border: active ? `1px solid ${role === 'editor' ? 'rgba(139,92,246,.25)' : 'var(--border)'}` : '1px solid var(--border)', transition: 'color .15s, border-color .15s, background .15s' }}
+                          style={{ display: 'inline-flex', alignItems: 'center', padding: '4px 10px', borderRadius: 999, fontSize: 10, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', cursor: active ? 'default' : 'pointer', background: active ? 'rgba(255,255,255,.04)' : 'transparent', color: active ? (role === 'editor' ? '#6366F1' : 'var(--muted)') : 'var(--muted)', border: active ? `1px solid ${role === 'editor' ? 'rgba(99,102,241,.25)' : 'var(--border)'}` : '1px solid var(--border)', transition: 'color .15s, border-color .15s, background .15s' }}
                         >
                           {role === 'viewer' ? 'Kijker' : 'Bewerker'}
                         </button>
@@ -256,7 +256,7 @@ export default function Leden() {
                     })}
                   </div>
                 ) : (
-                  <div style={{ marginTop: 12, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 999, background: 'rgba(255,255,255,.04)', fontSize: 10, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: member.role === 'owner' || member.role === 'admin' ? '#6366F1' : member.role === 'editor' ? '#8B5CF6' : 'var(--muted)', border: `1px solid ${member.role === 'owner' || member.role === 'admin' ? 'rgba(99,102,241,.25)' : member.role === 'editor' ? 'rgba(139,92,246,.25)' : 'var(--border)'}` }}>
+                  <div style={{ marginTop: 12, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 999, background: 'rgba(255,255,255,.04)', fontSize: 10, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: member.role === 'owner' || member.role === 'admin' ? '#6366F1' : member.role === 'editor' ? '#6366F1' : 'var(--muted)', border: `1px solid ${member.role === 'owner' || member.role === 'admin' ? 'rgba(99,102,241,.25)' : member.role === 'editor' ? 'rgba(99,102,241,.25)' : 'var(--border)'}` }}>
                     {roleLabel[member.role] || member.role}
                   </div>
                 )}
@@ -326,12 +326,6 @@ export default function Leden() {
         </div>
       )}
     </div>
-      <div style={{ position: 'absolute', bottom: -50, right: -50, pointerEvents: 'none', zIndex: 0 }}>
-        <svg width="300" height="300" viewBox="0 0 200 200">
-          <polygon points="65,18 135,18 192,62 100,175 8,62" fill={c} opacity="0.06" />
-          <polygon points="65,18 135,18 100,62" fill={c} opacity="0.1" />
-        </svg>
-      </div>
     </div>
   )
 }

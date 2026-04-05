@@ -500,17 +500,17 @@ export default function Topbar({
   const iconButton: CSSProperties = {
     width: 40,
     height: 40,
-    background: isSettingsHovered ? 'rgba(var(--accent-rgb), .08)' : 'transparent',
-    border: isSettingsHovered ? '1px solid rgba(var(--accent-rgb), .24)' : '1px solid var(--border)',
+    background: isSettingsHovered ? 'rgba(99,102,241,0.08)' : 'transparent',
+    border: isSettingsHovered ? '1px solid rgba(99,102,241,0.24)' : '1px solid var(--border)',
     borderRadius: 10,
     cursor: 'pointer',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    color: isSettingsHovered ? 'var(--accent)' : 'var(--muted)',
+    color: isSettingsHovered ? '#6366F1' : 'var(--muted)',
     flexShrink: 0,
     transition: 'background .15s, border-color .15s, color .15s, box-shadow .15s, transform .15s',
-    boxShadow: isSettingsHovered ? '0 0 0 1px rgba(var(--accent-rgb), .10)' : 'none',
+    boxShadow: isSettingsHovered ? '0 0 0 1px rgba(99,102,241,0.10)' : 'none',
     transform: isSettingsHovered ? 'translateY(-1px)' : 'none',
   }
 
@@ -569,8 +569,8 @@ export default function Topbar({
   }
 
   const btnPrimary: CSSProperties = {
-    background: 'var(--accent)',
-    color: 'var(--accent-fg)',
+    background: '#6366F1',
+    color: '#FFFFFF',
     border: 'none',
     borderRadius: 6,
     padding: '9px 16px',
@@ -984,7 +984,7 @@ export default function Topbar({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'flex-start',
-              color: isBackHovered ? 'var(--accent)' : 'var(--muted)',
+              color: isBackHovered ? '#6366F1' : 'var(--muted)',
               borderRadius: 10,
               border: 'none',
               background: 'transparent',
@@ -1091,17 +1091,17 @@ export default function Topbar({
             style={{
               width: 40,
               height: 40,
-              background: isThemeToggleHovered ? 'rgba(var(--accent-rgb), .08)' : 'transparent',
-              border: isThemeToggleHovered ? '1px solid rgba(var(--accent-rgb), .24)' : '1px solid var(--border)',
+              background: isThemeToggleHovered ? 'rgba(99,102,241,0.08)' : 'transparent',
+              border: isThemeToggleHovered ? '1px solid rgba(99,102,241,0.24)' : '1px solid var(--border)',
               borderRadius: 10,
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: isThemeToggleHovered ? 'var(--accent)' : 'var(--muted)',
+              color: isThemeToggleHovered ? '#6366F1' : 'var(--muted)',
               flexShrink: 0,
               transition: 'background .15s, border-color .15s, color .15s, box-shadow .15s, transform .15s',
-              boxShadow: isThemeToggleHovered ? '0 0 0 1px rgba(var(--accent-rgb), .10)' : 'none',
+              boxShadow: isThemeToggleHovered ? '0 0 0 1px rgba(99,102,241,0.10)' : 'none',
               transform: isThemeToggleHovered ? 'translateY(-1px)' : 'none',
             }}
             title={isDark ? 'Schakel naar lichte modus' : 'Schakel naar donkere modus'}
@@ -1242,8 +1242,8 @@ export default function Topbar({
                       borderRadius: 6,
                       cursor: 'pointer',
                       border: settingsTab === tab ? 'none' : '1px solid var(--border)',
-                      background: settingsTab === tab ? 'var(--accent)' : 'transparent',
-                      color: settingsTab === tab ? 'var(--accent-fg)' : 'var(--muted)',
+                      background: settingsTab === tab ? '#6366F1' : 'transparent',
+                      color: settingsTab === tab ? '#FFFFFF' : 'var(--muted)',
                     }}
                   >
                     {tab.charAt(0).toUpperCase() + tab.slice(1)}
@@ -1281,7 +1281,7 @@ export default function Topbar({
             {settingsTab === 'leden' ? (
               <Leden />
             ) : isOwner ? (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14, alignItems: 'stretch', marginBottom: 14 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, alignItems: 'stretch', marginBottom: 14 }}>
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
               <div style={{ ...modalSection, flex: 1 }}>
                 <div
@@ -1332,11 +1332,11 @@ export default function Topbar({
                   textOverflow: 'ellipsis',
                   marginBottom: 12,
                   background: 'var(--s3)',
-                  border: '1px solid rgba(var(--accent-rgb), .14)',
+                  border: '1px solid rgba(99,102,241,0.14)',
                   borderRadius: 8,
                   padding: '10px 12px',
                   fontSize: 11,
-                  color: 'var(--accent)',
+                  color: '#6366F1',
                   letterSpacing: '.04em',
                 }}
               >
@@ -1415,7 +1415,7 @@ export default function Topbar({
                                 return next
                               })
                             }}
-                            style={{ width: 15, height: 15, accentColor: 'var(--accent)', flexShrink: 0 }}
+                            style={{ width: 15, height: 15, accentColor: '#6366F1', flexShrink: 0 }}
                           />
                           <span style={{ flex: 1, fontSize: 13, fontWeight: 500, color: checked ? 'var(--text)' : 'var(--muted)' }}>
                             {item!.label}
@@ -1427,195 +1427,6 @@ export default function Topbar({
                 <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 10, lineHeight: 1.6 }}>
                   Dit zijn persoonlijke instellingen, niet gedeeld met anderen.
                 </div>
-              </div>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <div style={{ ...modalSection, flex: 1 }}>
-              <div
-                style={{
-                  fontSize: 10,
-                  fontWeight: 700,
-                  letterSpacing: '.1em',
-                  textTransform: 'uppercase',
-                  color: 'var(--muted)',
-                  marginBottom: 10,
-                }}
-              >
-                Accentkleur van deze Insight
-              </div>
-
-              <div
-                style={{
-                  height: 44,
-                  borderRadius: 12,
-                  border: `1px solid rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, .24)`,
-                  background: `linear-gradient(135deg, ${lightenColor(themeColor, 0.18)}, ${themeColor})`,
-                  boxShadow: 'inset 0 0 0 1px rgba(255,255,255,.05)',
-                  marginBottom: 12,
-                }}
-              />
-
-              <label style={modalLabel}>Kleurkiezer</label>
-
-              <div
-                ref={svRef}
-                onMouseDown={(e) => startSVDrag(e.clientX, e.clientY)}
-                onTouchStart={(e) => {
-                  e.preventDefault()
-                  startSVDrag(e.touches[0].clientX, e.touches[0].clientY)
-                }}
-                style={{
-                  position: 'relative',
-                  height: 180,
-                  borderRadius: 12,
-                  overflow: 'hidden',
-                  cursor: 'crosshair',
-                  border: '1px solid rgba(var(--accent-rgb), .20)',
-                  background: `hsl(${pickerHSV.h} 100% 50%)`,
-                  marginBottom: 12,
-                }}
-              >
-                <div
-                  style={{
-                    position: 'absolute',
-                    inset: 0,
-                    background: 'linear-gradient(to right, #ffffff, rgba(255,255,255,0))',
-                  }}
-                />
-                <div
-                  style={{
-                    position: 'absolute',
-                    inset: 0,
-                    background: 'linear-gradient(to top, #000000, rgba(0,0,0,0))',
-                  }}
-                />
-                <div
-                  style={{
-                    position: 'absolute',
-                    left: `${pickerHSV.s * 100}%`,
-                    top: `${(1 - pickerHSV.v) * 100}%`,
-                    width: 16,
-                    height: 16,
-                    borderRadius: '50%',
-                    border: '2px solid #fff',
-                    boxShadow: '0 0 0 1px rgba(0,0,0,.35), 0 2px 8px rgba(0,0,0,.35)',
-                    transform: 'translate(-50%, -50%)',
-                    pointerEvents: 'none',
-                  }}
-                />
-              </div>
-
-              <div
-                ref={hueRef}
-                onMouseDown={(e) => startHueDrag(e.clientX)}
-                onTouchStart={(e) => {
-                  e.preventDefault()
-                  startHueDrag(e.touches[0].clientX)
-                }}
-                style={{
-                  position: 'relative',
-                  height: 16,
-                  borderRadius: 999,
-                  cursor: 'pointer',
-                  background:
-                    'linear-gradient(90deg, #ff0000 0%, #ffff00 17%, #00ff00 33%, #00ffff 50%, #0000ff 67%, #ff00ff 83%, #ff0000 100%)',
-                  border: '1px solid var(--border)',
-                  marginBottom: 14,
-                }}
-              >
-                <div
-                  style={{
-                    position: 'absolute',
-                    left: `${(pickerHSV.h / 360) * 100}%`,
-                    top: '50%',
-                    width: 16,
-                    height: 16,
-                    borderRadius: '50%',
-                    border: '2px solid #fff',
-                    boxShadow: '0 0 0 1px rgba(0,0,0,.35), 0 2px 8px rgba(0,0,0,.35)',
-                    transform: 'translate(-50%, -50%)',
-                    pointerEvents: 'none',
-                  }}
-                />
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10 }}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setThemeFromHex('#6366F1')
-                    setRgbInput({ r: '99', g: '102', b: '241' })
-                  }}
-                  style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', padding: '4px 10px', borderRadius: 5, cursor: 'pointer', border: '1px solid rgba(var(--accent-rgb),0.3)', background: 'rgba(var(--accent-rgb),0.06)', color: 'var(--accent)', fontFamily: 'var(--font-body)' }}
-                >
-                  Standaard
-                </button>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
-                <div>
-                  <label style={modalLabel}>R</label>
-                  <input
-                    style={{ ...modalInp, marginBottom: 0, textAlign: 'center' }}
-                    type="number"
-                    min="0"
-                    max="255"
-                    inputMode="numeric"
-                    value={rgbInput.r}
-                    onChange={(e) => setRgbInput((prev) => ({ ...prev, r: e.target.value }))}
-                    onBlur={commitRgbInput}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault()
-                        commitRgbInput()
-                        ;(e.currentTarget as HTMLInputElement).blur()
-                      }
-                    }}
-                  />
-                </div>
-
-                <div>
-                  <label style={modalLabel}>G</label>
-                  <input
-                    style={{ ...modalInp, marginBottom: 0, textAlign: 'center' }}
-                    type="number"
-                    min="0"
-                    max="255"
-                    inputMode="numeric"
-                    value={rgbInput.g}
-                    onChange={(e) => setRgbInput((prev) => ({ ...prev, g: e.target.value }))}
-                    onBlur={commitRgbInput}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault()
-                        commitRgbInput()
-                        ;(e.currentTarget as HTMLInputElement).blur()
-                      }
-                    }}
-                  />
-                </div>
-
-                <div>
-                  <label style={modalLabel}>B</label>
-                  <input
-                    style={{ ...modalInp, marginBottom: 0, textAlign: 'center' }}
-                    type="number"
-                    min="0"
-                    max="255"
-                    inputMode="numeric"
-                    value={rgbInput.b}
-                    onChange={(e) => setRgbInput((prev) => ({ ...prev, b: e.target.value }))}
-                    onBlur={commitRgbInput}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault()
-                        commitRgbInput()
-                        ;(e.currentTarget as HTMLInputElement).blur()
-                      }
-                    }}
-                  />
-                </div>
-              </div>
               </div>
                 </div>
               </div>
@@ -1658,7 +1469,7 @@ export default function Topbar({
                               return next
                             })
                           }}
-                          style={{ width: 15, height: 15, accentColor: 'var(--accent)', flexShrink: 0 }}
+                          style={{ width: 15, height: 15, accentColor: '#6366F1', flexShrink: 0 }}
                         />
                         <span style={{ flex: 1, fontSize: 13, fontWeight: 500, color: checked ? 'var(--text)' : 'var(--muted)' }}>
                           {item!.label}

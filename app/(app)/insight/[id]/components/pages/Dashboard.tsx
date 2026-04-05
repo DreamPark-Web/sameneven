@@ -6,14 +6,23 @@ import type { CSSProperties } from 'react'
 import { fmt, fmtK, sum } from '@/lib/format'
 import { PAGE_COLORS } from '@/lib/pageColors'
 
-// ─── Types ─────────────────────────────────────────────────────────────────────
-
-type Sub = { id: string; name: string; date: string; amount: number; freq: string; person: string }
+type Sub = { id: string; name: string; date: string; amount: number; freq: string; person: string; split?: string; p1?: number; p2?: number }
+type SavItem = { id: string; label: string; value: number; split?: string; p1?: number; p2?: number }
 type SharedItem = { id: string; label: string; value: number; split: string; p1?: number; p2?: number }
-type Schuld = { id: string; naam: string; type: string; wie: string; balance: number; payment: number; rate: number }
+type Schuld = { id: string; naam: string; type: string; wie: string; balance: number; payment: number; rate: number; fixedYears?: number; fixedStart?: string; createdAt?: string }
+type AttentionItem = { id: string; priority: 'red' | 'orange'; title: string; action: { label: string; page: string; tab?: string } }
 type Pot = { id: string; label: string; current: number; goal: number; owner: string }
+type ActiveFilter = 'samen' | 'user1' | 'user2'
+type DashPrefs = { hidden: string[] }
 
-// ─── Helpers ───────────────────────────────────────────────────────────────────
+const DEFAULT_WIDGETS = ['over-te-maken', 'spaardoelen', 'schulden', 'abonnementen', 'inkomen']
+const WIDGET_LABELS: Record<string, string> = {
+  'over-te-maken': 'Over te maken',
+  'spaardoelen':   'Spaardoelen',
+  'schulden':      'Schulden',
+  'abonnementen':  'Abonnementen',
+  'inkomen':       'Inkomen',
+}
 
 function Num({ v }: { v: string }) {
   if (v.startsWith('€')) {
@@ -42,106 +51,51 @@ function subMonthly(s: Sub): number {
   return s.amount
 }
 
-function hexToRgb(hex: string) {
-  const c = (hex || '#6366F1').replace('#', '')
-  return { r: parseInt(c.slice(0, 2), 16) || 0, g: parseInt(c.slice(2, 4), 16) || 0, b: parseInt(c.slice(4, 6), 16) || 0 }
+function fmtTs(iso?: string): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  const mins = Math.floor((Date.now() - d.getTime()) / 60000)
+  if (mins < 1) return 'bijgewerkt zojuist'
+  if (mins < 60) return `bijgewerkt ${mins} min geleden`
+  const h = Math.floor(mins / 60)
+  if (h < 24) return `bijgewerkt ${h}u geleden`
+  const today = new Date()
+  if (d.toDateString() === today.toDateString())
+    return `bijgewerkt vandaag ${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`
+  return `bijgewerkt ${d.getDate()} ${['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'][d.getMonth()]}`
 }
-function lighten(hex: string, f = 0.5) {
-  const { r, g, b } = hexToRgb(hex)
-  return `rgb(${Math.min(255, Math.round(r + (255 - r) * f))},${Math.min(255, Math.round(g + (255 - g) * f))},${Math.min(255, Math.round(b + (255 - b) * f))})`
-}
-function darken(hex: string, f = 0.45) {
-  const { r, g, b } = hexToRgb(hex)
-  return `rgb(${Math.max(0, Math.round(r * f))},${Math.max(0, Math.round(g * f))},${Math.max(0, Math.round(b * f))})`
-}
-
-// ─── Widget system ──────────────────────────────────────────────────────────────
-
-const DEFAULT_ORDER = [
-  'financieel-overzicht',
-  'cashflow',
-  'over-te-maken',
-  'inkomen-verdeling',
-  'spaardoelen',
-  'schulden',
-  'abonnementen',
-]
-
-const WIDGET_META: Record<string, { label: string; dualOnly?: boolean; fullWidth: boolean }> = {
-  'financieel-overzicht': { label: 'Financieel overzicht', fullWidth: true },
-  'cashflow':             { label: 'Cashflow',              fullWidth: false },
-  'over-te-maken':        { label: 'Over te maken naar gezamenlijke rekening', dualOnly: true, fullWidth: false },
-  'inkomen-verdeling':    { label: 'Inkomen verdeling',     fullWidth: true },
-  'spaardoelen':          { label: 'Spaardoelen',           fullWidth: false },
-  'schulden':             { label: 'Schulden',              fullWidth: false },
-  'abonnementen':         { label: 'Abonnementen',          fullWidth: true },
-}
-
-type DashPrefs = { order: string[]; hidden: string[] }
 
 function loadPrefs(hid: string): DashPrefs {
   try {
     const raw = localStorage.getItem(`se_dash_${hid}`)
     if (raw) {
       const p = JSON.parse(raw) as Partial<DashPrefs>
-      const order = (p.order || []).filter(id => DEFAULT_ORDER.includes(id))
-      const missing = DEFAULT_ORDER.filter(id => !order.includes(id))
-      return { order: [...order, ...missing], hidden: p.hidden || [] }
+      return { hidden: p.hidden || [] }
     }
   } catch {}
-  return { order: DEFAULT_ORDER, hidden: [] }
+  return { hidden: [] }
 }
 
 function savePrefs(hid: string, p: DashPrefs) {
   try { localStorage.setItem(`se_dash_${hid}`, JSON.stringify(p)) } catch {}
 }
 
-// ─── Shared styles ──────────────────────────────────────────────────────────────
-
 const card: CSSProperties = {
   background: 'var(--s3)',
   border: '1px solid var(--card-border)',
   borderRadius: 10,
   padding: '20px 22px',
-  flex: 1,
   display: 'flex',
   flexDirection: 'column',
 }
 
-const cardHd: CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  marginBottom: 14,
-  paddingBottom: 12,
-  borderBottom: '1px solid var(--border)',
-}
-
-// ─── Drag handle icon ───────────────────────────────────────────────────────────
-
-function DragHandle() {
-  return (
-    <span title="Versleep om te herordenen" style={{ cursor: 'grab', color: 'var(--muted)', opacity: 0.5, lineHeight: 1, fontSize: 14, userSelect: 'none', flexShrink: 0 }}>
-      <svg width="12" height="18" viewBox="0 0 12 18" fill="currentColor">
-        <circle cx="3" cy="3" r="1.5"/><circle cx="9" cy="3" r="1.5"/>
-        <circle cx="3" cy="9" r="1.5"/><circle cx="9" cy="9" r="1.5"/>
-        <circle cx="3" cy="15" r="1.5"/><circle cx="9" cy="15" r="1.5"/>
-      </svg>
-    </span>
-  )
-}
-
-// ─── Main component ─────────────────────────────────────────────────────────────
-
 export default function Dashboard() {
-  const { data, isSingleUser, household } = useInsight()
+  const { data, isSingleUser, household, canEdit } = useInsight()
   const hid = household?.id || 'local'
 
-  const [prefs, setPrefs] = useState<DashPrefs>({ order: DEFAULT_ORDER, hidden: [] })
+  const [prefs, setPrefs] = useState<DashPrefs>({ hidden: [] })
   const [showWidgetSettings, setShowWidgetSettings] = useState(false)
-  const [dragId, setDragId] = useState<string | null>(null)
-  const [dragOverId, setDragOverId] = useState<string | null>(null)
-  const [previewTheme, setPreviewTheme] = useState(data.theme || '#6366F1')
+  const [activeFilter, setActiveFilter] = useState<ActiveFilter>('samen')
   const [isDark, setIsDark] = useState(false)
 
   useEffect(() => {
@@ -153,24 +107,6 @@ export default function Dashboard() {
   }, [])
 
   useEffect(() => { setPrefs(loadPrefs(hid)) }, [hid])
-  useEffect(() => { setPreviewTheme(data.theme || '#6366F1') }, [data.theme])
-
-  useEffect(() => {
-    const handler = (e: Event) => {
-      const color = (e as CustomEvent<{ color?: string }>).detail?.color
-      if (color) setPreviewTheme(color)
-    }
-    window.addEventListener('se-theme-preview', handler)
-    return () => window.removeEventListener('se-theme-preview', handler)
-  }, [])
-
-  // ── Colors ──────────────────────────────────────────────────────────────────
-
-  const accentHex = previewTheme.toLowerCase()
-  const accentDark = darken(accentHex, 0.45)
-  const accentLight = lighten(accentHex, 0.55)
-
-  // ── Financials ──────────────────────────────────────────────────────────────
 
   const n1 = data.names?.user1 || 'Gebruiker 1'
   const n2 = data.names?.user2 || 'Gebruiker 2'
@@ -178,7 +114,10 @@ export default function Dashboard() {
   const jI = sum(data.user1?.income || [])
   const dI = sum(data.user2?.income || [])
   const totalIncome = jI + dI
-  const jRatio = totalIncome ? jI / totalIncome : 0.5
+  const jIRatio = sum((data.user1?.income || []).filter((i: { excludeFromRatio?: boolean }) => !i.excludeFromRatio))
+  const dIRatio = sum((data.user2?.income || []).filter((i: { excludeFromRatio?: boolean }) => !i.excludeFromRatio))
+  const totalRatio = jIRatio + dIRatio
+  const jRatio = totalRatio ? jIRatio / totalRatio : 0.5
   const dRatio = 1 - jRatio
 
   const sharedItems = (data.shared as SharedItem[] || [])
@@ -190,7 +129,6 @@ export default function Dashboard() {
     if (c.split === 'percent') return a + v * (c.p1 ?? 50) / 100
     return a + v * jRatio
   }, 0)
-
   const dSh = sharedItems.reduce((a, c) => {
     const v = c.value || 0
     if (c.split === '5050') return a + v / 2
@@ -202,434 +140,179 @@ export default function Dashboard() {
 
   const jPr = sum(data.user1?.private || [])
   const dPr = sum(data.user2?.private || [])
-  const jSsh = sum(data.user1?.savings?.shared || [])
-  const dSsh = sum(data.user2?.savings?.shared || [])
   const jSprivate = sum(data.user1?.savings?.private || [])
   const dSprivate = sum(data.user2?.savings?.private || [])
+
+  const allSavSh = [
+    ...(data.user1?.savings?.shared as SavItem[] || []),
+    ...(data.user2?.savings?.shared as SavItem[] || []),
+  ]
+  function splitSavItem(item: SavItem): { u1: number; u2: number } {
+    const s = item.split || '5050'
+    const v = item.value || 0
+    if (s === 'user1') return { u1: v, u2: 0 }
+    if (s === 'user2') return { u1: 0, u2: v }
+    if (s === 'percent') return { u1: v * (item.p1 ?? 50) / 100, u2: v * (item.p2 ?? 50) / 100 }
+    if (s === 'ratio') return { u1: v * jRatio, u2: v * dRatio }
+    return { u1: v / 2, u2: v / 2 }
+  }
+  const jSsh = allSavSh.reduce((a, i) => a + splitSavItem(i).u1, 0)
+  const dSsh = allSavSh.reduce((a, i) => a + splitSavItem(i).u2, 0)
   const jSv = jSsh + jSprivate
   const dSv = dSsh + dSprivate
 
-  const jTr = jSh + jSsh
-  const dTr = dSh + dSsh
+  const subs = (data.abonnementen as Sub[] || [])
+  const gezSubs = subs.filter(s => s.person === 'gezamenlijk')
+  function subSplitMonthly(s: Sub): { u1: number; u2: number } {
+    const m = subMonthly(s)
+    const sp = s.split || '5050'
+    if (sp === 'user1') return { u1: m, u2: 0 }
+    if (sp === 'user2') return { u1: 0, u2: m }
+    if (sp === 'percent') return { u1: m * (s.p1 ?? 50) / 100, u2: m * (s.p2 ?? 50) / 100 }
+    if (sp === 'ratio') return { u1: m * jRatio, u2: m * dRatio }
+    return { u1: m / 2, u2: m / 2 }
+  }
+  const jSubGez = gezSubs.reduce((a, s) => a + subSplitMonthly(s).u1, 0)
+  const dSubGez = gezSubs.reduce((a, s) => a + subSplitMonthly(s).u2, 0)
+
+  const jTr = jSh + jSsh + jSubGez
+  const dTr = dSh + dSsh + dSubGez
   const jR = jI - jTr - jPr - jSprivate
   const dR = dI - dTr - dPr - dSprivate
 
-  const totalShared = jSh + dSh
+  const totalShared = jSh + dSh + jSubGez + dSubGez
   const totalPrive = jPr + dPr
   const totalSparen = jSv + dSv
   const totalDonut = totalShared + totalSparen + totalPrive
   const shPct = totalDonut ? (totalShared / totalDonut) * 100 : 0
   const svPct = totalDonut ? (totalSparen / totalDonut) * 100 : 0
 
-  const subs = (data.abonnementen as Sub[] || [])
   const schulden = (data.schulden as Schuld[] || [])
   const potten = (data.spaarpotjes as Pot[] || [])
 
-  const upcoming = subs
-    .map(s => ({ ...s, days: daysUntil(s.date) }))
-    .filter(s => s.days !== null && s.days >= -3 && s.days <= 60)
-    .sort((a, b) => (a.days ?? 0) - (b.days ?? 0))
-
-  // ── Drag handlers ──────────────────────────────────────────────────────────
-
-  function updatePrefs(p: DashPrefs) { setPrefs(p); savePrefs(hid, p) }
-
-  function toggleWidget(id: string) {
-    const hidden = prefs.hidden.includes(id)
-      ? prefs.hidden.filter(h => h !== id)
-      : [...prefs.hidden, id]
-    updatePrefs({ ...prefs, hidden })
+  function goTo(page: string, tab?: string) {
+    const params = new URLSearchParams(window.location.search)
+    params.set('page', page)
+    if (tab) params.set('tab', tab); else params.delete('tab')
+    window.history.replaceState(null, '', `?${params.toString()}`)
+    window.dispatchEvent(new CustomEvent('se-navigate', { detail: { page } }))
   }
 
-  function onDragStart(id: string) { setDragId(id) }
-  function onDragOver(e: React.DragEvent, id: string) { e.preventDefault(); setDragOverId(id) }
-  function onDrop(id: string) {
-    if (!dragId || dragId === id) { setDragId(null); setDragOverId(null); return }
-    const order = [...prefs.order]
-    const from = order.indexOf(dragId)
-    const to = order.indexOf(id)
-    if (from >= 0 && to >= 0) { order.splice(from, 1); order.splice(to, 0, dragId) }
-    updatePrefs({ ...prefs, order })
-    setDragId(null); setDragOverId(null)
+  const attentionItems: AttentionItem[] = []
+  for (const sub of subs) {
+    const days = daysUntil(sub.date)
+    if (days !== null && days >= 0 && days <= 7) {
+      attentionItems.push({ id: `sub-${sub.id}`, priority: 'red', title: `${sub.name} verloopt over ${days === 0 ? 'vandaag' : `${days} dag${days !== 1 ? 'en' : ''}`}`, action: { label: 'Bekijk abonnementen', page: 'kosten', tab: 'abonnementen' } })
+    }
   }
-  function onDragEnd() { setDragId(null); setDragOverId(null) }
+  for (const sc of schulden) {
+    if (sc.fixedYears && sc.fixedYears > 0 && sc.fixedStart) {
+      const e = new Date(sc.fixedStart)
+      e.setFullYear(e.getFullYear() + sc.fixedYears)
+      const days = Math.ceil((e.getTime() - Date.now()) / 86400000)
+      if (days >= 0 && days <= 60) {
+        attentionItems.push({ id: `sc-${sc.id}`, priority: days <= 14 ? 'red' : 'orange', title: `Rentevaste periode ${sc.naam} verloopt over ${days} dagen`, action: { label: 'Bekijk schulden', page: 'vermogen', tab: 'schulden' } })
+      }
+    }
+  }
+  for (const pot of potten) {
+    const ts = (pot as any).updatedAt || (pot as any).createdAt
+    if (ts) {
+      const daysSince = Math.floor((Date.now() - new Date(ts).getTime()) / 86400000)
+      if (daysSince > 60) {
+        attentionItems.push({ id: `pot-${pot.id}`, priority: 'orange', title: `${pot.label} heeft ${Math.floor(daysSince / 30)} maanden geen update gehad`, action: { label: 'Bekijk sparen', page: 'vermogen', tab: 'sparen' } })
+      }
+    }
+  }
+  if (!data.user1?.income?.length && canEdit('user1')) {
+    attentionItems.push({ id: 'no-inc-1', priority: 'orange', title: `${n1} heeft nog geen inkomsten ingevuld`, action: { label: 'Voeg inkomsten toe', page: 'inkomsten' } })
+  }
+  if (!isSingleUser && !data.user2?.income?.length && canEdit('user2')) {
+    attentionItems.push({ id: 'no-inc-2', priority: 'orange', title: `${n2} heeft nog geen inkomsten ingevuld`, action: { label: 'Voeg inkomsten toe', page: 'inkomsten' } })
+  }
+  const attentionSlice = attentionItems.slice(0, 4)
 
-  // ── Visible widgets ────────────────────────────────────────────────────────
-
-  const visibleIds = prefs.order
-    .filter(id => WIDGET_META[id])
-    .filter(id => !prefs.hidden.includes(id))
-    .filter(id => !(WIDGET_META[id].dualOnly && isSingleUser))
-
-  // ── Income bar helper ──────────────────────────────────────────────────────
+  const sevenDaysAgo = Date.now() - 7 * 86400000
+  const recentChanges: string[] = []
+  for (const item of [...(data.user1?.income || []), ...(data.user2?.income || [])]) {
+    if (item.createdAt && new Date(item.createdAt).getTime() > sevenDaysAgo) recentChanges.push(`+ ${item.label} toegevoegd aan inkomsten`)
+  }
+  for (const item of [...(data.user1?.private || []), ...(data.user2?.private || []), ...(data.shared || [])]) {
+    if (item.createdAt && new Date(item.createdAt).getTime() > sevenDaysAgo) recentChanges.push(`+ ${item.label} toegevoegd aan kosten`)
+  }
+  for (const pot of potten) {
+    if ((pot as any).createdAt && new Date((pot as any).createdAt).getTime() > sevenDaysAgo) recentChanges.push(`+ ${pot.label} spaardoel toegevoegd`)
+    else if ((pot as any).updatedAt && new Date((pot as any).updatedAt).getTime() > sevenDaysAgo) recentChanges.push(`${pot.label} spaardoel bijgewerkt`)
+  }
+  for (const sc of schulden) {
+    if (sc.createdAt && new Date(sc.createdAt).getTime() > sevenDaysAgo) recentChanges.push(`+ ${sc.naam} schuld toegevoegd`)
+  }
+  for (const sub of subs) {
+    if ((sub as any).createdAt && new Date((sub as any).createdAt).getTime() > sevenDaysAgo) recentChanges.push(`+ ${sub.name} abonnement toegevoegd`)
+  }
+  const recentPills = recentChanges.slice(0, 3)
 
   const colors = PAGE_COLORS.dashboard
-  const dashColor  = isDark ? colors.dark : colors.light
-  const dashDark   = isDark ? '#4F46E5' : accentDark
-  const dashLight  = isDark ? '#C7D2FE' : accentLight
+  const dashColor = isDark ? colors.dark : colors.light
+  const donutDark  = isDark ? '#3730A3' : '#4338CA'
+  const donutLight = isDark ? '#C7D2FE' : '#A5B4FC'
 
-  function incBars(inc: number, sh: number, pr: number, sv: number) {
-    const expenses = inc ? (sh + pr) / inc : 0
-    const savings = inc ? sv / inc : 0
-    const rest = Math.max(0, 1 - expenses - savings)
-    return [
-      { label: 'Vaste lasten', pct: expenses, c: dashDark },
-      { label: 'Sparen',       pct: savings,  c: dashColor },
-      { label: 'Restant',      pct: rest,     c: dashLight },
-    ]
+  function updatePrefs(p: DashPrefs) { setPrefs(p); savePrefs(hid, p) }
+  function toggleWidget(id: string) {
+    const hidden = prefs.hidden.includes(id) ? prefs.hidden.filter(h => h !== id) : [...prefs.hidden, id]
+    updatePrefs({ hidden })
   }
+  function isHidden(id: string) { return prefs.hidden.includes(id) }
 
-  // ── Widget renderers ───────────────────────────────────────────────────────
+  const heroUsers = isSingleUser
+    ? [{ slot: 'user1' as const, name: n1, income: jI, rest: jR }]
+    : activeFilter === 'samen'
+      ? [{ slot: 'user1' as const, name: n1, income: jI, rest: jR }, { slot: 'user2' as const, name: n2, income: dI, rest: dR }]
+      : activeFilter === 'user1'
+        ? [{ slot: 'user1' as const, name: n1, income: jI, rest: jR }]
+        : [{ slot: 'user2' as const, name: n2, income: dI, rest: dR }]
 
-  function renderFinancieelOverzicht() {
-    const cols = isSingleUser ? 'repeat(3, 1fr)' : 'repeat(6, 1fr)'
-    const stats = [
-      { label: `Inkomen ${n1}`,  val: fmtK(jI),        color: 'var(--ok)',     sub: 'per maand' },
-      ...(!isSingleUser ? [{ label: `Inkomen ${n2}`, val: fmtK(dI), color: 'var(--ok)', sub: 'per maand' }] : []),
-      { label: `Lasten ${n1}`,   val: fmtK(jSh + jPr), color: 'var(--danger)', sub: 'gezamenlijk + privé' },
-      ...(!isSingleUser ? [{ label: `Lasten ${n2}`, val: fmtK(dSh + dPr), color: 'var(--danger)', sub: 'gezamenlijk + privé' }] : []),
-      { label: `Restant ${n1}`,  val: fmtK(jR),         color: dashColor,       sub: 'na lasten & sparen' },
-      ...(!isSingleUser ? [{ label: `Restant ${n2}`, val: fmtK(dR), color: dashColor, sub: 'na lasten & sparen' }] : []),
-    ]
-    return (
-      <div style={card}>
-        <div style={cardHd}>
-          <span style={{ fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-heading)' }}>Financieel overzicht</span>
-          <DragHandle />
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: cols, gap: 10 }}>
-          {stats.map((s, i) => (
-            <div key={i} style={{ background: 'var(--s2)', border: '1px solid var(--card-border)', borderTop: `2px solid ${s.color}`, borderRadius: 8, padding: '13px 15px' }}>
-              <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 6 }}>{s.label}</div>
-              <div style={{ fontSize: 24, fontWeight: 700, lineHeight: 1, color: s.color }}><Num v={s.val} /></div>
-              <div style={{ fontSize: 11, color: 'var(--muted2)', marginTop: 5 }}>{s.sub}</div>
-            </div>
-          ))}
-        </div>
-        {/* Donut summary */}
-        {totalDonut > 0 && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--border)' }}>
-            <div style={{ width: 48, height: 48, borderRadius: '50%', background: `conic-gradient(${dashDark} 0% ${shPct}%, ${dashColor} ${shPct}% ${shPct + svPct}%, ${dashLight} ${shPct + svPct}% 100%)`, flexShrink: 0 }} />
-            <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
-              {[
-                { label: 'Gezamenlijk', val: totalShared, c: dashDark },
-                { label: 'Sparen',      val: totalSparen, c: dashColor },
-                { label: 'Privé',       val: totalPrive,  c: dashLight },
-              ].map(x => (
-                <div key={x.label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: x.c, flexShrink: 0 }} />
-                  <span style={{ fontSize: 12, color: 'var(--muted2)' }}>{x.label}</span>
-                  <span style={{ fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-mono)' }}><Num v={fmtK(x.val)} /></span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-    )
-  }
+  const overTeMakenUsers = isSingleUser
+    ? [{ name: n1, val: jTr }]
+    : activeFilter === 'samen'
+      ? [{ name: n1, val: jTr }, { name: n2, val: dTr }]
+      : activeFilter === 'user1'
+        ? [{ name: n1, val: jTr }]
+        : [{ name: n2, val: dTr }]
 
-  function renderCashflow() {
-    const items = isSingleUser
-      ? [{ name: n1, val: jR, inc: jI }]
-      : [{ name: n1, val: jR, inc: jI }, { name: n2, val: dR, inc: dI }]
-    return (
-      <div style={card}>
-        <div style={cardHd}>
-          <span style={{ fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-heading)' }}>Cashflow</span>
-          <DragHandle />
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          {items.map(({ name, val, inc }) => {
-            const pct = inc > 0 ? Math.min(100, Math.max(0, (val / inc) * 100)) : 0
-            const color = val >= 0 ? 'var(--ok)' : 'var(--danger)'
-            return (
-              <div key={name}>
-                {!isSingleUser && <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted)', marginBottom: 6 }}>{name}</div>}
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 8 }}>
-                  <span style={{ fontSize: 32, fontWeight: 700, color, lineHeight: 1 }}><Num v={fmtK(val)} /></span>
-                  <span style={{ fontSize: 12, color: 'var(--muted2)' }}>/ maand vrij besteedbaar</span>
-                </div>
-                <div style={{ height: 6, background: 'var(--s2)', borderRadius: 3, overflow: 'hidden' }}>
-                  <div style={{ height: '100%', borderRadius: 3, width: `${pct.toFixed(1)}%`, background: color, transition: 'width .5s ease' }} />
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 5, fontSize: 11, color: 'var(--muted2)' }}>
-                  <span>{pct.toFixed(0)}% van inkomen</span>
-                  <span><Num v={fmtK(inc)} /> inkomen</span>
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      </div>
-    )
-  }
+  const filteredPotten = isSingleUser || activeFilter === 'samen'
+    ? potten
+    : potten.filter(p => p.owner === activeFilter || (p.owner !== 'user1' && p.owner !== 'user2'))
 
-  function renderOverTeMaken() {
-    return (
-      <div style={card}>
-        <div style={cardHd}>
-          <span style={{ fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-heading)' }}>Over te maken naar gezamenlijke rekening</span>
-          <DragHandle />
-        </div>
-        <div style={{ display: 'flex', gap: 10 }}>
-          {[{ name: n1, val: jTr }, { name: n2, val: dTr }].map(({ name, val }) => (
-            <div key={name} style={{ flex: 1, background: 'var(--s2)', borderTop: `2px solid ${dashColor}`, borderRadius: 8, padding: '14px 16px', textAlign: 'center' }}>
-              <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 6 }}>{name}</div>
-              <div style={{ fontSize: 28, fontWeight: 700, color: dashColor, lineHeight: 1 }}><Num v={fmtK(val)} /></div>
-              <div style={{ fontSize: 11, color: 'var(--muted2)', marginTop: 5 }}>p/mnd naar gezamenlijk</div>
-            </div>
-          ))}
-        </div>
-        <div style={{ fontSize: 11, color: 'var(--muted2)', marginTop: 10, lineHeight: 1.6 }}>
-          Gezamenlijke lasten + gedeeld sparen.
-          {jTr + dTr > 0 && <> Totaal: <strong style={{ color: 'var(--text)' }}><Num v={fmtK(jTr + dTr)} /></strong>/mnd.</>}
-        </div>
-      </div>
-    )
-  }
+  const filteredSchulden = isSingleUser || activeFilter === 'samen'
+    ? schulden
+    : schulden.filter(sc => sc.wie === activeFilter)
 
-  function renderInkomenVerdeling() {
-    const users = isSingleUser
-      ? [{ name: n1, inc: jI, sh: jSh, pr: jPr, sv: jSv }]
-      : [{ name: n1, inc: jI, sh: jSh, pr: jPr, sv: jSv }, { name: n2, inc: dI, sh: dSh, pr: dPr, sv: dSv }]
-    return (
-      <div style={card}>
-        <div style={cardHd}>
-          <span style={{ fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-heading)' }}>Inkomen &amp; verdeling</span>
-          <DragHandle />
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: isSingleUser ? '1fr' : '1fr 1fr', gap: 20 }}>
-          {users.map(({ name, inc, sh, pr, sv }) => (
-            <div key={name}>
-              {!isSingleUser && <div style={{ fontSize: 13, fontWeight: 700, color: dashColor, fontFamily: 'var(--font-heading)', marginBottom: 12 }}>{name}</div>}
-              {incBars(inc, sh, pr, sv).map((x, i) => (
-                <div key={i} style={{ marginBottom: 12 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: 12 }}>
-                    <span style={{ color: 'var(--muted2)' }}>{x.label}</span>
-                    <span style={{ fontWeight: 700, fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums' }}>{(x.pct * 100).toFixed(1)}%</span>
-                  </div>
-                  <div style={{ height: 5, background: 'var(--s2)', borderRadius: 3, overflow: 'hidden' }}>
-                    <div style={{ height: '100%', borderRadius: 3, width: `${(Math.max(0, x.pct) * 100).toFixed(2)}%`, background: x.c, transition: 'width .5s ease' }} />
-                  </div>
-                </div>
-              ))}
-              {inc > 0 && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--muted2)', borderTop: '1px solid var(--border)', paddingTop: 8, marginTop: 4 }}>
-                  <span>Totaal inkomen</span>
-                  <span style={{ fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--ok)' }}><Num v={fmtK(inc)} /></span>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-    )
-  }
+  const filteredSubsTotal = (() => {
+    if (isSingleUser || activeFilter === 'samen') return subs.reduce((a, s) => a + subMonthly(s), 0)
+    if (activeFilter === 'user1') return subs.filter(s => s.person === 'user1').reduce((a, s) => a + subMonthly(s), 0) + jSubGez
+    return subs.filter(s => s.person === 'user2').reduce((a, s) => a + subMonthly(s), 0) + dSubGez
+  })()
 
-  function renderSpaardoelen() {
-    const activePots = potten.filter(p => p.goal > 0)
-    const totalCurrent = potten.reduce((s, p) => s + (p.current || 0), 0)
-    const totalGoal = activePots.reduce((s, p) => s + (p.goal || 0), 0)
-    return (
-      <div style={card}>
-        <div style={cardHd}>
-          <span style={{ fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-heading)' }}>Spaardoelen</span>
-          <DragHandle />
-        </div>
-        {activePots.length === 0 ? (
-          <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.7, textAlign: 'center', padding: '12px 0' }}>
-            Nog geen spaardoelen ingesteld.<br />
-            <span style={{ color: 'var(--muted2)' }}>Voeg spaarpotjes toe via Sparen.</span>
-          </div>
-        ) : (
-          <>
-            {activePots.map(p => {
-              const pct = p.goal > 0 ? Math.min(100, (p.current / p.goal) * 100) : 0
-              const remaining = Math.max(0, p.goal - p.current)
-              const ownerLabel = p.owner === 'user1' ? n1 : p.owner === 'user2' ? n2 : 'Gedeeld'
-              const barColor = pct >= 80 ? 'var(--ok)' : pct >= 50 ? dashColor : dashDark
-              return (
-                <div key={p.id} style={{ marginBottom: 14 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 5 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span style={{ fontSize: 13, fontWeight: 600 }}>{p.label}</span>
-                      {!isSingleUser && <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 10, background: 'var(--s2)', color: 'var(--muted)', fontWeight: 600 }}>{ownerLabel}</span>}
-                    </div>
-                    <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--muted2)', fontVariantNumeric: 'tabular-nums' }}>
-                      <Num v={fmt(p.current, 0)} /> / <Num v={fmt(p.goal, 0)} />
-                    </span>
-                  </div>
-                  <div style={{ height: 6, background: 'var(--s2)', borderRadius: 3, overflow: 'hidden' }}>
-                    <div style={{ height: '100%', borderRadius: 3, width: `${pct.toFixed(1)}%`, background: barColor, transition: 'width .5s ease' }} />
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, fontSize: 11, color: 'var(--muted2)' }}>
-                    <span style={{ color: barColor, fontWeight: 600 }}>{pct.toFixed(0)}%</span>
-                    {remaining > 0 && <span>nog <Num v={fmt(remaining, 0)} /></span>}
-                  </div>
-                </div>
-              )
-            })}
-            {activePots.length > 1 && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border)', paddingTop: 10, marginTop: 6, fontSize: 11 }}>
-                <span style={{ color: 'var(--muted2)' }}>{activePots.length} doelen · <Num v={fmt(totalCurrent, 0)} /> gespaard</span>
-                <span style={{ fontWeight: 600, color: dashColor }}><Num v={fmt(totalGoal, 0)} /> doel</span>
-              </div>
-            )}
-          </>
-        )}
-      </div>
-    )
-  }
+  const filteredInkomen = activeFilter === 'user2' ? dI : activeFilter === 'user1' ? jI : totalIncome
 
-  function renderSchulden() {
-    const totalBalance = schulden.reduce((s, d) => s + (d.balance || 0), 0)
-    const totalPayment = schulden.reduce((s, d) => s + (d.payment || 0), 0)
-    const maxMonths = schulden.reduce((max, d) => {
-      const m = d.payment > 0 ? Math.ceil(d.balance / d.payment) : 0
-      return Math.max(max, m)
-    }, 0)
-    const years = Math.floor(maxMonths / 12)
-    const months = maxMonths % 12
-    return (
-      <div style={card}>
-        <div style={cardHd}>
-          <span style={{ fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-heading)' }}>Schulden</span>
-          <DragHandle />
-        </div>
-        {schulden.length === 0 ? (
-          <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.7, textAlign: 'center', padding: '12px 0' }}>
-            Geen schulden geregistreerd.<br />
-            <span style={{ color: 'var(--muted2)' }}>Voeg schulden toe via Schulden.</span>
-          </div>
-        ) : (
-          <>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 14 }}>
-              <div style={{ background: 'var(--s2)', borderRadius: 8, padding: '10px 12px', borderTop: '2px solid var(--danger)' }}>
-                <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 4 }}>Openstaand</div>
-                <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--danger)' }}><Num v={fmtK(totalBalance)} /></div>
-              </div>
-              <div style={{ background: 'var(--s2)', borderRadius: 8, padding: '10px 12px', borderTop: '2px solid var(--danger)' }}>
-                <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 4 }}>Maand&shy;last</div>
-                <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--danger)' }}><Num v={fmtK(totalPayment)} /></div>
-              </div>
-            </div>
-            {schulden.slice(0, 4).map(d => {
-              const months = d.payment > 0 ? Math.ceil(d.balance / d.payment) : null
-              const ownerLabel = d.wie === 'user1' ? n1 : d.wie === 'user2' ? n2 : ''
-              return (
-                <div key={d.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: '1px solid var(--border)' }}>
-                  <div>
-                    <div style={{ fontSize: 12, fontWeight: 600 }}>{d.naam}</div>
-                    <div style={{ fontSize: 10, color: 'var(--muted2)', marginTop: 2 }}>
-                      {d.type}{!isSingleUser && ownerLabel ? ` · ${ownerLabel}` : ''}
-                    </div>
-                  </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--danger)' }}><Num v={fmtK(d.balance)} /></div>
-                    {months && <div style={{ fontSize: 10, color: 'var(--muted2)', marginTop: 1 }}>~{months < 12 ? `${months}mnd` : `${Math.ceil(months/12)}jr`}</div>}
-                  </div>
-                </div>
-              )
-            })}
-            {schulden.length > 4 && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 8 }}>+{schulden.length - 4} meer</div>}
-            {maxMonths > 0 && (
-              <div style={{ fontSize: 11, color: 'var(--muted2)', marginTop: 10, lineHeight: 1.6 }}>
-                Langste looptijd:{' '}
-                <strong style={{ color: 'var(--text)' }}>
-                  {years > 0 ? `${years}j ` : ''}{months > 0 ? `${months}mnd` : ''}
-                </strong>{' '}(vereenvoudigd, zonder rente)
-              </div>
-            )}
-          </>
-        )}
-      </div>
-    )
-  }
+  const expiringSoon = subs.filter(s => {
+    const days = daysUntil(s.date)
+    return days !== null && days >= 0 && days <= 7
+  })
 
-  function renderAbonnementen() {
-    const monthlyTotal = subs.reduce((s, sub) => s + subMonthly(sub), 0)
-    const byPerson = isSingleUser ? null : {
-      [n1]: subs.filter(s => s.person === 'user1' || s.person === 'shared').reduce((s, sub) => s + (sub.person === 'shared' ? subMonthly(sub) / 2 : subMonthly(sub)), 0),
-      [n2]: subs.filter(s => s.person === 'user2' || s.person === 'shared').reduce((s, sub) => s + (sub.person === 'shared' ? subMonthly(sub) / 2 : subMonthly(sub)), 0),
-    }
-    return (
-      <div style={card}>
-        <div style={cardHd}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <span style={{ fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-heading)' }}>Abonnementen</span>
-            {monthlyTotal > 0 && (
-              <div style={{ display: 'flex', gap: 16, marginTop: 2 }}>
-                <span style={{ fontSize: 11, color: 'var(--muted2)' }}>Totaal/mnd: <strong style={{ color: 'var(--text)', fontFamily: 'var(--font-mono)' }}><Num v={fmtK(monthlyTotal)} /></strong></span>
-                {byPerson && Object.entries(byPerson).map(([name, val]) => (
-                  <span key={name} style={{ fontSize: 11, color: 'var(--muted2)' }}>{name}: <strong style={{ color: 'var(--text)', fontFamily: 'var(--font-mono)' }}><Num v={fmtK(val)} /></strong></span>
-                ))}
-              </div>
-            )}
-          </div>
-          <DragHandle />
-        </div>
-        {upcoming.length === 0 ? (
-          <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.7 }}>
-            {subs.length === 0 ? 'Geen abonnementen ingevoerd.' : 'Geen vervaldagen de komende 60 dagen.'}
-          </div>
-        ) : (
-          <div style={{ display: 'grid', gap: 6 }}>
-            {upcoming.map(s => {
-              const days = s.days ?? 0
-              const urgency = days <= 14
-                ? { bg: 'rgba(224,80,80,.1)', color: 'var(--danger)' }
-                : days <= 30
-                  ? { bg: 'rgba(212,160,23,.1)', color: 'var(--warn)' }
-                  : { bg: 'rgba(76,175,130,.1)', color: 'var(--ok)' }
-              const ownerLabel = !isSingleUser ? (s.person === 'user1' ? n1 : s.person === 'user2' ? n2 : 'Gedeeld') : null
-              return (
-                <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, padding: '9px 12px', background: 'var(--s2)', border: '1px solid var(--border)', borderRadius: 7 }}>
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, fontFamily: 'var(--font-heading)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name}</div>
-                    <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
-                      <Num v={fmt(subMonthly(s), 2)} />/mnd
-                      {ownerLabel && <> · {ownerLabel}</>}
-                    </div>
-                  </div>
-                  <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', padding: '3px 8px', borderRadius: 4, whiteSpace: 'nowrap', background: urgency.bg, color: urgency.color }}>
-                    {days <= 0 ? 'Verlopen' : `${days} dgn`}
-                  </span>
-                </div>
-              )
-            })}
-          </div>
-        )}
-      </div>
-    )
-  }
-
-  // ── Widget dispatcher ──────────────────────────────────────────────────────
-
-  function renderWidget(id: string): React.ReactNode {
-    switch (id) {
-      case 'financieel-overzicht': return renderFinancieelOverzicht()
-      case 'cashflow':             return renderCashflow()
-      case 'over-te-maken':        return renderOverTeMaken()
-      case 'inkomen-verdeling':    return renderInkomenVerdeling()
-      case 'spaardoelen':          return renderSpaardoelen()
-      case 'schulden':             return renderSchulden()
-      case 'abonnementen':         return renderAbonnementen()
-      default:                     return null
-    }
-  }
-
-  // ── Render ─────────────────────────────────────────────────────────────────
+  const midVisible = (['over-te-maken', 'spaardoelen'] as const).filter(id => !isHidden(id))
+  const botVisible = (['schulden', 'abonnementen', 'inkomen'] as const).filter(id => !isHidden(id))
 
   return (
     <div style={{ position: 'relative', overflow: 'hidden' }}>
-      {/* Dashboard header */}
+      {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: showWidgetSettings ? 10 : 18 }}>
         <span style={{ fontSize: 18, fontWeight: 700, fontFamily: 'var(--font-heading)', color: dashColor }}>Dashboard</span>
         <button
           onClick={() => setShowWidgetSettings(s => !s)}
           title="Widgets beheren"
-          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 6, border: `1px solid ${showWidgetSettings ? 'var(--accent)' : 'var(--border)'}`, background: showWidgetSettings ? 'rgba(var(--accent-rgb),.08)' : 'transparent', color: showWidgetSettings ? 'var(--accent)' : 'var(--muted)', fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: '.15s' }}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 6, border: `1px solid ${showWidgetSettings ? dashColor : 'var(--border)'}`, background: showWidgetSettings ? colors.bg : 'transparent', color: showWidgetSettings ? dashColor : 'var(--muted)', fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: '.15s', fontFamily: 'var(--font-body)' }}
         >
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
@@ -638,22 +321,16 @@ export default function Dashboard() {
         </button>
       </div>
 
-      {/* Widget settings panel */}
+      {/* Widget settings */}
       {showWidgetSettings && (
         <div style={{ background: 'var(--s2)', border: '1px solid var(--border)', borderRadius: 10, padding: '14px 16px', marginBottom: 16 }}>
-          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 10 }}>Widgets tonen / verbergen · sleep kaarten om te herordenen</div>
+          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 10 }}>Widgets tonen / verbergen</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
-            {DEFAULT_ORDER.map(id => {
-              const meta = WIDGET_META[id]
-              if (!meta || (meta.dualOnly && isSingleUser)) return null
-              const isHidden = prefs.hidden.includes(id)
+            {DEFAULT_WIDGETS.map(id => {
+              const hidden = prefs.hidden.includes(id)
               return (
-                <button
-                  key={id}
-                  onClick={() => toggleWidget(id)}
-                  style={{ padding: '5px 13px', borderRadius: 20, border: `1px solid ${isHidden ? 'var(--border)' : 'var(--accent)'}`, background: isHidden ? 'transparent' : 'rgba(var(--accent-rgb),.1)', color: isHidden ? 'var(--muted)' : 'var(--accent)', fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: '.15s' }}
-                >
-                  {isHidden ? '+ ' : '✓ '}{meta.label}
+                <button key={id} onClick={() => toggleWidget(id)} style={{ padding: '5px 13px', borderRadius: 20, border: `1px solid ${hidden ? 'var(--border)' : dashColor}`, background: hidden ? 'transparent' : colors.bg, color: hidden ? 'var(--muted)' : dashColor, fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: '.15s', fontFamily: 'var(--font-body)' }}>
+                  {hidden ? '+ ' : '✓ '}{WIDGET_LABELS[id]}
                 </button>
               )
             })}
@@ -661,52 +338,297 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Widget grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14, alignItems: 'stretch' }}>
-        {visibleIds.map(id => {
-          const meta = WIDGET_META[id]
-          const isDragging = dragId === id
-          const isOver = dragOverId === id && !isDragging
+      {/* Attention */}
+      {attentionSlice.length > 0 && (
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 8 }}>Aandacht nodig</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {attentionSlice.map(item => {
+              const isRed = item.priority === 'red'
+              const clr = isRed ? '#EF4444' : '#F59E0B'
+              return (
+                <div key={item.id} style={{ background: isRed ? 'rgba(239,68,68,0.06)' : 'rgba(245,158,11,0.06)', border: `1px solid ${isRed ? 'rgba(239,68,68,0.22)' : 'rgba(245,158,11,0.22)'}`, borderLeft: `3px solid ${clr}`, borderRadius: 8, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ flex: 1, fontSize: 12.5, color: 'var(--text)', lineHeight: 1.4 }}>{item.title}</span>
+                  <button onClick={() => goTo(item.action.page, item.action.tab)} style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em', padding: '4px 10px', borderRadius: 5, border: `1px solid ${clr}`, color: clr, background: 'transparent', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, fontFamily: 'var(--font-body)' }}>
+                    {item.action.label}
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Recent changes */}
+      {recentPills.length > 0 && (
+        <div style={{ marginBottom: 16, padding: '10px 14px', background: 'var(--s2)', border: '1px solid var(--border)', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--muted)', flexShrink: 0 }}>Veranderd</span>
+          {recentPills.map((label, i) => (
+            <span key={i} style={{ fontSize: 11, padding: '3px 9px', borderRadius: 10, background: colors.bg, color: dashColor, border: `1px solid ${dashColor}30`, fontFamily: 'var(--font-body)' }}>{label}</span>
+          ))}
+        </div>
+      )}
+
+      {/* Filter bar */}
+      {!isSingleUser && (
+        <div style={{ display: 'flex', gap: 8, marginBottom: 18 }}>
+          {([
+            { id: 'samen' as ActiveFilter, label: 'Gezamenlijk' },
+            { id: 'user1' as ActiveFilter, label: n1 },
+            { id: 'user2' as ActiveFilter, label: n2 },
+          ]).map(f => {
+            const active = activeFilter === f.id
+            return (
+              <button
+                key={f.id}
+                onClick={() => setActiveFilter(f.id)}
+                style={{ padding: '7px 16px', borderRadius: 8, fontSize: 13, fontWeight: 600, fontFamily: 'var(--font-body)', cursor: 'pointer', border: active ? '1px solid #6366F1' : '1px solid var(--border)', background: active ? 'rgba(99,102,241,0.2)' : 'transparent', color: active ? (isDark ? '#818CF8' : '#6366F1') : 'var(--muted)', transition: 'all .15s' }}
+              >
+                {f.label}
+              </button>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Hero — vrij besteedbaar */}
+      <div style={{ display: 'grid', gridTemplateColumns: heroUsers.length === 1 ? '1fr' : '1fr 1fr', gap: 14, marginBottom: 14 }}>
+        {heroUsers.map(u => {
+          const pct = u.income > 0 ? Math.max(0, Math.min(100, (u.rest / u.income) * 100)) : 0
+          const isNeg = u.rest < 0
           return (
-            <div
-              key={id}
-              draggable
-              onDragStart={() => onDragStart(id)}
-              onDragOver={e => onDragOver(e, id)}
-              onDrop={() => onDrop(id)}
-              onDragEnd={onDragEnd}
-              style={{
-                gridColumn: meta.fullWidth ? '1 / -1' : undefined,
-                opacity: isDragging ? 0.35 : 1,
-                transition: 'opacity .15s',
-                outline: isOver ? `2px solid var(--accent)` : '2px solid transparent',
-                outlineOffset: 2,
-                borderRadius: 12,
-                cursor: 'default',
-                display: 'flex',
-                flexDirection: 'column',
-              }}
-            >
-              {renderWidget(id)}
+            <div key={u.slot} style={{ ...card }}>
+              <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 4 }}>Vrij besteedbaar</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: dashColor, marginBottom: 6 }}>{u.name}</div>
+              <div style={{ fontSize: 36, fontWeight: 700, lineHeight: 1.1, color: isNeg ? 'var(--danger)' : 'var(--text)', fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)', marginBottom: 8 }}>
+                <Num v={fmtK(u.rest)} />
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--muted2)', marginBottom: 10 }}>
+                {u.income > 0 ? `${pct.toFixed(0)}% van inkomen · totaal ${fmtK(u.income)}/mnd` : 'Geen inkomen ingevuld'}
+              </div>
+              <div style={{ height: 5, background: 'var(--s2)', borderRadius: 3, overflow: 'hidden' }}>
+                <div style={{ height: '100%', width: `${pct.toFixed(1)}%`, background: isNeg ? 'var(--danger)' : dashColor, borderRadius: 3, transition: 'width .4s ease' }} />
+              </div>
             </div>
           )
         })}
       </div>
 
-      {visibleIds.length === 0 && (
-        <div style={{ textAlign: 'center', padding: '48px 0', color: 'var(--muted)', fontSize: 13 }}>
-          Alle widgets zijn verborgen.{' '}
-          <button onClick={() => setShowWidgetSettings(true)} style={{ color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
-            Widgets beheren
-          </button>
+      {/* Middle row */}
+      {midVisible.length > 0 && (
+        <div style={{ display: 'grid', gridTemplateColumns: `repeat(${midVisible.length}, 1fr)`, gap: 14, marginBottom: 14 }}>
+          {midVisible.includes('over-te-maken') && (
+            <div style={{ ...card }}>
+              <div style={{ marginBottom: 14, paddingBottom: 12, borderBottom: '1px solid var(--border)' }}>
+                <div style={{ fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-heading)' }}>Over te maken</div>
+                <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 2 }}>naar gezamenlijke rekening</div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, flex: 1 }}>
+                {overTeMakenUsers.map(u => (
+                  <div key={u.name} style={{ background: colors.bgCard, border: `1px solid ${colors.bdCard}`, borderRadius: 8, padding: '14px 16px', textAlign: 'center' }}>
+                    <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 6 }}>{u.name}</div>
+                    <div style={{ fontSize: 28, fontWeight: 700, color: dashColor, lineHeight: 1 }}><Num v={fmtK(u.val)} /></div>
+                    <div style={{ fontSize: 11, color: 'var(--muted2)', marginTop: 5 }}>p/mnd naar gezamenlijk</div>
+                  </div>
+                ))}
+                {activeFilter === 'samen' && !isSingleUser && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 10, borderTop: '1px solid var(--border)', fontSize: 12, color: 'var(--muted2)' }}>
+                    <span>Totaal</span>
+                    <strong style={{ color: 'var(--text)', fontFamily: 'var(--font-mono)' }}><Num v={fmtK(jTr + dTr)} />/mnd</strong>
+                  </div>
+                )}
+              </div>
+              {totalDonut > 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--border)' }}>
+                  <div style={{ width: 40, height: 40, borderRadius: '50%', background: `conic-gradient(${donutDark} 0% ${shPct}%, ${dashColor} ${shPct}% ${shPct + svPct}%, ${donutLight} ${shPct + svPct}% 100%)`, flexShrink: 0 }} />
+                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                    {[
+                      { label: 'Gezamenlijk', val: totalShared, c: donutDark },
+                      { label: 'Sparen', val: totalSparen, c: dashColor },
+                      { label: 'Privé', val: totalPrive, c: donutLight },
+                    ].map(x => (
+                      <div key={x.label} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                        <div style={{ width: 7, height: 7, borderRadius: '50%', background: x.c, flexShrink: 0 }} />
+                        <span style={{ fontSize: 11, color: 'var(--muted2)' }}>{x.label}</span>
+                        <span style={{ fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-mono)' }}><Num v={fmtK(x.val)} /></span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          {midVisible.includes('spaardoelen') && (() => {
+            const activePots = filteredPotten.filter(p => p.goal > 0)
+            const barColor = isDark ? '#60A5FA' : '#3B82F6'
+            return (
+              <div style={{ ...card }}>
+                <div style={{ marginBottom: 14, paddingBottom: 12, borderBottom: '1px solid var(--border)' }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-heading)' }}>Spaardoelen</div>
+                  {activePots.length > 0 && <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 2 }}>{activePots.length} actieve {activePots.length === 1 ? 'doel' : 'doelen'}</div>}
+                </div>
+                {activePots.length === 0 ? (
+                  <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.7, textAlign: 'center', padding: '12px 0' }}>
+                    Geen spaardoelen ingesteld.<br /><span style={{ color: 'var(--muted2)' }}>Voeg spaarpotjes toe via Vermogen → Sparen.</span>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                    {activePots.map(p => {
+                      const pct = Math.min(100, (p.current / p.goal) * 100)
+                      const remaining = Math.max(0, p.goal - p.current)
+                      const ownerLabel = p.owner === 'user1' ? n1 : p.owner === 'user2' ? n2 : 'Gedeeld'
+                      return (
+                        <div key={p.id}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 5 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <span style={{ fontSize: 13, fontWeight: 600 }}>{p.label}</span>
+                              {!isSingleUser && <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 10, background: 'var(--s2)', color: 'var(--muted)', fontWeight: 600 }}>{ownerLabel}</span>}
+                            </div>
+                            <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--muted2)', fontVariantNumeric: 'tabular-nums' }}>
+                              <Num v={fmt(p.current, 0)} /> / <Num v={fmt(p.goal, 0)} />
+                            </span>
+                          </div>
+                          <div style={{ height: 6, background: 'var(--s2)', borderRadius: 3, overflow: 'hidden' }}>
+                            <div style={{ height: '100%', borderRadius: 3, width: `${pct.toFixed(1)}%`, background: barColor, transition: 'width .5s ease' }} />
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, fontSize: 11, color: 'var(--muted2)' }}>
+                            <span style={{ color: barColor, fontWeight: 600 }}>{pct.toFixed(0)}%</span>
+                            {remaining > 0 && <span>nog <Num v={fmt(remaining, 0)} /></span>}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )
+          })()}
         </div>
       )}
-      <div style={{ position: 'absolute', bottom: -50, right: -50, pointerEvents: 'none', zIndex: 0 }}>
-        <svg width="300" height="300" viewBox="0 0 200 200">
-          <polygon points="65,18 135,18 192,62 100,175 8,62" fill={dashColor} opacity="0.06" />
-          <polygon points="65,18 135,18 100,62" fill={dashColor} opacity="0.1" />
-        </svg>
-      </div>
+
+      {/* Bottom row */}
+      {botVisible.length > 0 && (
+        <div style={{ display: 'grid', gridTemplateColumns: `repeat(${botVisible.length}, 1fr)`, gap: 14 }}>
+          {botVisible.includes('schulden') && (() => {
+            const totalBalance = filteredSchulden.reduce((s, d) => s + (d.balance || 0), 0)
+            const totalPayment = filteredSchulden.reduce((s, d) => s + (d.payment || 0), 0)
+            const maxMonths = filteredSchulden.reduce((max, d) => Math.max(max, d.payment > 0 ? Math.ceil(d.balance / d.payment) : 0), 0)
+            const dangerColor = isDark ? '#F87171' : '#EF4444'
+            return (
+              <div style={{ ...card }}>
+                <div style={{ marginBottom: 14, paddingBottom: 12, borderBottom: '1px solid var(--border)' }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-heading)' }}>Schulden</div>
+                </div>
+                {filteredSchulden.length === 0 ? (
+                  <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.7, textAlign: 'center', padding: '12px 0' }}>Geen schulden geregistreerd.</div>
+                ) : (
+                  <>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 14 }}>
+                      {[{ label: 'Openstaand', val: fmtK(totalBalance) }, { label: 'Maandlast', val: fmtK(totalPayment) }].map(s => (
+                        <div key={s.label} style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 8, padding: '10px 12px' }}>
+                          <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 4 }}>{s.label}</div>
+                          <div style={{ fontSize: 20, fontWeight: 700, color: dangerColor }}><Num v={s.val} /></div>
+                        </div>
+                      ))}
+                    </div>
+                    {filteredSchulden.slice(0, 3).map(d => {
+                      const months = d.payment > 0 ? Math.ceil(d.balance / d.payment) : null
+                      const ownerLabel = !isSingleUser && d.wie ? (d.wie === 'user1' ? n1 : n2) : ''
+                      return (
+                        <div key={d.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: '1px solid var(--border)' }}>
+                          <div>
+                            <div style={{ fontSize: 12, fontWeight: 600 }}>{d.naam}</div>
+                            <div style={{ fontSize: 10, color: 'var(--muted2)', marginTop: 2 }}>{d.type}{!isSingleUser && ownerLabel ? ` · ${ownerLabel}` : ''}</div>
+                          </div>
+                          <div style={{ textAlign: 'right' }}>
+                            <div style={{ fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-mono)', color: dangerColor }}><Num v={fmtK(d.balance)} /></div>
+                            {months && <div style={{ fontSize: 10, color: 'var(--muted2)', marginTop: 1 }}>~{months < 12 ? `${months}mnd` : `${Math.ceil(months / 12)}jr`}</div>}
+                          </div>
+                        </div>
+                      )
+                    })}
+                    {filteredSchulden.length > 3 && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 8 }}>+{filteredSchulden.length - 3} meer</div>}
+                    {maxMonths > 0 && (
+                      <div style={{ fontSize: 11, color: 'var(--muted2)', marginTop: 10, lineHeight: 1.6 }}>
+                        Langste looptijd: <strong style={{ color: 'var(--text)' }}>{Math.floor(maxMonths / 12) > 0 ? `${Math.floor(maxMonths / 12)}j ` : ''}{maxMonths % 12 > 0 ? `${maxMonths % 12}mnd` : ''}</strong>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )
+          })()}
+
+          {botVisible.includes('abonnementen') && (() => {
+            const subColor = isDark ? '#FBBF24' : '#D97706'
+            return (
+              <div style={{ ...card }}>
+                <div style={{ marginBottom: 14, paddingBottom: 12, borderBottom: '1px solid var(--border)' }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-heading)' }}>Abonnementen</div>
+                </div>
+                <div style={{ background: 'rgba(217,119,6,0.06)', border: '1px solid rgba(217,119,6,0.2)', borderRadius: 8, padding: '14px 16px', marginBottom: 12 }}>
+                  <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 4 }}>Totaal per maand</div>
+                  <div style={{ fontSize: 28, fontWeight: 700, color: subColor, lineHeight: 1 }}><Num v={fmtK(filteredSubsTotal)} /></div>
+                </div>
+                {expiringSoon.length > 0 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 0, marginBottom: 10 }}>
+                    {expiringSoon.map(s => {
+                      const days = daysUntil(s.date)
+                      return (
+                        <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', borderBottom: '1px solid var(--border)' }}>
+                          <span style={{ fontSize: 12, color: 'var(--text)', fontWeight: 500 }}>{s.name}</span>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--danger)' }}>{days === 0 ? 'vandaag' : `${days} dgn`}</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+                {subs.length > 0 && (
+                  <div style={{ marginTop: 'auto', paddingTop: 10, borderTop: '1px solid var(--border)', fontSize: 11, color: 'var(--muted2)' }}>
+                    {subs.length} abonnement{subs.length !== 1 ? 'en' : ''} totaal
+                  </div>
+                )}
+              </div>
+            )
+          })()}
+
+          {botVisible.includes('inkomen') && (() => {
+            const incColor = isDark ? '#34D399' : '#10B981'
+            return (
+              <div style={{ ...card }}>
+                <div style={{ marginBottom: 14, paddingBottom: 12, borderBottom: '1px solid var(--border)' }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-heading)' }}>Inkomen</div>
+                </div>
+                <div style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: 8, padding: '14px 16px', marginBottom: 12 }}>
+                  <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 4 }}>
+                    {activeFilter === 'samen' ? 'Gecombineerd' : activeFilter === 'user1' ? n1 : n2}
+                  </div>
+                  <div style={{ fontSize: 28, fontWeight: 700, color: incColor, lineHeight: 1 }}><Num v={fmtK(filteredInkomen)} /></div>
+                  <div style={{ fontSize: 11, color: 'var(--muted2)', marginTop: 5 }}>per maand</div>
+                </div>
+                {!isSingleUser && activeFilter === 'samen' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {[
+                      { name: n1, income: jI, ratio: jRatio },
+                      { name: n2, income: dI, ratio: dRatio },
+                    ].map(u => (
+                      <div key={u.name}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: 12 }}>
+                          <span style={{ color: 'var(--muted2)' }}>{u.name}</span>
+                          <span style={{ fontWeight: 600, fontFamily: 'var(--font-mono)' }}>{(u.ratio * 100).toFixed(0)}%</span>
+                        </div>
+                        <div style={{ height: 4, background: 'var(--s2)', borderRadius: 3, overflow: 'hidden' }}>
+                          <div style={{ height: '100%', width: `${(u.ratio * 100).toFixed(1)}%`, background: incColor, borderRadius: 3, transition: 'width .4s ease' }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          })()}
+        </div>
+      )}
     </div>
   )
 }

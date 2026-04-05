@@ -30,6 +30,9 @@ export type InsightData = {
   abonnementen: any[]
   dashOrder: string[]
   lastUpdated?: string
+  inkomstenTs?: string
+  kostenTs?: string
+  vermogenTs?: string
 }
 
 const DEFAULTS: InsightData = {

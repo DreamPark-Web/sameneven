@@ -2,7 +2,7 @@
 
 :root {
   color-scheme: light;
-  --bg: #F4F4F6;
+  --bg: #EFEFEF;
   --s1: #FFFFFF;
   --s2: #F4F4F6;
   --s3: #FFFFFF;
@@ -37,14 +37,14 @@
 
 [data-theme="dark"] {
   color-scheme: dark;
-  --bg: #111827;
-  --s1: #1F2937;
-  --s2: #111827;
-  --s3: #1F2937;
-  --border: #374151;
-  --border2: #4B5563;
+  --bg: #121212;
+  --s1: #181818;
+  --s2: #181818;
+  --s3: #1E1E1E;
+  --border: #2A2A2A;
+  --border2: #383838;
   --text: #F5F5F5;
-  --card-border: rgba(255,255,255,0.08);
+  --card-border: rgba(255,255,255,0.06);
   --muted: #6B7280;
   --muted2: #9CA3AF;
   --accent: #E8C49A;
@@ -52,8 +52,8 @@
   --accent-rgb: 232, 196, 154;
   --accent-fg: #0a0a0a;
   --accent-dim: #6b4c28;
-  --input-border: #374151;
-  --cancel-border: #374151;
+  --input-border: #2E2E2E;
+  --cancel-border: #2E2E2E;
   --cancel-fg: #9CA3AF;
   --ok: #34D399;
   --danger: #FC8181;
@@ -183,11 +183,10 @@ svg {
 }
 
 .btn-add {
-  transition: border-color .15s, background .15s;
+  transition: filter .15s;
 }
 .btn-add:hover {
-  border-color: rgba(var(--accent-rgb), 0.8) !important;
-  background: rgba(var(--accent-rgb), 0.08) !important;
+  filter: brightness(0.9);
 }
 
 .btn-delete {
@@ -199,11 +198,10 @@ svg {
 }
 
 .btn-submit {
-  transition: filter .15s, box-shadow .15s;
+  transition: filter .15s;
 }
 .btn-submit:hover {
-  filter: brightness(1.06);
-  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), .25);
+  filter: brightness(0.9);
 }
 
 .btn-cancel {
@@ -240,6 +238,11 @@ svg {
 * {
   scrollbar-width: thin;
   scrollbar-color: var(--border) var(--s2);
+}
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translateX(12px); }
+  to   { opacity: 1; transform: translateX(0); }
 }
 
 @keyframes diamondPulse {

@@ -78,7 +78,6 @@ export default function PickerPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const backdropRef = useRef(false)
   const [balances, setBalances] = useState<any[]>([])
-  const [balancesReady, setBalancesReady] = useState(false)
   const [showCreateBalance, setShowCreateBalance] = useState(false)
   const [createBalanceName, setCreateBalanceName] = useState('')
   const [isCreatingBalance, setIsCreatingBalance] = useState(false)
@@ -207,6 +206,10 @@ export default function PickerPage() {
           data: { theme: '#E8C49A' },
         })
 
+      window.localStorage.setItem(
+        `se_nav_${hh.id}`,
+        JSON.stringify({ order: ['dashboard', 'inkomsten', 'kosten', 'vermogen', 'advies'], hidden: [] })
+      )
       applyThemeVars(BRAND_THEME)
       router.push(`/insight/${hh.id}`)
     }
@@ -374,7 +377,6 @@ export default function PickerPage() {
         .eq('user_id', userId)
         .order('created_at', { ascending: true })
       setBalances(data || [])
-      setBalancesReady(true)
     }
     loadBalances()
   }, [user?.id])
@@ -1032,7 +1034,7 @@ export default function PickerPage() {
               transition: 'border-color .2s, background .2s',
             }}
             onMouseEnter={(e) => {
-              ;(e.currentTarget as HTMLElement).style.background = '#EEF2FF'
+              ;(e.currentTarget as HTMLElement).style.background = 'rgba(99,102,241,0.08)'
               ;(e.currentTarget as HTMLElement).style.border = '2px dashed rgba(99,102,241,0.8)'
             }}
             onMouseLeave={(e) => {
@@ -1200,7 +1202,7 @@ export default function PickerPage() {
               cursor: 'pointer', transition: 'border-color .2s, background .2s',
             }}
             onMouseEnter={(e) => {
-              ;(e.currentTarget as HTMLElement).style.background = '#EEF2FF'
+              ;(e.currentTarget as HTMLElement).style.background = 'rgba(99,102,241,0.08)'
               ;(e.currentTarget as HTMLElement).style.border = '2px dashed rgba(99,102,241,0.8)'
             }}
             onMouseLeave={(e) => {

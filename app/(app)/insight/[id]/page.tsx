@@ -3,6 +3,8 @@
 import { useParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { InsightProvider } from '@/lib/insight-context'
+import { ToastProvider } from '@/lib/toast-context'
+import { PAGE_COLORS, PageKey } from '@/lib/pageColors'
 import Topbar from './components/Topbar'
 import Sidebar from './components/Sidebar'
 import Dashboard from './components/pages/Dashboard'
@@ -47,11 +49,17 @@ function InsightPageInner({
     }
   }, [id])
 
+  useEffect(() => {
+    const handler = (e: Event) => setActivePage((e as CustomEvent).detail.page)
+    window.addEventListener('se-navigate', handler)
+    return () => window.removeEventListener('se-navigate', handler)
+  }, [setActivePage])
+
   const ActiveComponent = PAGES[activePage] ?? Dashboard
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', position: 'relative', overflow: 'hidden' }}>
-      <div style={{ position: 'absolute', right: -300, bottom: -400, width: 1200, pointerEvents: 'none', zIndex: 0, opacity: 0.06, color: 'var(--accent)' }}>
+      <div style={{ position: 'absolute', right: -300, bottom: -400, width: 1200, pointerEvents: 'none', zIndex: 0, opacity: 0.04, color: PAGE_COLORS[activePage as PageKey]?.light ?? PAGE_COLORS.dashboard.light }}>
         <svg width="100%" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
           <polygon points="65,18 135,18 192,62 100,175 8,62" fill="currentColor" />
           <polyline points="65,18 135,18 192,62 100,175 8,62 65,18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
@@ -94,11 +102,25 @@ function InsightPageInner({
 
 export default function InsightPage() {
   const { id } = useParams<{ id: string }>()
-  const [activePage, setActivePage] = useState('dashboard')
+  const [activePage, setActivePage] = useState(() => {
+    if (typeof window === 'undefined') return 'dashboard'
+    const p = new URLSearchParams(window.location.search).get('page')
+    return p && PAGES[p] ? p : 'dashboard'
+  })
+
+  function navigate(page: string) {
+    setActivePage(page)
+    const params = new URLSearchParams(window.location.search)
+    params.set('page', page)
+    params.delete('tab')
+    window.history.replaceState(null, '', `?${params.toString()}`)
+  }
 
   return (
-    <InsightProvider householdId={id}>
-      <InsightPageInner id={id} activePage={activePage} setActivePage={setActivePage} />
-    </InsightProvider>
+    <ToastProvider>
+      <InsightProvider householdId={id}>
+        <InsightPageInner id={id} activePage={activePage} setActivePage={navigate} />
+      </InsightProvider>
+    </ToastProvider>
   )
 }
